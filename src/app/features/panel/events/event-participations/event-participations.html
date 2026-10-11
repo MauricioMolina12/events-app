@@ -1,0 +1,306 @@
+<section
+  class="flex flex-col gap-4 border-t border-(--border) pt-6"
+  aria-labelledby="event-venues-title"
+>
+  <header class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h2 id="event-venues-title" class="text-lg font-semibold">
+        {{ 'participations.title' | t }}
+      </h2>
+      <p class="mt-1 text-sm text-(--text-2)">{{ 'participations.subtitle' | t }}</p>
+      <p class="mt-1 text-xs text-(--text-3)">
+        {{
+          'participations.capacity.used'
+            | t: { used: allocatedSeats(), total: eventCapacity() }
+        }}
+      </p>
+    </div>
+    @if (!formOpen() && state().status === 'loaded') {
+      <button type="button" appButton variant="secondary" (click)="addEstablishment()">
+        {{ 'participations.new' | t }}
+      </button>
+    }
+  </header>
+
+  @if (actionError()) {
+    <p
+      class="callout callout--danger"
+      role="alert"
+    >
+      {{ actionError() }}
+    </p>
+  }
+
+  @switch (state().status) {
+    @case ('loading') {
+      <div class="flex flex-col gap-3" aria-busy="true" [attr.aria-label]="'app.loading' | t">
+        <app-skeleton class="h-12 w-full" />
+        <app-skeleton class="h-12 w-full" />
+      </div>
+    }
+    @case ('error') {
+      <div class="callout callout--danger" role="alert">
+        <p class="text-sm text-(--danger-700)">{{ errorMessage() }}</p>
+        <button type="button" appButton variant="secondary" (click)="retry()">
+          {{ 'app.retry' | t }}
+        </button>
+      </div>
+    }
+    @case ('loaded') {
+      @if (data(); as loadedData) {
+        @if (loadedData.participations.length === 0) {
+          <app-empty-state
+            titleKey="participations.empty.title"
+            bodyKey="participations.empty.body"
+            iconName="map-pin"
+          >
+            @if (!formOpen()) {
+              <button type="button" appButton variant="primary" (click)="addEstablishment()">
+                {{ 'participations.new' | t }}
+              </button>
+            }
+          </app-empty-state>
+        } @else {
+          <div class="table-shell table-shell--responsive">
+            <table class="data-table">
+              <thead class="bg-(--surface-1) text-xs uppercase text-(--text-3)">
+                <tr>
+                  <th scope="col" class="px-3 py-3 font-semibold">
+                    {{ 'participations.column.venue' | t }}
+                  </th>
+                  <th scope="col" class="px-3 py-3 font-semibold">
+                    {{ 'participations.column.status' | t }}
+                  </th>
+                  <th scope="col" class="px-3 py-3 font-semibold">
+                    {{ 'participations.column.titular' | t }}
+                  </th>
+                  <th scope="col" class="px-3 py-3 font-semibold">
+                    {{ 'participations.column.companion' | t }}
+                  </th>
+                  <th scope="col" class="px-3 py-3 text-right font-semibold">
+                    {{ 'events.actions' | t }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-(--border)">
+                @for (participation of loadedData.participations; track participation.id) {
+                  <tr class="hover:bg-(--surface-1)">
+                    <td class="px-3 py-4">
+                      <span class="block font-semibold">{{
+                        participation.establishment.name
+                      }}</span>
+                      @if (participation.establishment.city) {
+                        <span class="mt-1 block text-xs text-(--text-3)">{{
+                          participation.establishment.city
+                        }}</span>
+                      }
+                    </td>
+                    <td class="px-3 py-4">
+                      <app-status-badge [kind]="statusKind(participation.status)" />
+                    </td>
+                    <td class="px-3 py-4 tabular-nums">
+                      {{ participation.confirmedTitulares }} / {{ participation.titularCapacity }}
+                    </td>
+                    <td class="px-3 py-4 tabular-nums">
+                      {{ participation.confirmedCompanions }} /
+                      {{ participation.companionCapacity }}
+                    </td>
+                    <td class="px-3 py-4 text-right">
+                      <button
+                        type="button"
+                        appButton
+                        variant="ghost"
+                        (click)="editCapacity(participation)"
+                      >
+                        {{ 'events.action.edit' | t }}
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <ul class="table-cards">
+            @for (participation of loadedData.participations; track participation.id) {
+              <li class="card table-card">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="table-card__title">{{ participation.establishment.name }}</p>
+                    @if (participation.establishment.city) {
+                      <p class="table-card__meta">{{ participation.establishment.city }}</p>
+                    }
+                  </div>
+                  <app-status-badge [kind]="statusKind(participation.status)" />
+                </div>
+                <dl class="grid grid-cols-2 gap-3">
+                  <div class="table-card__row">
+                    <dt>{{ 'participations.column.titular' | t }}</dt>
+                    <dd>{{ participation.confirmedTitulares }} / {{ participation.titularCapacity }}</dd>
+                  </div>
+                  <div class="table-card__row">
+                    <dt>{{ 'participations.column.companion' | t }}</dt>
+                    <dd>{{ participation.confirmedCompanions }} / {{ participation.companionCapacity }}</dd>
+                  </div>
+                </dl>
+                <button type="button" appButton variant="ghost" size="sm" (click)="editCapacity(participation)">
+                  {{ 'events.action.edit' | t }}
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      }
+    }
+  }
+
+  @if (formOpen()) {
+    <form
+      class="card card--pad grid gap-4 sm:grid-cols-2"
+      [formGroup]="form"
+      (ngSubmit)="save()"
+      novalidate
+    >
+      <h3 class="text-base font-semibold sm:col-span-2">
+        {{ (isEditing() ? 'participations.form.edit' : 'participations.form.create') | t }}
+      </h3>
+
+      @if (!isEditing()) {
+        <div class="flex flex-wrap gap-2 sm:col-span-2">
+          @if (availableEstablishments().length > 0) {
+            <button
+              type="button"
+              appButton
+              [variant]="creatingVenue() ? 'secondary' : 'primary'"
+              (click)="useExistingVenue()"
+            >
+              {{ 'participations.form.useExisting' | t }}
+            </button>
+          }
+          <button
+            type="button"
+            appButton
+            [variant]="creatingVenue() ? 'primary' : 'secondary'"
+            (click)="createNewVenue()"
+          >
+            {{ 'participations.form.createVenue' | t }}
+          </button>
+        </div>
+
+        @if (creatingVenue()) {
+          <div>
+            <label for="participation-venue-name" class="mb-1.5 block text-sm font-medium">{{
+              'establishments.form.name' | t
+            }}</label>
+            <input
+              id="participation-venue-name"
+              formControlName="venueName"
+              required
+              maxlength="160"
+              class="field"
+            />
+          </div>
+          <div>
+            <label for="participation-venue-code" class="mb-1.5 block text-sm font-medium">{{
+              'establishments.form.code' | t
+            }}</label>
+            <input
+              id="participation-venue-code"
+              formControlName="venueCode"
+              readonly
+              aria-describedby="participation-venue-code-hint"
+              class="field font-mono"
+            />
+            <p id="participation-venue-code-hint" class="mt-1.5 text-xs text-(--text-3)">
+              {{ 'establishments.form.codeHint' | t }}
+            </p>
+          </div>
+          <div>
+            <label for="participation-venue-city" class="mb-1.5 block text-sm font-medium">{{
+              'establishments.form.city' | t
+            }}</label>
+            <input
+              id="participation-venue-city"
+              formControlName="venueCity"
+              maxlength="80"
+              class="field"
+            />
+          </div>
+          <div>
+            <label for="participation-venue-address" class="mb-1.5 block text-sm font-medium">{{
+              'establishments.form.address' | t
+            }}</label>
+            <input
+              id="participation-venue-address"
+              formControlName="venueAddress"
+              maxlength="200"
+              class="field"
+            />
+          </div>
+        } @else {
+          <div class="sm:col-span-2">
+            <label for="participation-establishment" class="mb-1.5 block text-sm font-medium">{{
+              'participations.column.venue' | t
+            }}</label>
+            <app-select
+              formControlName="establishmentId"
+              [options]="venueChoices()"
+              [searchable]="availableEstablishments().length >= 8"
+            />
+          </div>
+        }
+      }
+
+      <div>
+        <label for="titular-capacity" class="mb-1.5 block text-sm font-medium">{{
+          'participations.form.titularCapacity' | t
+        }}</label>
+        <input
+          id="titular-capacity"
+          type="number"
+          min="0"
+          max="100000"
+          step="1"
+          formControlName="titularCapacity"
+          required
+          class="field"
+        />
+      </div>
+      <div>
+        <label for="companion-capacity" class="mb-1.5 block text-sm font-medium">{{
+          'participations.form.companionCapacity' | t
+        }}</label>
+        <input
+          id="companion-capacity"
+          type="number"
+          min="0"
+          max="100000"
+          step="1"
+          formControlName="companionCapacity"
+          required
+          class="field"
+        />
+      </div>
+
+      @if (isEditing()) {
+        <p class="text-sm text-(--text-3) sm:col-span-2" role="note">
+          {{ 'participations.capacity.locked' | t }}
+        </p>
+      }
+
+      <div class="flex flex-wrap justify-end gap-3 sm:col-span-2">
+        <button type="button" appButton variant="secondary" (click)="cancelForm()">
+          {{ 'app.cancel' | t }}
+        </button>
+        <button
+          type="submit"
+          appButton
+          variant="primary"
+          [loading]="saving()"
+          [disabled]="saving()"
+        >
+          {{ (isEditing() ? 'app.save' : 'participations.form.create') | t }}
+        </button>
+      </div>
+    </form>
+  }
+</section>

@@ -1,0 +1,48 @@
+{
+  "name": "Eventos Barby Toys & Cupidos",
+  "short_name": "Eventos BT&C",
+  "description": "Catálogo de eventos, talleres y fiestas de Barby Toys & Cupidos. Consulta la agenda e inscríbete en línea.",
+  "lang": "es-CO",
+  "dir": "ltr",
+  "start_url": "/eventos",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#c81f68",
+  "categories": ["events", "lifestyle", "family"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ver eventos",
+      "short_name": "Eventos",
+      "url": "/eventos",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Consultar mi folio",
+      "short_name": "Mi folio",
+      "url": "/inscripcion",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

@@ -1,0 +1,638 @@
+@if (state(); as view) {
+  @switch (view.status) {
+    @case ('loading') {
+      <div class="mx-auto flex w-full flex-col gap-4" aria-busy="true">
+        <span class="sr-only">{{ 'app.loading' | t }}</span>
+        <app-skeleton class="h-4 w-28" />
+        <app-skeleton class="h-9 w-2/3" />
+        <app-skeleton class="h-4 w-1/2" />
+        <div class="flex flex-col gap-3 sm:flex-row">
+          @for (placeholder of placeholders; track placeholder) {
+            <app-skeleton class="h-28 w-full sm:flex-1" />
+          }
+        </div>
+        <app-skeleton class="h-72 w-full" />
+      </div>
+    }
+
+    @case ('error') {
+      @if (isMissing()) {
+        <app-empty-state
+          titleKey="app.notFound.title"
+          bodyKey="app.notFound.body"
+          iconName="compass"
+        >
+          <a routerLink="/eventos" appButton variant="primary">{{ 'event.back' | t }}</a>
+        </app-empty-state>
+      } @else {
+        <div class="card card--pad mx-auto flex w-full flex-col items-start gap-3" role="alert">
+          <h1 class="text-lg font-semibold">{{ 'app.error.title' | t }}</h1>
+          <p class="text-sm text-[var(--text-2)]">{{ errorMessage() }}</p>
+          @if (isOffline()) {
+            <p class="hint">{{ 'ui.retryOffline' | t }}</p>
+          }
+          <button type="button" appButton variant="secondary" (click)="retry()">
+            {{ 'app.retry' | t }}
+          </button>
+        </div>
+      }
+    }
+
+    @case ('loaded') {
+      <article class="mx-auto flex w-full flex-col gap-6">
+        <header class="flex flex-col gap-4">
+          <div class="flex flex-col gap-2">
+            <p
+              class="inline-flex items-center gap-1.5 text-xs font-semibold uppercase text-[var(--text-3)]"
+            >
+              <app-icon name="ticket" [size]="14" />
+              <span>{{ view.value.name }}</span>
+            </p>
+            <h1 class="text-3xl font-bold sm:text-4xl">{{ 'register.title' | t }}</h1>
+            <p class="max-w-prose text-sm text-[var(--text-2)]">{{ 'register.subtitle' | t }}</p>
+
+            <dl class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--text-2)]">
+              <div class="flex items-center gap-1.5">
+                <app-icon name="calendar" [size]="16" class="text-[var(--text-3)]" />
+                <dt class="sr-only">{{ 'event.when' | t }}</dt>
+                <dd>{{ view.value.startsAt ? whenLabel() : ('event.noDate' | t) }}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <ol class="stepper" [attr.aria-label]="'register.steps' | t">
+            @for (step of steps; track step.index) {
+              <li
+                class="stepper__item"
+                [attr.data-state]="stepState(step.index)"
+                [attr.aria-current]="stepState(step.index) === 'current' ? 'step' : null"
+              >
+                <span class="stepper__dot" aria-hidden="true">
+                  @if (stepState(step.index) === 'done') {
+                    <app-icon name="check" [size]="14" />
+                  } @else {
+                    {{ step.index }}
+                  }
+                </span>
+                <span class="stepper__label">{{ step.labelKey | t }}</span>
+                @if (!$last) {
+                  <span class="stepper__bar" aria-hidden="true"></span>
+                }
+              </li>
+            }
+          </ol>
+        </header>
+
+        <section class="card card--pad flex flex-col gap-4">
+          <header class="flex flex-col gap-1">
+            <h2 class="flex items-center gap-2 text-lg font-semibold">
+              <app-icon name="map-pin" [size]="18" class="text-[var(--primary)]" />
+              {{ 'register.sede' | t }}
+            </h2>
+            <p class="hint">{{ 'register.sede.hint' | t }}</p>
+          </header>
+
+          @if (view.value.participations.length === 0) {
+            <app-empty-state
+              titleKey="event.venues.empty"
+              bodyKey="catalog.empty.body"
+              iconName="map-pin"
+            />
+          } @else {
+            <ul class="flex list-none flex-col gap-3 p-0">
+              @for (participation of view.value.participations; track participation.id) {
+                <li>
+                  <label
+                    class="choice-card"
+                    [attr.data-selected]="isSelected(participation) ? 'true' : null"
+                    [attr.data-blocked]="blockedReason(participation) ? 'true' : null"
+                  >
+                    <input
+                      class="choice-card__input"
+                      type="radio"
+                      name="sede"
+                      [value]="participation.id"
+                      [checked]="isSelected(participation)"
+                      [attr.aria-label]="
+                        participation.establishment.city
+                          ? participation.establishment.name +
+                            ', ' +
+                            participation.establishment.city
+                          : participation.establishment.name
+                      "
+                      (change)="chooseSede(participation.id)"
+                    />
+
+                    <span class="flex min-w-0 flex-1 flex-col gap-2">
+                      <span class="flex flex-wrap items-start justify-between gap-2">
+                        <span class="flex min-w-0 flex-col gap-0.5">
+                          <span class="text-base font-semibold">
+                            {{ participation.establishment.name }}
+                          </span>
+                          @if (participation.establishment.city) {
+                            <span
+                              class="inline-flex items-center gap-1.5 text-sm text-[var(--text-3)]"
+                            >
+                              <app-icon name="map-pin" [size]="14" class="shrink-0" />
+                              {{ participation.establishment.city }}
+                            </span>
+                          }
+                        </span>
+
+                        <span class="flex flex-wrap items-center gap-1.5">
+                          @if (isSelected(participation)) {
+                            <span class="chip chip--primary">
+                              <app-icon name="check" [size]="12" />
+                              {{ 'register.sede.chosen' | t }}
+                            </span>
+                          }
+                          <app-status-badge [kind]="participationKind(participation)" />
+                        </span>
+                      </span>
+
+                      <span class="flex flex-wrap items-center gap-1.5">
+                        @if (participation.availableTitulares > 0) {
+                          <span class="chip chip--success">
+                            {{
+                              'ui.capacity.remaining'
+                                | t: { count: participation.availableTitulares }
+                            }}
+                          </span>
+                        } @else {
+                          <span class="chip chip--danger">{{ 'ui.capacity.full' | t }}</span>
+                        }
+                        @if (participation.availableCompanions > 0) {
+                          <span class="chip">
+                            {{
+                              'event.venue.companions'
+                                | t: { count: participation.availableCompanions }
+                            }}
+                          </span>
+                        }
+                      </span>
+
+                      <span class="hint">
+                        {{ 'event.venue.window' | t: { window: windowLabel(participation) } }}
+                      </span>
+
+                      @if (blockedReason(participation); as reason) {
+                        <span class="error-text">{{ reason | t }}</span>
+                      }
+                    </span>
+                  </label>
+                </li>
+              }
+            </ul>
+          }
+
+          <p class="sr-only" aria-live="polite">{{ announcement() }}</p>
+        </section>
+
+        @if (selectedBlocked(); as reason) {
+          <div class="card card--pad flex items-start gap-3" role="alert">
+            <app-icon
+              name="alert-triangle"
+              [size]="20"
+              class="mt-0.5 shrink-0 text-[var(--warning)]"
+            />
+            <div class="flex flex-col gap-1">
+              <p class="text-sm font-semibold">{{ 'register.sede.blocked' | t }}</p>
+              <p class="hint">{{ reason | t }}</p>
+              <p class="hint">{{ 'register.sede.pick' | t }}</p>
+            </div>
+          </div>
+        } @else if (selected()) {
+          <form
+            class="flex flex-col gap-6"
+            [formGroup]="form"
+            novalidate
+            (ngSubmit)="submit()"
+            #registrationForm
+          >
+            <fieldset class="field-group flex flex-col gap-6" [disabled]="saving()">
+              <section class="card card--pad flex flex-col gap-5">
+                <header class="flex flex-col gap-3">
+                  <div class="flex flex-wrap items-start justify-between gap-2">
+                    <div class="flex items-start gap-3">
+                      <span
+                        class="grid size-9 shrink-0 place-items-center rounded-[var(--radius-md)] bg-[var(--primary-subtle)] text-[var(--primary)]"
+                        aria-hidden="true"
+                      >
+                        <app-icon name="user" [size]="18" />
+                      </span>
+                      <div class="flex min-w-0 flex-col gap-0.5">
+                        <h2 class="text-lg font-semibold">{{ 'register.titular' | t }}</h2>
+                        <p class="hint">{{ 'register.titular.hint' | t }}</p>
+                      </div>
+                    </div>
+
+                    @if (completion() === 100) {
+                      <span class="chip chip--success">
+                        <app-icon name="check" [size]="12" />
+                        {{ 'register.progress.done' | t }}
+                      </span>
+                    }
+                  </div>
+
+                  <div class="flex items-center gap-3">
+                    <div
+                      class="progress flex-1"
+                      role="progressbar"
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                      [attr.aria-valuenow]="completion()"
+                      [attr.aria-label]="'register.progress.label' | t"
+                    >
+                      <div class="progress__bar" [style.width.%]="completion()"></div>
+                    </div>
+                    <span
+                      class="shrink-0 text-xs font-medium text-[var(--text-2)]"
+                      aria-hidden="true"
+                    >
+                      {{ 'register.progress' | t: { percent: completion() } }}
+                    </span>
+                  </div>
+                </header>
+
+                <div class="grid gap-4 sm:grid-cols-6">
+                  <app-form-field
+                    class="sm:col-span-2"
+                    controlId="regDocumentType"
+                    labelKey="register.documentType"
+                    required
+                  >
+                    <select
+                      id="regDocumentType"
+                      appField
+                      class="field"
+                      formControlName="documentType"
+                    >
+                      @for (type of documentTypes; track type) {
+                        <option [value]="type">{{ documentLabel(type) }}</option>
+                      }
+                    </select>
+                  </app-form-field>
+
+                  <app-form-field
+                    class="sm:col-span-4"
+                    controlId="regDocumentNumber"
+                    labelKey="register.documentNumber"
+                    hintKey="register.documentNumber.hint"
+                    [error]="controlError(form.controls.documentNumber, 'documentNumber')"
+                    required
+                  >
+                    <input
+                      id="regDocumentNumber"
+                      appField
+                      class="field"
+                      type="text"
+                      inputmode="numeric"
+                      autocomplete="off"
+                      formControlName="documentNumber"
+                    />
+                  </app-form-field>
+
+                  <app-form-field
+                    class="sm:col-span-6"
+                    controlId="regFullName"
+                    labelKey="register.fullName"
+                    [error]="controlError(form.controls.fullName, 'fullName')"
+                    required
+                  >
+                    <input
+                      id="regFullName"
+                      appField
+                      class="field"
+                      type="text"
+                      autocomplete="name"
+                      formControlName="fullName"
+                    />
+                  </app-form-field>
+
+                  <app-form-field
+                    class="sm:col-span-3"
+                    controlId="regEmail"
+                    labelKey="register.email"
+                    hintKey="register.email.hint"
+                    [error]="controlError(form.controls.email, 'email')"
+                    required
+                  >
+                    <input
+                      id="regEmail"
+                      appField
+                      class="field"
+                      type="email"
+                      inputmode="email"
+                      autocomplete="email"
+                      formControlName="email"
+                    />
+                  </app-form-field>
+
+                  <app-form-field
+                    class="sm:col-span-3"
+                    controlId="regPhone"
+                    labelKey="register.phone"
+                    hintKey="register.phone.hint"
+                    [error]="controlError(form.controls.phone, 'phone')"
+                    required
+                  >
+                    <input
+                      id="regPhone"
+                      appField
+                      class="field"
+                      type="tel"
+                      inputmode="tel"
+                      autocomplete="tel"
+                      formControlName="phone"
+                    />
+                  </app-form-field>
+
+                  <fieldset
+                    class="sm:col-span-6 flex flex-col gap-2"
+                    [attr.aria-invalid]="
+                      controlError(form.controls.requiresElectronicInvoice, 'requiresElectronicInvoice')
+                        ? 'true'
+                        : null
+                    "
+                    [attr.aria-describedby]="
+                      controlError(form.controls.requiresElectronicInvoice, 'requiresElectronicInvoice')
+                        ? 'regInvoice-error'
+                        : 'regInvoice-hint'
+                    "
+                  >
+                    <legend class="label">
+                      <span>{{ 'register.electronicInvoice' | t }}</span>
+                      <span class="text-[var(--danger)]" aria-hidden="true"> *</span>
+                    </legend>
+                    <div class="grid grid-cols-2 gap-3">
+                      <label
+                        class="choice-card"
+                        [attr.data-selected]="invoiceChoice() === true ? 'true' : null"
+                      >
+                        <input
+                          id="regInvoiceYes"
+                          class="choice-card__input"
+                          type="radio"
+                          formControlName="requiresElectronicInvoice"
+                          [value]="true"
+                        />
+                        <span class="text-sm font-semibold">{{
+                          'register.electronicInvoice.yes' | t
+                        }}</span>
+                      </label>
+                      <label
+                        class="choice-card"
+                        [attr.data-selected]="invoiceChoice() === false ? 'true' : null"
+                      >
+                        <input
+                          class="choice-card__input"
+                          type="radio"
+                          formControlName="requiresElectronicInvoice"
+                          [value]="false"
+                        />
+                        <span class="text-sm font-semibold">{{
+                          'register.electronicInvoice.no' | t
+                        }}</span>
+                      </label>
+                    </div>
+                    @if (
+                      controlError(
+                        form.controls.requiresElectronicInvoice,
+                        'requiresElectronicInvoice'
+                      );
+                      as message
+                    ) {
+                      <p id="regInvoice-error" class="error-text" role="alert">{{ message }}</p>
+                    } @else {
+                      <p id="regInvoice-hint" class="hint">
+                        {{ 'register.electronicInvoice.hint' | t }}
+                      </p>
+                    }
+                  </fieldset>
+                </div>
+              </section>
+
+              <section class="card card--pad flex flex-col gap-4">
+                <header class="flex flex-wrap items-start justify-between gap-3">
+                  <div class="flex items-start gap-3">
+                    <span
+                      class="grid size-9 shrink-0 place-items-center rounded-[var(--radius-md)] bg-[var(--primary-subtle)] text-[var(--primary)]"
+                      aria-hidden="true"
+                    >
+                      <app-icon name="users" [size]="18" />
+                    </span>
+                    <div class="flex min-w-0 flex-col gap-0.5">
+                      <h2 class="text-lg font-semibold">{{ 'register.companions' | t }}</h2>
+                      <p class="hint">{{ 'register.companions.subtitle' | t }}</p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    appButton
+                    variant="secondary"
+                    size="sm"
+                    [disabled]="!canAddCompanion()"
+                    (click)="addCompanion()"
+                  >
+                    <app-icon name="plus" [size]="16" />
+                    {{ 'register.companions.add' | t }}
+                  </button>
+                </header>
+
+                @if (maxCompanions() > 0) {
+                  <p class="hint">{{ 'register.companions.hint' | t: { max: maxCompanions() } }}</p>
+                } @else {
+                  <p class="hint">{{ 'event.venue.participationOnly' | t }}</p>
+                }
+
+                @if (form.controls.companions.length === 0) {
+                  <p class="text-sm text-[var(--text-3)]">{{ 'register.companions.empty' | t }}</p>
+                } @else {
+                  <ul class="flex list-none flex-col gap-4 p-0">
+                    @for (
+                      companion of form.controls.companions.controls;
+                      track companion;
+                      let index = $index
+                    ) {
+                      <li
+                        class="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-2)] p-3 sm:p-4"
+                      >
+                        <div class="flex items-start justify-between gap-2">
+                          <h3 class="text-sm font-semibold">
+                            {{ 'register.companions.item' | t: { index: index + 1 } }}
+                          </h3>
+                          <button
+                            type="button"
+                            appButton
+                            variant="ghost"
+                            size="sm"
+                            (click)="removeCompanion(index)"
+                          >
+                            <app-icon name="trash" [size]="16" />
+                            <span class="sr-only">
+                              {{ 'register.companions.remove' | t: { index: index + 1 } }}
+                            </span>
+                          </button>
+                        </div>
+
+                        <div class="grid gap-4 sm:grid-cols-6">
+                          <app-form-field
+                            class="sm:col-span-6"
+                            [controlId]="'comp' + index + 'Name'"
+                            labelKey="register.companions.name"
+                            [error]="
+                              controlError(
+                                companion.controls.fullName,
+                                'companions.' + index + '.fullName'
+                              )
+                            "
+                            required
+                          >
+                            <input
+                              [id]="'comp' + index + 'Name'"
+                              appField
+                              class="field"
+                              type="text"
+                              autocomplete="off"
+                              [formControl]="companion.controls.fullName"
+                            />
+                          </app-form-field>
+
+                          <app-form-field
+                            class="sm:col-span-2"
+                            [controlId]="'comp' + index + 'DocumentType'"
+                            labelKey="register.documentType"
+                          >
+                            <select
+                              [id]="'comp' + index + 'DocumentType'"
+                              appField
+                              class="field"
+                              [formControl]="companion.controls.documentType"
+                            >
+                              @for (type of documentTypes; track type) {
+                                <option [value]="type">{{ documentLabel(type) }}</option>
+                              }
+                            </select>
+                          </app-form-field>
+
+                          <app-form-field
+                            class="sm:col-span-4"
+                            [controlId]="'comp' + index + 'DocumentNumber'"
+                            labelKey="register.documentNumber"
+                            [error]="
+                              controlError(
+                                companion.controls.documentNumber,
+                                'companions.' + index + '.documentNumber'
+                              )
+                            "
+                          >
+                            <input
+                              [id]="'comp' + index + 'DocumentNumber'"
+                              appField
+                              class="field"
+                              type="text"
+                              inputmode="numeric"
+                              autocomplete="off"
+                              [formControl]="companion.controls.documentNumber"
+                            />
+                          </app-form-field>
+                        </div>
+                      </li>
+                    }
+                  </ul>
+                }
+              </section>
+
+              <section class="card card--pad flex flex-col gap-3" aria-labelledby="regPrivacyTitle">
+                <div class="flex items-start gap-3">
+                  <span
+                    class="grid size-9 shrink-0 place-items-center rounded-[var(--radius-md)] bg-[var(--success-subtle)] text-[var(--success)]"
+                    aria-hidden="true"
+                  >
+                    <app-icon name="shield-check" [size]="18" />
+                  </span>
+                  <div class="flex min-w-0 flex-col gap-0.5">
+                    <h2 id="regPrivacyTitle" class="text-lg font-semibold">
+                      {{ 'register.privacy.title' | t }}
+                    </h2>
+                    <p class="hint">{{ 'register.privacy.body' | t }}</p>
+                  </div>
+                </div>
+              </section>
+            </fieldset>
+
+            @if (invalidFields().length > 0) {
+              <div class="card card--pad flex items-start gap-3" role="alert">
+                <app-icon
+                  name="alert-triangle"
+                  [size]="18"
+                  class="mt-0.5 shrink-0 text-[var(--danger)]"
+                />
+                <div class="flex flex-col gap-1">
+                  <p class="text-sm font-semibold">
+                    {{ 'ui.form.errorsSummary' | t: { count: invalidFields().length } }}
+                  </p>
+                  <ul class="m-0 flex list-none flex-wrap gap-x-3 gap-y-1 p-0">
+                    @for (field of invalidFields(); track field.anchor) {
+                      <li>
+                        <a class="text-sm font-medium" [href]="'#' + field.anchor">
+                          {{ field.labelKey | t: field.labelParams }}
+                        </a>
+                      </li>
+                    }
+                  </ul>
+                  <p class="hint">{{ 'register.errors.hint' | t }}</p>
+                </div>
+              </div>
+            }
+
+            @if (submitMessage(); as message) {
+              <div class="card card--pad flex flex-col items-start gap-2" role="alert">
+                <p class="inline-flex items-center gap-2 text-sm font-semibold">
+                  <app-icon name="alert-circle" [size]="18" class="text-[var(--danger)]" />
+                  {{ 'app.error.title' | t }}
+                </p>
+                <p class="text-sm text-[var(--text-2)]">{{ message }}</p>
+                @if (submitOffline()) {
+                  <p class="hint">{{ 'ui.retryOffline' | t }}</p>
+                }
+                @if (submitSupportCode(); as supportCode) {
+                  <p class="hint">{{ 'ui.supportCode' | t: { code: supportCode } }}</p>
+                }
+              </div>
+            }
+
+            <div
+              class="safe-bottom sticky bottom-0 z-20 flex flex-col gap-3 border-t border-[var(--border)] bg-[var(--page)]/95 pt-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between"
+            >
+              <p class="hidden text-xs text-[var(--text-3)] sm:block">
+                {{ 'register.actions.note' | t }}
+              </p>
+
+              <div class="w-full sm:w-auto">
+                <button
+                  type="submit"
+                  appButton
+                  variant="primary"
+                  size="lg"
+                  block
+                  [loading]="saving()"
+                  [disabled]="!canSubmit()"
+                >
+                  @if (saving()) {
+                    <span class="spinner" aria-hidden="true"></span>
+                    {{ 'register.submitting' | t }}
+                  } @else {
+                    <app-icon name="check-circle" [size]="18" />
+                    {{ 'register.submit' | t }}
+                  }
+                </button>
+              </div>
+            </div>
+          </form>
+        }
+      </article>
+    }
+  }
+}

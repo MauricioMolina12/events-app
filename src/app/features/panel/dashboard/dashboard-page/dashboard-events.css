@@ -1,0 +1,195 @@
+/* Events section of the dashboard. Split from dashboard-page.css so each component
+   stylesheet stays within the per-file size budget. */
+.event-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event-card {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-1);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.event-card:hover {
+  box-shadow: var(--shadow-2);
+}
+
+.event-card.is-selected {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--primary) 25%, transparent),
+    var(--shadow-1);
+}
+
+.event-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.event-card__name {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  line-height: 1.3;
+  color: var(--text-1);
+}
+
+.event-card__meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--text-2);
+}
+
+.event-card__meta app-icon {
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  color: var(--text-3);
+}
+
+.event-card__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3) 0 0;
+  border-top: 1px solid var(--border);
+}
+
+.event-card__stats dt {
+  font-size: 0.6875rem;
+  color: var(--text-3);
+}
+
+.event-card__stats dd {
+  margin: 0.15rem 0 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-1);
+}
+
+.event-card__bar {
+  display: block;
+  height: 0.3rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+
+.event-card__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--success);
+  transition: width 700ms var(--ease-out);
+}
+
+.event-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+
+.event-card__current {
+  display: inline-flex;
+  min-height: var(--control-height-sm);
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--primary);
+}
+
+.event-card__edit {
+  display: grid;
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
+  margin-left: auto;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-3);
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.event-card__edit:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+.event-card__edit:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+@container (min-width: 48rem) {
+  .event-grid--single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .event-grid--single .event-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto;
+    grid-template-areas:
+      'top stats actions'
+      'date stats actions'
+      'sedes bar actions';
+    align-items: center;
+    column-gap: var(--space-6);
+  }
+
+  .event-grid--single .event-card__top {
+    grid-area: top;
+  }
+
+  .event-grid--single .event-card__meta:nth-of-type(1) {
+    grid-area: date;
+  }
+
+  .event-grid--single .event-card__meta:nth-of-type(2) {
+    grid-area: sedes;
+  }
+
+  .event-grid--single .event-card__stats {
+    grid-area: stats;
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+  }
+
+  .event-grid--single .event-card__bar {
+    grid-area: bar;
+  }
+
+  .event-grid--single .event-card__actions {
+    grid-area: actions;
+    margin: 0;
+    padding: 0;
+  }
+}

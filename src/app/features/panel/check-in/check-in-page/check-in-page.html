@@ -1,0 +1,184 @@
+<div class="mx-auto flex w-full max-w-3xl flex-col gap-6">
+  <app-page-header titleKey="checkIn.title" subtitleKey="checkIn.subtitle" />
+
+  <section class="flex flex-col gap-4" [hidden]="!showScanner()" aria-labelledby="check-in-scanner">
+    <h2 id="check-in-scanner" class="sr-only">{{ 'checkIn.scanner' | t }}</h2>
+
+    <div class="card overflow-hidden">
+      <div class="scanner-frame" [class.is-live]="phase() === 'scanning'">
+        <video #video class="scanner-video" [hidden]="!cameraOn()" aria-hidden="true"></video>
+
+        @if (phase() === 'scanning') {
+          <span class="scanner-target" aria-hidden="true">
+            <span class="scanner-line"></span>
+          </span>
+        }
+
+        @if (!cameraOn() && phase() !== 'processing') {
+          <div class="scanner-placeholder">
+            <span
+              class="grid size-14 place-items-center rounded-full bg-(--primary-subtle) text-(--primary-700)"
+              aria-hidden="true"
+            >
+              <app-icon name="scan" [size]="28" />
+            </span>
+            @if (cameraFailure(); as failure) {
+              <p class="max-w-sm text-center text-sm text-(--text-2)" role="alert">
+                {{ (failure === 'denied' ? 'checkIn.camera.denied' : 'checkIn.camera.unavailable') | t }}
+              </p>
+            } @else {
+              <p class="max-w-sm text-center text-sm text-(--text-2)">
+                {{ 'checkIn.camera.off' | t }}
+              </p>
+            }
+            <button type="button" appButton variant="primary" (click)="startCamera()">
+              <app-icon name="scan" [size]="18" />
+              <span>{{ 'checkIn.camera.start' | t }}</span>
+            </button>
+          </div>
+        }
+
+        @if (phase() === 'processing') {
+          <div class="scanner-placeholder" aria-live="polite">
+            <span class="scanner-spinner" aria-hidden="true"></span>
+            <p class="text-sm font-medium text-(--text-1)">{{ 'checkIn.processing' | t }}</p>
+          </div>
+        }
+      </div>
+
+      @if (cameraOn()) {
+        <div
+          class="flex items-center justify-between gap-3 border-t border-(--border) px-4 py-3"
+        >
+          <p class="text-sm text-(--text-2)" aria-live="polite">
+            {{ (phase() === 'starting' ? 'checkIn.camera.starting' : 'checkIn.camera.hint') | t }}
+          </p>
+          <button type="button" appButton variant="ghost" size="sm" (click)="stopCamera()">
+            {{ 'checkIn.camera.stop' | t }}
+          </button>
+        </div>
+      }
+    </div>
+
+    <form
+      class="card card--pad flex flex-col gap-3"
+      [formGroup]="manualForm"
+      (ngSubmit)="submitManual()"
+      novalidate
+    >
+      <label for="check-in-code" class="text-sm font-medium">{{ 'checkIn.manual.label' | t }}</label>
+      <div class="flex flex-col gap-2 sm:flex-row">
+        <input
+          #manualInput
+          id="check-in-code"
+          formControlName="code"
+          class="field font-mono"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          maxlength="200"
+          aria-describedby="check-in-code-hint"
+        />
+        <button
+          type="submit"
+          appButton
+          variant="secondary"
+          class="shrink-0"
+          [disabled]="phase() === 'processing'"
+        >
+          {{ 'checkIn.manual.submit' | t }}
+        </button>
+      </div>
+      <p id="check-in-code-hint" class="hint">{{ 'checkIn.manual.hint' | t }}</p>
+    </form>
+  </section>
+
+  @if (phase() === 'result' && result(); as view) {
+    <section class="check-in-result flex flex-col gap-5" aria-live="polite">
+      <header class="flex items-start gap-3">
+        <span
+          class="result-badge success-pop"
+          [class.result-badge--repeat]="view.alreadyAssigned"
+          aria-hidden="true"
+        >
+          <app-icon [name]="view.alreadyAssigned ? 'info' : 'check-circle'" [size]="26" />
+        </span>
+        <div class="min-w-0">
+          <h2 class="text-xl font-bold tracking-tight sm:text-2xl">
+            {{ (view.alreadyAssigned ? 'checkIn.result.already' : 'checkIn.result.assigned') | t }}
+          </h2>
+          <p class="mt-1 text-sm text-(--text-2)">
+            @if (view.alreadyAssigned) {
+              {{ 'checkIn.result.alreadyBody' | t: { time: assignedTime() } }}
+            } @else {
+              {{ 'checkIn.result.assignedBody' | t }}
+            }
+          </p>
+        </div>
+      </header>
+
+      <div class="card card--pad grid gap-3 sm:grid-cols-3">
+        <div class="min-w-0">
+          <p class="text-xs font-medium uppercase tracking-wider text-(--text-3)">
+            {{ 'checkIn.result.event' | t }}
+          </p>
+          <p class="mt-1 truncate font-semibold">{{ view.event.name }}</p>
+        </div>
+        <div class="min-w-0">
+          <p class="text-xs font-medium uppercase tracking-wider text-(--text-3)">
+            {{ 'checkIn.result.sede' | t }}
+          </p>
+          <p class="mt-1 truncate font-semibold">
+            {{ view.sede.name }}@if (view.sede.city) {<span class="font-normal text-(--text-2)">
+                · {{ view.sede.city }}</span>}
+          </p>
+        </div>
+        <div class="min-w-0">
+          <p class="text-xs font-medium uppercase tracking-wider text-(--text-3)">
+            {{ 'checkIn.result.document' | t }}
+          </p>
+          <p class="mt-1 truncate font-mono font-semibold">{{ holderDocument() }}</p>
+        </div>
+      </div>
+
+      <ol class="turn-grid" [attr.aria-label]="'checkIn.result.turns' | t">
+        @for (turn of view.turns; track turn.position) {
+          <li class="turn-card" [class.turn-card--holder]="turn.role === 'holder'">
+            <span class="turn-card__label">{{ 'checkIn.result.turn' | t }}</span>
+            <span class="turn-card__number">{{ turn.number }}</span>
+            <span class="chip" [class.chip--primary]="turn.role === 'holder'">
+              {{ roleLabel(turn.role) }}
+            </span>
+            <span class="turn-card__name">{{ turn.fullName }}</span>
+          </li>
+        }
+      </ol>
+
+      <button type="button" appButton variant="primary" size="lg" block (click)="scanNext()">
+        <app-icon name="scan" [size]="20" />
+        <span>{{ 'checkIn.next' | t }}</span>
+      </button>
+    </section>
+  }
+
+  @if (phase() === 'error') {
+    <section class="card card--pad flex flex-col items-start gap-4" role="alert">
+      <div class="flex items-start gap-3">
+        <span
+          class="success-pop grid size-12 shrink-0 place-items-center rounded-full bg-(--danger-subtle) text-(--danger)"
+          aria-hidden="true"
+        >
+          <app-icon name="alert-triangle" [size]="24" />
+        </span>
+        <div class="min-w-0">
+          <h2 class="text-lg font-semibold">{{ 'checkIn.error.title' | t }}</h2>
+          <p class="mt-1 text-sm text-(--text-2)">{{ errorMessage() }}</p>
+        </div>
+      </div>
+      <button type="button" appButton variant="primary" block (click)="scanNext()">
+        <app-icon name="scan" [size]="18" />
+        <span>{{ 'checkIn.next' | t }}</span>
+      </button>
+    </section>
+  }
+</div>

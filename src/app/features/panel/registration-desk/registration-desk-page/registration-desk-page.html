@@ -1,0 +1,422 @@
+<div class="desk flex flex-col gap-6">
+  <app-page-header titleKey="desk.title" subtitleKey="desk.subtitle">
+    <div class="flex flex-wrap items-center gap-2">
+      @if (updatedLabel()) {
+        <span class="desk-live" [class.is-stale]="refreshFailed()" aria-live="polite">
+          <span class="desk-live__dot" aria-hidden="true"></span>
+          {{ refreshFailed() ? ('desk.refreshFailed' | t) : updatedLabel() }}
+        </span>
+      }
+      <button
+        type="button"
+        appButton
+        variant="secondary"
+        size="sm"
+        [loading]="refreshing()"
+        [disabled]="refreshing() || !eventId()"
+        (click)="refresh()"
+      >
+        <app-icon name="refresh" [size]="16" />
+        <span>{{ 'app.refresh' | t }}</span>
+      </button>
+      <a routerLink="/panel/ingreso" appButton variant="primary" size="sm">
+        <app-icon name="scan" [size]="16" />
+        <span>{{ 'desk.openScanner' | t }}</span>
+      </a>
+    </div>
+  </app-page-header>
+
+  @switch (events().status) {
+    @case ('loading') {
+      <app-skeleton class="h-20 w-full rounded-[var(--radius-lg)]" />
+    }
+    @case ('error') {
+      <div class="callout callout--danger" role="alert">
+        <p>{{ 'desk.eventsFailed' | t }}</p>
+      </div>
+    }
+  }
+
+  @if (events().status === 'loaded' && !selectedEvent()) {
+    <app-empty-state titleKey="desk.noEvents.title" bodyKey="desk.noEvents.body" iconName="calendar">
+      <a routerLink="/panel/eventos" appButton variant="primary">{{ 'nav.panel.events' | t }}</a>
+    </app-empty-state>
+  }
+
+  @if (selectedEvent(); as event) {
+    <!-- Filters -->
+    <section class="toolbar desk-filters" [attr.aria-label]="'desk.filters' | t">
+      <div class="desk-filters__event">
+        <p class="label">{{ 'desk.filter.event' | t }}</p>
+        <app-select
+          [options]="eventChoices()"
+          [value]="event.id"
+          [searchable]="true"
+          [ariaLabel]="'desk.filter.event' | t"
+          (valueChange)="selectEvent($event)"
+        />
+      </div>
+
+      <div>
+        <p class="label">{{ 'desk.filter.sede' | t }}</p>
+        <app-select
+          [options]="sedeChoices()"
+          [value]="sedeId() ?? ''"
+          [ariaLabel]="'desk.filter.sede' | t"
+          (valueChange)="onSedeChange($event)"
+        />
+      </div>
+
+      <div>
+        <p class="label">{{ 'desk.filter.checkIn' | t }}</p>
+        <app-select
+          [options]="checkInChoices()"
+          [value]="checkIn() ?? ''"
+          [ariaLabel]="'desk.filter.checkIn' | t"
+          (valueChange)="onCheckInChange($event)"
+        />
+      </div>
+
+      <form class="desk-filters__search" role="search" (submit)="submitSearch($event)">
+        <label for="desk-search" class="label">{{ 'desk.filter.search' | t }}</label>
+        <div class="relative">
+          <span class="desk-search-icon" aria-hidden="true"><app-icon name="search" [size]="16" /></span>
+          <input
+            id="desk-search"
+            type="search"
+            class="field pl-9"
+            autocomplete="off"
+            [value]="term()"
+            (input)="onTermInput($event)"
+            [placeholder]="'desk.filter.searchPlaceholder' | t"
+          />
+        </div>
+      </form>
+    </section>
+
+    @if (summaryError()) {
+      <div class="callout callout--danger" role="alert">
+        <p>{{ summaryError() }}</p>
+        <button type="button" appButton variant="secondary" size="sm" (click)="retry()">
+          {{ 'app.retry' | t }}
+        </button>
+      </div>
+    }
+
+    <!-- KPIs -->
+    <section class="kpi-grid" [attr.aria-label]="'desk.kpis' | t" [attr.aria-busy]="summary().status === 'loading'">
+      @if (summary().status === 'loading') {
+        @for (item of kpiPlaceholders; track item) {
+          <app-skeleton class="h-[8.5rem] w-full rounded-[var(--radius-lg)]" />
+        }
+      } @else {
+        @for (kpi of kpis(); track kpi.id) {
+          <article [class]="'kpi kpi--' + kpi.tone">
+            <header class="kpi__head">
+              <span class="kpi__icon" aria-hidden="true"><app-icon [name]="kpi.icon" [size]="18" /></span>
+              <h2 class="kpi__label">{{ kpi.label | t }}</h2>
+            </header>
+            <p class="kpi__value">{{ kpi.value }}</p>
+            @if (kpi.progress !== undefined) {
+              <div
+                class="kpi__bar"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                [attr.aria-valuenow]="kpi.progress"
+                [attr.aria-label]="kpi.label | t"
+              >
+                <span [style.width.%]="kpi.progress"></span>
+              </div>
+            }
+            <p class="kpi__note">{{ kpi.note }}</p>
+          </article>
+        }
+      }
+    </section>
+
+    @if (summaryValue(); as summary) {
+      <p class="desk-footnote">
+        <app-icon name="info" [size]="14" />
+        <span>{{ 'desk.turnsNote' | t: { count: summary.totals.turnsIssued.toLocaleString('es-CO') } }}</span>
+      </p>
+    }
+
+    <!-- Breakdown + history -->
+    <div class="desk-split">
+      <section class="card card--pad flex flex-col gap-4" aria-labelledby="desk-sedes-title">
+        <div class="flex items-center justify-between gap-3">
+          <h2 id="desk-sedes-title" class="desk-section-title">{{ 'desk.sedes.title' | t }}</h2>
+          @if (sedeId()) {
+            <button type="button" appButton variant="ghost" size="sm" (click)="selectSede(null)">
+              {{ 'desk.sedes.all' | t }}
+            </button>
+          }
+        </div>
+
+        @if (summaryValue(); as summary) {
+          @if (summary.sedes.length === 0) {
+            <p class="text-sm text-(--text-3)">{{ 'desk.sedes.empty' | t }}</p>
+          } @else {
+            <ul class="sede-list">
+              @for (sede of summary.sedes; track sede.participationId) {
+                <li>
+                  <button
+                    type="button"
+                    class="sede-row"
+                    [class.is-selected]="sede.participationId === sedeId()"
+                    [attr.aria-pressed]="sede.participationId === sedeId()"
+                    (click)="selectSede(sede.participationId === sedeId() ? null : sede.participationId)"
+                  >
+                    <span class="sede-row__top">
+                      <span class="sede-row__name">
+                        <app-icon name="map-pin" [size]="15" />
+                        {{ sede.establishment.name }}
+                      </span>
+                      <span class="sede-row__rate">{{ percent(sede.attendanceRate) }}</span>
+                    </span>
+                    <span class="progress sede-row__bar" aria-hidden="true">
+                      <span class="progress__bar" [style.width.%]="sedeProgress(sede)"></span>
+                    </span>
+                    <span class="sede-row__meta">
+                      {{ 'desk.sedes.meta' | t: { checked: sede.checkedIn, total: sede.titulares, people: sede.people } }}
+                    </span>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        } @else if (summary().status === 'loading') {
+          <app-skeleton class="h-14 w-full" />
+          <app-skeleton class="h-14 w-full" />
+        }
+      </section>
+
+      <section class="card card--pad flex flex-col gap-4" aria-labelledby="desk-history-title">
+        <div class="flex items-center justify-between gap-3">
+          <h2 id="desk-history-title" class="desk-section-title">{{ 'desk.history.title' | t }}</h2>
+          @if (historyItems().length > 0) {
+            <button type="button" appButton variant="ghost" size="sm" (click)="showHistory()">
+              {{ 'desk.history.all' | t }}
+              <app-icon name="chevronRight" [size]="16" />
+            </button>
+          }
+        </div>
+
+        @switch (history().status) {
+          @case ('loading') {
+            @for (item of [1, 2, 3]; track item) {
+              <app-skeleton class="h-12 w-full" />
+            }
+          }
+          @case ('error') {
+            <p class="text-sm text-(--danger)">{{ 'desk.history.failed' | t }}</p>
+          }
+          @default {
+            @if (historyItems().length === 0) {
+              <div class="history-empty">
+                <app-icon name="log-in" [size]="20" />
+                <p>{{ 'desk.history.empty' | t }}</p>
+              </div>
+            } @else {
+              <ol class="history-list">
+                @for (row of historyItems(); track row.id) {
+                  <li class="history-item">
+                    <span class="history-item__avatar" aria-hidden="true">{{ initials(row.fullName) }}</span>
+                    <div class="min-w-0 flex-1">
+                      <p class="history-item__name">{{ row.fullName }}</p>
+                      <p class="history-item__meta">
+                        {{ row.sede.name }} · <span class="font-mono">{{ folio(row.id) }}</span>
+                        @if (row.checkIn.operator; as operator) {
+                          · {{ 'desk.history.by' | t: { name: operator.fullName } }}
+                        }
+                      </p>
+                    </div>
+                    <div class="history-item__side">
+                      <span class="turn-pill">{{ turnLabel(row) }}</span>
+                      <time class="history-item__time" [attr.datetime]="row.checkIn.at">{{ time(row.checkIn.at) }}</time>
+                    </div>
+                  </li>
+                }
+              </ol>
+            }
+          }
+        }
+      </section>
+    </div>
+
+    <!-- Table -->
+    <section id="desk-table" class="flex scroll-mt-6 flex-col gap-3" aria-labelledby="desk-table-title">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 id="desk-table-title" class="desk-section-title">
+            {{ (historyMode() ? 'desk.table.historyTitle' : 'desk.table.title') | t }}
+          </h2>
+          @if (tablePage(); as page) {
+            <p class="mt-1 text-sm text-(--text-3)">
+              {{ 'ui.results.count' | t: { count: page.meta.total.toLocaleString('es-CO') } }}
+              @if (selectedSede(); as sede) {
+                · {{ sede.establishment.name }}
+              }
+            </p>
+          }
+        </div>
+        @if (hasFilters()) {
+          <button type="button" appButton variant="ghost" size="sm" (click)="clearFilters()">
+            <app-icon name="x" [size]="16" />
+            {{ 'ui.filter.clearAll' | t }}
+          </button>
+        }
+      </div>
+
+      @switch (table().status) {
+        @case ('loading') {
+          <div class="flex flex-col gap-2" aria-busy="true" [attr.aria-label]="'app.loading' | t">
+            @for (row of placeholders; track row) {
+              <app-skeleton class="h-14 w-full" />
+            }
+          </div>
+        }
+        @case ('error') {
+          <div class="callout callout--danger" role="alert">
+            <p>{{ tableError() }}</p>
+            <button type="button" appButton variant="secondary" size="sm" (click)="retry()">
+              {{ 'app.retry' | t }}
+            </button>
+          </div>
+        }
+        @case ('loaded') {
+          @if (tablePage(); as page) {
+            @if (page.items.length === 0) {
+              <div class="card card--pad desk-empty">
+                <span class="desk-empty__icon" aria-hidden="true"><app-icon name="search" [size]="20" /></span>
+                <p class="font-semibold">{{ (hasFilters() ? 'desk.table.noMatches' : 'desk.table.empty') | t }}</p>
+                <p class="text-sm text-(--text-3)">
+                  {{ (hasFilters() ? 'desk.table.noMatchesBody' : 'desk.table.emptyBody') | t }}
+                </p>
+                @if (hasFilters()) {
+                  <button type="button" appButton variant="secondary" size="sm" (click)="clearFilters()">
+                    {{ 'ui.filter.clearAll' | t }}
+                  </button>
+                }
+              </div>
+            } @else {
+              <!-- Desktop / tablet -->
+              <div class="table-shell desk-table-shell">
+                <table class="data-table desk-table">
+                  <thead>
+                    <tr>
+                      <th scope="col" [attr.aria-sort]="ariaSort('fullName')">
+                        <button type="button" class="sort-button" (click)="sortBy('fullName')">
+                          {{ 'desk.col.holder' | t }}
+                          <app-icon [name]="sortIcon('fullName')" [size]="13" />
+                        </button>
+                      </th>
+                      <th scope="col">{{ 'desk.col.document' | t }}</th>
+                      <th scope="col">{{ 'desk.col.sede' | t }}</th>
+                      <th scope="col" [attr.aria-sort]="ariaSort('turn')">
+                        <button type="button" class="sort-button" (click)="sortBy('turn')">
+                          {{ 'desk.col.status' | t }}
+                          <app-icon [name]="sortIcon('turn')" [size]="13" />
+                        </button>
+                      </th>
+                      <th scope="col" [attr.aria-sort]="ariaSort('checkedInAt')">
+                        <button type="button" class="sort-button" (click)="sortBy('checkedInAt')">
+                          {{ 'desk.col.checkedInAt' | t }}
+                          <app-icon [name]="sortIcon('checkedInAt')" [size]="13" />
+                        </button>
+                      </th>
+                      <th scope="col" class="col-registered" [attr.aria-sort]="ariaSort('registeredAt')">
+                        <button type="button" class="sort-button" (click)="sortBy('registeredAt')">
+                          {{ 'desk.col.registeredAt' | t }}
+                          <app-icon [name]="sortIcon('registeredAt')" [size]="13" />
+                        </button>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of page.items; track row.id) {
+                      <tr>
+                        <td class="max-w-56">
+                          <p class="truncate font-semibold text-(--text-1)">{{ row.fullName }}</p>
+                          @if (companionsNote(row.companionsCount); as note) {
+                            <p class="desk-sub">{{ note }}</p>
+                          }
+                        </td>
+                        <td>
+                          <p class="whitespace-nowrap font-mono text-xs text-(--text-2)">{{ document(row) }}</p>
+                          <p class="desk-sub font-mono" [attr.title]="row.id">{{ folio(row.id) }}</p>
+                        </td>
+                        <td class="whitespace-nowrap text-(--text-2)">{{ row.sede.name }}</td>
+                        <td>
+                          @if (row.checkIn.status === 'checked_in') {
+                            <span class="chip chip--success"><span class="status-dot"></span>{{ 'desk.status.checkedIn' | t }}</span>
+                          } @else {
+                            <span class="chip"><span class="status-dot"></span>{{ 'desk.status.pending' | t }}</span>
+                          }
+                          @if (row.checkIn.firstTurn !== null) {
+                            <p class="desk-sub">{{ 'desk.col.turn' | t }} {{ turnLabel(row) }}</p>
+                          }
+                        </td>
+                        <td class="whitespace-nowrap">
+                          <p class="text-(--text-1)">{{ dateTime(row.checkIn.at) }}</p>
+                          @if (row.checkIn.operator; as operator) {
+                            <p class="text-xs text-(--text-3)">{{ 'desk.history.by' | t: { name: operator.fullName } }}</p>
+                          }
+                        </td>
+                        <td class="col-registered whitespace-nowrap text-(--text-3)">{{ dateTime(row.registeredAt) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Mobile -->
+              <ul class="desk-cards">
+                @for (row of page.items; track row.id) {
+                  <li class="card desk-card">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <p class="truncate font-semibold">{{ row.fullName }}</p>
+                        @if (companionsNote(row.companionsCount); as note) {
+                          <p class="desk-sub">{{ note }}</p>
+                        }
+                        <p class="mt-0.5 font-mono text-xs text-(--text-3)">{{ document(row) }} · {{ folio(row.id) }}</p>
+                      </div>
+                      @if (row.checkIn.status === 'checked_in') {
+                        <span class="chip chip--success shrink-0"><span class="status-dot"></span>{{ 'desk.status.checkedIn' | t }}</span>
+                      } @else {
+                        <span class="chip shrink-0"><span class="status-dot"></span>{{ 'desk.status.pending' | t }}</span>
+                      }
+                    </div>
+                    <dl class="desk-card__grid">
+                      <div>
+                        <dt>{{ 'desk.col.sede' | t }}</dt>
+                        <dd>{{ row.sede.name }}</dd>
+                      </div>
+                      <div>
+                        <dt>{{ 'desk.col.turn' | t }}</dt>
+                        <dd>{{ turnLabel(row) }}</dd>
+                      </div>
+                      <div>
+                        <dt>{{ 'desk.col.checkedInAt' | t }}</dt>
+                        <dd>{{ dateTime(row.checkIn.at) }}</dd>
+                      </div>
+                    </dl>
+                  </li>
+                }
+              </ul>
+
+              <app-pagination
+                [page]="page.meta"
+                [pageSizeOptions]="pageSizeOptions"
+                (offsetChange)="onOffsetChange($event)"
+                (limitChange)="onLimitChange($event)"
+              />
+            }
+          }
+        }
+      }
+    </section>
+  }
+</div>

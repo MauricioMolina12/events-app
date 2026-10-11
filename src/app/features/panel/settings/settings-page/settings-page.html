@@ -1,0 +1,167 @@
+<div class="settings">
+  <app-page-header titleKey="settings.title" subtitleKey="settings.subtitle">
+    @if (dirty()) {
+      <span class="settings-pending">{{ 'settings.pending' | t }}</span>
+    }
+  </app-page-header>
+
+  @if (workspace.status() === 'loading' && !workspace.settings()) {
+    <div class="flex flex-col gap-3" aria-busy="true">
+      <app-skeleton class="h-12 w-full" />
+      <app-skeleton class="h-64 w-full" />
+    </div>
+  } @else if (workspace.status() === 'error' && !workspace.settings()) {
+    <div class="callout callout--danger" role="alert">
+      <p>{{ 'settings.loadFailed' | t }}</p>
+      <button type="button" appButton variant="secondary" size="sm" (click)="workspace.refresh()">
+        {{ 'app.retry' | t }}
+      </button>
+    </div>
+  } @else {
+    <div class="settings-tabs" role="tablist" [attr.aria-label]="'settings.tabs.label' | t" (keydown)="onTabKey($event)">
+      @for (item of tabs; track item.id) {
+        <button
+          type="button"
+          class="settings-tabs__tab"
+          role="tab"
+          [id]="'settings-tab-' + item.id"
+          [attr.aria-selected]="tab() === item.id"
+          [attr.aria-controls]="'settings-panel-' + item.id"
+          [attr.tabindex]="tab() === item.id ? 0 : -1"
+          (click)="selectTab(item.id)"
+        >
+          {{ item.labelKey | t }}
+        </button>
+      }
+    </div>
+
+    @if (!canEdit()) {
+      <p class="hint">{{ 'settings.readOnly' | t }}</p>
+    }
+
+    @if (saveError()) {
+      <p class="callout callout--danger" role="alert">{{ saveError() }}</p>
+    }
+
+    <form class="settings-layout" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div
+        class="card card--pad settings-panel"
+        role="tabpanel"
+        [id]="'settings-panel-' + tab()"
+        [attr.aria-labelledby]="'settings-tab-' + tab()"
+      >
+        @switch (tab()) {
+          @case ('general') {
+            <div class="settings-fields">
+              <app-form-field
+                controlId="settings-name"
+                labelKey="settings.general.name"
+                hintKey="settings.general.nameHint"
+                [required]="true"
+              >
+                <input id="settings-name" class="field" type="text" formControlName="name" appField maxlength="80" autocomplete="organization" />
+              </app-form-field>
+              <app-form-field
+                controlId="settings-description"
+                labelKey="settings.general.description"
+                [optional]="true"
+                [hintText]="descriptionHint()"
+              >
+                <textarea id="settings-description" class="field settings-area" formControlName="description" appField maxlength="280" rows="3"></textarea>
+              </app-form-field>
+            </div>
+          }
+          @case ('identity') {
+            <div class="settings-identity">
+              <div class="settings-fields">
+                <div class="settings-upload">
+                  <p class="label">{{ 'settings.identity.logo' | t }}</p>
+                  <div class="settings-upload__row">
+                    <app-brand-mark [initials]="workspace.initials()" />
+                    <p class="hint">{{ 'settings.identity.logoHint' | t }}</p>
+                  </div>
+                </div>
+
+                <app-form-field
+                  controlId="settings-color"
+                  labelKey="settings.identity.color"
+                  hintKey="settings.identity.colorHint"
+                  [error]="colorError() || undefined"
+                  [required]="true"
+                >
+                  <div class="settings-color">
+                    <input
+                      type="color"
+                      class="settings-color__picker"
+                      [value]="draftColor()"
+                      [disabled]="!canEdit()"
+                      [attr.aria-label]="'settings.identity.color' | t"
+                      (input)="onColorPicker($event)"
+                    />
+                    <input id="settings-color" class="field font-mono" type="text" formControlName="color" appField maxlength="7" spellcheck="false" autocomplete="off" />
+                  </div>
+                </app-form-field>
+              </div>
+
+              <aside class="preview" [style.--primary]="draftColor()" [style.--primary-on]="draftOn()" [style.--primary-hover]="draftHover()" [attr.aria-label]="'settings.identity.preview' | t">
+                <p class="preview__label">{{ 'settings.identity.preview' | t }}</p>
+                <div class="preview__bar">
+                  <app-brand-mark [initials]="workspace.initials()" />
+                  <span class="preview__name">{{ previewName() }}</span>
+                </div>
+                <button type="button" class="preview__button">{{ 'settings.save' | t }}</button>
+              </aside>
+            </div>
+          }
+          @case ('appearance') {
+            <fieldset class="settings-theme">
+              <legend class="label">{{ 'settings.appearance.theme' | t }}</legend>
+              <p class="hint">{{ 'settings.appearance.themeHint' | t }}</p>
+              <div class="settings-theme__grid" role="radiogroup" [attr.aria-label]="'settings.appearance.theme' | t">
+                @for (choice of themes; track choice.value) {
+                  <button
+                    type="button"
+                    class="theme-choice"
+                    role="radio"
+                    [attr.aria-checked]="theme() === choice.value"
+                    (click)="setTheme(choice.value)"
+                  >
+                    <app-icon [name]="choice.icon" [size]="18" />
+                    <span>{{ choice.labelKey | t }}</span>
+                  </button>
+                }
+              </div>
+              <p class="hint" aria-live="polite">
+                @switch (workspace.preferenceStatus()) {
+                  @case ('saving') { {{ 'settings.appearance.saving' | t }} }
+                  @case ('saved') { {{ 'settings.appearance.saved' | t }} }
+                  @case ('error') {
+                    {{ 'settings.appearance.error' | t }}
+                    <button type="button" class="settings-inline" (click)="workspace.retryTheme()">{{ 'app.retry' | t }}</button>
+                  }
+                  @default { {{ 'settings.appearance.personal' | t }} }
+                }
+              </p>
+            </fieldset>
+          }
+        }
+      </div>
+
+      @if (canEdit() && tab() !== 'appearance') {
+        <div class="settings-actions">
+          <button type="button" appButton variant="ghost" [disabled]="restoring() || saving()" (click)="restore()">
+            {{ 'settings.restore' | t }}
+          </button>
+          <div class="settings-actions__end">
+            <button type="button" appButton variant="secondary" [disabled]="!dirty() || saving()" (click)="cancel()">
+              {{ 'settings.cancel' | t }}
+            </button>
+            <button type="submit" appButton variant="primary" [loading]="saving()" [disabled]="!dirty() || form.invalid || saving()">
+              {{ 'settings.save' | t }}
+            </button>
+          </div>
+        </div>
+      }
+    </form>
+  }
+</div>

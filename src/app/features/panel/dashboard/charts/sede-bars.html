@@ -1,0 +1,50 @@
+<ul class="chart-legend" aria-hidden="true">
+  <li class="legend-chip legend-chip--registered">{{ 'dash.sedes.registered' | t }}</li>
+  <li class="legend-chip legend-chip--checkedIn">{{ 'dash.sedes.inside' | t }}</li>
+</ul>
+
+<ul class="sede-bars">
+  @for (bar of bars(); track bar.id; let index = $index) {
+    <li [style.--delay]="index * 80 + 'ms'">
+      <button
+        type="button"
+        class="sede-bar"
+        [class.is-selected]="selectedId() === bar.id"
+        [class.is-dim]="selectedId() !== null && selectedId() !== bar.id"
+        [attr.aria-pressed]="selectedId() === bar.id"
+        [attr.aria-label]="
+          'dash.sedes.aria'
+            | t: { name: bar.name, total: bar.titulares, checked: bar.checkedIn, rate: bar.rate }
+        "
+        (click)="toggle(bar.id)"
+      >
+        <span class="sede-bar__head">
+          <span class="sede-bar__name">{{ bar.name }}</span>
+          <span class="sede-bar__figures">
+            <strong>{{ bar.titulares.toLocaleString('es-CO') }}</strong>
+            <span class="sede-bar__sep">·</span>
+            <span class="sede-bar__inside">{{ bar.checkedIn.toLocaleString('es-CO') }}</span>
+            <span class="sede-bar__rate">{{ bar.rate }}</span>
+          </span>
+        </span>
+        <span class="sede-bar__track" aria-hidden="true">
+          <span class="sede-bar__registered" [style.width.%]="bar.width">
+            <span class="sede-bar__checked" [style.width.%]="bar.insideWidth"></span>
+          </span>
+        </span>
+        <span class="chart-tooltip chart-tooltip--below" aria-hidden="true">
+          <span class="chart-tooltip__title">{{ bar.name }}</span>
+          <span class="chart-tooltip__row">{{
+            'dash.sedes.tipRegistered' | t: { count: bar.titulares, people: bar.people }
+          }}</span>
+          <span class="chart-tooltip__row">{{
+            'dash.sedes.tipInside' | t: { count: bar.checkedIn, rate: bar.rate }
+          }}</span>
+          <span class="chart-tooltip__row">{{
+            'dash.sedes.tipPending' | t: { count: bar.pending }
+          }}</span>
+        </span>
+      </button>
+    </li>
+  }
+</ul>

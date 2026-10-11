@@ -1,0 +1,153 @@
+@if (state(); as view) {
+  @switch (view.status) {
+    @case ('loading') {
+      <div class="flex flex-col gap-4" aria-busy="true">
+        <h1 class="sr-only">{{ 'register.entry.title' | t }}</h1>
+        <span class="sr-only">{{ 'app.loading' | t }}</span>
+        <app-skeleton class="h-9 w-2/3" />
+        <app-skeleton class="h-4 w-1/3" />
+        @for (placeholder of placeholders; track placeholder) {
+          <app-skeleton class="h-32 w-full" />
+        }
+      </div>
+    }
+
+    @case ('error') {
+      <h1 class="sr-only">{{ 'register.entry.title' | t }}</h1>
+      @if (isMissing()) {
+        <app-empty-state
+          titleKey="app.notFound.title"
+          bodyKey="app.notFound.body"
+          iconName="compass"
+        >
+          <a routerLink="/eventos" appButton variant="primary">{{ 'register.entry.browse' | t }}</a>
+        </app-empty-state>
+      } @else {
+        <div class="card card--pad flex flex-col items-start gap-3" role="alert">
+          <h2 class="text-lg font-semibold">{{ 'app.error.title' | t }}</h2>
+          <p class="text-sm text-[var(--text-2)]">{{ errorMessage() }}</p>
+          @if (isOffline()) {
+            <p class="hint">{{ 'ui.retryOffline' | t }}</p>
+          }
+          <button type="button" appButton variant="secondary" (click)="retry()">
+            {{ 'app.retry' | t }}
+          </button>
+        </div>
+      }
+    }
+
+    @case ('loaded') {
+      @if (redirecting()) {
+        <div class="flex flex-col gap-4" aria-busy="true">
+          <h1 class="sr-only">{{ 'register.entry.title' | t }}</h1>
+          <p class="sr-only" role="status">{{ 'register.entry.redirecting' | t }}</p>
+          <app-skeleton class="h-9 w-2/3" />
+          <app-skeleton class="h-4 w-1/3" />
+          @for (placeholder of placeholders; track placeholder) {
+            <app-skeleton class="h-32 w-full" />
+          }
+        </div>
+      } @else if (rows().length === 0) {
+        <h1 class="sr-only">{{ 'register.entry.title' | t }}</h1>
+        <app-empty-state
+          titleKey="catalog.empty.title"
+          bodyKey="catalog.empty.body"
+          iconName="inbox"
+        >
+          <a routerLink="/eventos" appButton variant="primary">{{ 'register.entry.browse' | t }}</a>
+        </app-empty-state>
+      } @else {
+        <article class="flex flex-col gap-6">
+          <header class="flex flex-col gap-2">
+            <h1 class="text-3xl font-bold">{{ 'register.entry.title' | t }}</h1>
+            <p class="text-sm text-[var(--text-2)]">{{ 'register.entry.subtitle' | t }}</p>
+          </header>
+
+          @if (!hasOpen()) {
+            <p class="card card--pad error-text" role="status">{{ 'register.entry.none' | t }}</p>
+          }
+
+          @for (event of rows(); track event.id) {
+            <section class="flex flex-col gap-3">
+              <div class="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 class="text-lg font-semibold">{{ event.name }}</h2>
+                <p class="text-sm text-[var(--text-3)]">
+                  {{ event.startsAt ? whenLabel(event) : ('event.noDate' | t) }}
+                </p>
+              </div>
+
+              <ul class="grid list-none gap-3 p-0 sm:grid-cols-2">
+                @for (participation of event.participations; track participation.id) {
+                  <li class="card card--pad flex flex-col gap-3">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="flex flex-col gap-0.5">
+                        <h3 class="text-base font-semibold">
+                          {{ participation.establishment.name }}
+                        </h3>
+                        @if (participation.establishment.city) {
+                          <p class="flex items-center gap-1 text-sm text-[var(--text-3)]">
+                            <app-icon name="map-pin" [size]="16" />
+                            {{ participation.establishment.city }}
+                          </p>
+                        }
+                      </div>
+
+                      <app-status-badge [kind]="kind(participation)" />
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                      @if (participation.availableTitulares > 0) {
+                        <span class="chip chip--success">
+                          {{
+                            'ui.capacity.remaining' | t: { count: participation.availableTitulares }
+                          }}
+                        </span>
+                      } @else {
+                        <span class="chip chip--danger">{{ 'ui.capacity.full' | t }}</span>
+                      }
+
+                      @if (participation.availableCompanions > 0) {
+                        <span class="chip">
+                          {{
+                            'event.venue.companions'
+                              | t: { count: participation.availableCompanions }
+                          }}
+                        </span>
+                      }
+                    </div>
+
+                    <p class="hint">
+                      {{ 'event.venue.window' | t: { window: windowLabel(event, participation) } }}
+                    </p>
+
+                    @if (blockedReason(participation); as reason) {
+                      <p class="error-text">{{ reason | t }}</p>
+                    } @else {
+                      <a
+                        appButton
+                        variant="primary"
+                        [attr.data-sede]="participation.id"
+                        [routerLink]="['/eventos', event.slug, 'inscripcion']"
+                        [state]="{ sede: participation.id }"
+                      >
+                        {{ 'event.venue.register' | t }}
+                      </a>
+                    }
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+
+          <a
+            class="inline-flex w-fit items-center gap-1 text-sm font-medium no-underline hover:underline"
+            routerLink="/eventos"
+          >
+            <span>{{ 'register.entry.browse' | t }}</span>
+            <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      }
+    }
+  }
+}

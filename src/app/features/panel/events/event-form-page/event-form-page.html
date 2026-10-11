@@ -1,0 +1,254 @@
+<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+  <app-page-header
+    [titleKey]="editing() ? 'events.form.edit' : 'events.form.create'"
+    subtitleKey="events.subtitle"
+  >
+    <a routerLink="/panel/eventos" appButton variant="secondary">{{ 'app.cancel' | t }}</a>
+  </app-page-header>
+
+  @if (editing() && state().status === 'loading') {
+    <div class="flex flex-col gap-3" aria-busy="true">
+      <app-skeleton class="h-10 w-2/3" />
+      <app-skeleton class="h-10 w-full" />
+      <app-skeleton class="h-10 w-full" />
+    </div>
+  } @else if (editing() && state().status === 'error') {
+    <div
+      class="callout callout--danger"
+      role="alert"
+    >
+      <p class="text-sm text-(--danger-700)">{{ errorMessage() }}</p>
+      <button type="button" appButton variant="secondary" (click)="retry()">
+        {{ 'app.retry' | t }}
+      </button>
+    </div>
+  } @else {
+    <form class="card card--pad flex flex-col gap-6" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      @if (saveError()) {
+        <p
+          class="callout callout--danger"
+          role="alert"
+        >
+          {{ saveError() }}
+        </p>
+      }
+      @if (submitted() && form.invalid) {
+        <p
+          class="callout callout--warning"
+          role="alert"
+        >
+          {{ 'events.form.errors' | t }}
+        </p>
+      }
+
+      <section
+        class="grid gap-5 border-b border-(--border) pb-6 sm:grid-cols-2"
+        aria-labelledby="event-details-title"
+      >
+        <h2 id="event-details-title" class="text-lg font-semibold sm:col-span-2">
+          {{ 'events.form.details' | t }}
+        </h2>
+
+        <div>
+          <label for="event-name" class="mb-1.5 block text-sm font-medium">{{
+            'events.form.name' | t
+          }}</label>
+          <input
+            id="event-name"
+            formControlName="name"
+            required
+            maxlength="160"
+            [attr.aria-invalid]="submitted() && form.controls.name.invalid"
+            class="field"
+          />
+          @if (submitted() && form.controls.name.hasError('required')) {
+            <p class="mt-1.5 text-xs text-(--danger-700)">{{ 'validation.required' | t }}</p>
+          }
+        </div>
+
+        <div>
+          <label for="event-slug" class="mb-1.5 block text-sm font-medium">{{
+            'events.form.slug' | t
+          }}</label>
+          <input
+            id="event-slug"
+            formControlName="slug"
+            required
+            minlength="3"
+            maxlength="80"
+            pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+            readonly
+            aria-describedby="event-slug-hint"
+            [attr.aria-invalid]="submitted() && form.controls.slug.invalid"
+            class="field font-mono"
+          />
+          <p id="event-slug-hint" class="mt-1.5 text-xs text-(--text-3)">
+            {{ 'events.form.slugHint' | t }}
+          </p>
+          @if (submitted() && form.controls.slug.invalid) {
+            <p class="mt-1.5 text-xs text-(--danger-700)">{{ 'events.validation.slug' | t }}</p>
+          }
+        </div>
+
+        <div class="sm:col-span-2">
+          <label for="event-description" class="mb-1.5 block text-sm font-medium">{{
+            'events.form.description' | t
+          }}</label>
+          <textarea
+            id="event-description"
+            formControlName="description"
+            maxlength="1000"
+            rows="4"
+            class="field"
+          ></textarea>
+        </div>
+
+        <div>
+          <label for="event-timezone" class="mb-1.5 block text-sm font-medium">{{
+            'events.form.timezone' | t
+          }}</label>
+          <input
+            id="event-timezone"
+            formControlName="timezone"
+            required
+            maxlength="64"
+            aria-describedby="event-timezone-hint"
+            [attr.aria-invalid]="submitted() && form.controls.timezone.invalid"
+            class="field"
+          />
+          <p id="event-timezone-hint" class="mt-1.5 text-xs text-(--text-3)">
+            {{ 'events.form.timezoneHint' | t }}
+          </p>
+          @if (submitted() && form.controls.timezone.invalid) {
+            <p class="mt-1.5 text-xs text-(--danger-700)">{{ 'events.validation.timezone' | t }}</p>
+          }
+        </div>
+
+        <div>
+          <label for="event-capacity" class="mb-1.5 block text-sm font-medium">{{
+            'events.form.capacity' | t
+          }}</label>
+          <input
+            id="event-capacity"
+            type="number"
+            min="0"
+            max="100000"
+            step="1"
+            formControlName="capacity"
+            required
+            aria-describedby="event-capacity-hint"
+            [attr.aria-invalid]="submitted() && form.controls.capacity.invalid"
+            class="field"
+          />
+          <p id="event-capacity-hint" class="mt-1.5 text-xs text-(--text-3)">
+            {{ 'events.form.capacityHint' | t }}
+          </p>
+          @if (submitted() && form.controls.capacity.invalid) {
+            <p class="mt-1.5 text-xs text-(--danger-700)">{{ 'events.validation.capacity' | t }}</p>
+          }
+        </div>
+
+        @if (editing()) {
+          <div>
+            <label for="event-status" class="mb-1.5 block text-sm font-medium">{{
+              'events.form.status' | t
+            }}</label>
+            <app-select formControlName="status" [options]="statusChoices()" />
+            <p class="mt-1.5 text-xs text-(--text-3)">{{ 'events.form.statusLocked' | t }}</p>
+            @if (archiving()) {
+              <p class="mt-2 text-xs font-medium text-(--danger-700)" role="alert">
+                {{ 'events.transition.archivedWarn' | t }}
+              </p>
+            }
+          </div>
+        }
+      </section>
+
+      <section
+        class="grid gap-5 border-b border-(--border) pb-6 sm:grid-cols-2"
+        aria-labelledby="event-schedule-title"
+      >
+        <div class="sm:col-span-2">
+          <h2 id="event-schedule-title" class="text-lg font-semibold">
+            {{ 'events.form.schedule' | t }}
+          </h2>
+          <p class="mt-1 text-sm text-(--text-2)">{{ 'events.form.scheduleHint' | t }}</p>
+        </div>
+        <div>
+          <label for="event-starts" class="mb-1.5 block text-sm font-medium">{{
+            'events.form.startsAt' | t
+          }}</label>
+          <input
+            id="event-starts"
+            type="datetime-local"
+            formControlName="startsAt"
+            class="field"
+          />
+        </div>
+        <div>
+          <label for="event-ends" class="mb-1.5 block text-sm font-medium">{{
+            'events.form.endsAt' | t
+          }}</label>
+          <input
+            id="event-ends"
+            type="datetime-local"
+            formControlName="endsAt"
+            class="field"
+          />
+        </div>
+        <div>
+          <label for="event-registration-opens" class="mb-1.5 block text-sm font-medium">{{
+            'events.form.registrationOpensAt' | t
+          }}</label>
+          <input
+            id="event-registration-opens"
+            type="datetime-local"
+            formControlName="registrationOpensAt"
+            class="field"
+          />
+        </div>
+        <div>
+          <label for="event-registration-closes" class="mb-1.5 block text-sm font-medium">{{
+            'events.form.registrationClosesAt' | t
+          }}</label>
+          <input
+            id="event-registration-closes"
+            type="datetime-local"
+            formControlName="registrationClosesAt"
+            class="field"
+          />
+        </div>
+        @if (submitted() && form.hasError('eventWindow')) {
+          <p class="text-sm text-(--danger-700) sm:col-span-2" role="alert">
+            {{ 'events.validation.eventWindow' | t }}
+          </p>
+        }
+        @if (submitted() && form.hasError('registrationWindow')) {
+          <p class="text-sm text-(--danger-700) sm:col-span-2" role="alert">
+            {{ 'events.validation.registrationWindow' | t }}
+          </p>
+        }
+      </section>
+
+      <div class="flex flex-wrap items-center justify-end gap-3">
+        <a routerLink="/panel/eventos" appButton variant="secondary">{{ 'app.cancel' | t }}</a>
+        <button
+          type="submit"
+          appButton
+          variant="primary"
+          [loading]="saving()"
+          [disabled]="saving()"
+        >
+          {{ (editing() ? 'app.save' : 'events.form.create') | t }}
+        </button>
+      </div>
+    </form>
+
+    @if (event(); as currentEvent) {
+      <app-event-participations
+        [eventId]="currentEvent.id"
+        [eventCapacity]="currentEvent.capacity"
+      />
+    }
+  }
+</div>

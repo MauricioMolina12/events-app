@@ -1,0 +1,14 @@
+<div class="card card--pad flex flex-col items-center gap-4 px-5 py-10 text-center sm:px-8 sm:py-12">
+  <span
+    class="grid size-14 place-items-center rounded-full bg-[var(--primary-subtle)] text-[var(--primary)]"
+  >
+    <app-icon [name]="iconName()" [size]="26" />
+  </span>
+  <h2 class="text-lg font-semibold tracking-tight">{{ titleKey() | t }}</h2>
+  @if (bodyKey(); as body) {
+    <p class="max-w-prose text-sm leading-relaxed text-[var(--text-2)]">{{ body | t }}</p>
+  }
+  <div class="mt-1 flex flex-wrap items-center justify-center gap-2">
+    <ng-content />
+  </div>
+</div>

@@ -1,0 +1,224 @@
+<div class="panel" [class.is-collapsed]="collapsed()" [class.is-sheet-open]="moreOpen()">
+  <a
+    href="#contenido"
+    class="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[var(--z-tooltip)] focus:bg-[var(--surface-1)] focus:px-3 focus:py-2"
+  >
+    {{ 'app.skipToContent' | t }}
+  </a>
+
+  <aside class="panel-sidebar" [attr.aria-label]="'panel.navigation' | t">
+    <a routerLink="/panel" class="panel-brand" [attr.title]="workspace.displayName()">
+      <app-brand-mark
+        [src]="collapsed() ? (workspace.markUrl() ?? workspace.logoUrl()) : workspace.logoUrl()"
+        [initials]="workspace.initials()"
+        [wide]="!collapsed() && !!workspace.logoUrl()"
+      />
+      <span class="panel-brand__text">
+        <span class="panel-brand__name">{{ workspace.displayName() }}</span>
+        <span class="panel-brand__meta">{{ 'panel.label' | t }}</span>
+      </span>
+    </a>
+
+    <nav class="panel-navlist">
+      @for (item of primaryNav; track item.label) {
+        <a
+          [routerLink]="item.route"
+          routerLinkActive="is-active"
+          [routerLinkActiveOptions]="{ exact: item.exact === true }"
+          class="nav-item"
+          [appTooltip]="item.label | t"
+          [appTooltipDisabled]="!collapsed()"
+        >
+          <app-icon [name]="item.icon" [size]="18" />
+          <span class="nav-item__label">{{ item.label | t }}</span>
+        </a>
+      }
+
+      @for (item of workspaceModules; track item.label) {
+        @if (item.route; as route) {
+          <a
+            [routerLink]="route"
+            routerLinkActive="is-active"
+            class="nav-item"
+            [appTooltip]="item.label | t"
+            [appTooltipDisabled]="!collapsed()"
+          >
+            <app-icon [name]="item.icon" [size]="18" />
+            <span class="nav-item__label">{{ item.label | t }}</span>
+          </a>
+        }
+      }
+
+      @if (isAdmin()) {
+        <p class="panel-section">{{ 'panel.adminSection' | t }}</p>
+        @for (item of adminModules; track item.label) {
+          @if (item.route; as route) {
+            <a
+              [routerLink]="route"
+              routerLinkActive="is-active"
+              class="nav-item"
+              [appTooltip]="item.label | t"
+              [appTooltipDisabled]="!collapsed()"
+            >
+              <app-icon [name]="item.icon" [size]="18" />
+              <span class="nav-item__label">{{ item.label | t }}</span>
+            </a>
+          } @else {
+            <div
+              class="nav-item is-disabled"
+              aria-disabled="true"
+              [appTooltip]="(item.label | t) + ' — ' + ('panel.module.pending' | t)"
+              [appTooltipDisabled]="!collapsed()"
+            >
+              <app-icon [name]="item.icon" [size]="18" />
+              <span class="nav-item__label">
+                {{ item.label | t }}
+                <span class="sr-only">{{ 'panel.module.pending' | t }}</span>
+              </span>
+            </div>
+          }
+        }
+      }
+    </nav>
+
+    <a
+      routerLink="/eventos"
+      class="panel-catalog"
+      [appTooltip]="'panel.publicCatalog' | t"
+      [appTooltipDisabled]="!collapsed()"
+    >
+      <app-icon name="compass" [size]="16" />
+      <span class="nav-item__label">{{ 'panel.publicCatalog' | t }}</span>
+    </a>
+  </aside>
+
+  <div class="panel-main">
+    <header class="panel-top">
+      <div class="panel-top__start">
+        <button
+          type="button"
+          class="panel-icon-btn panel-icon-btn--desktop"
+          [attr.aria-label]="(collapsed() ? 'panel.sidebar.expand' : 'panel.sidebar.collapse') | t"
+          [attr.aria-expanded]="!collapsed()"
+          (click)="toggleSidebar()"
+        >
+          <app-icon name="panel-left" [size]="18" />
+        </button>
+        <p class="panel-top__title">{{ titleKey() | t }}</p>
+      </div>
+
+      <div class="panel-top__end">
+        <app-theme-toggle />
+        <app-menu>
+          <button
+            type="button"
+            appMenuTrigger
+            class="panel-user"
+            [attr.aria-label]="'panel.account.menu' | t"
+          >
+            <span class="panel-user__avatar" aria-hidden="true">
+              {{ user()?.fullName?.charAt(0) || '?' }}
+            </span>
+            <span class="panel-user__copy">
+              <span class="panel-user__name">{{ user()?.fullName }}</span>
+              <span class="panel-user__role">{{
+                (isAdmin() ? 'role.admin' : 'role.operator') | t
+              }}</span>
+            </span>
+          </button>
+          <ng-template appMenuContent>
+            <div class="menu" role="menu">
+              <div class="menu__header">
+                <p class="menu__name">{{ user()?.fullName }}</p>
+                <p class="menu__meta">{{ (isAdmin() ? 'role.admin' : 'role.operator') | t }}</p>
+              </div>
+              <a routerLink="/panel/configuracion" class="menu__item" role="menuitem">
+                <app-icon name="settings" [size]="16" />
+                {{ 'nav.panel.settings' | t }}
+              </a>
+              <a routerLink="/eventos" class="menu__item" role="menuitem">
+                <app-icon name="compass" [size]="16" />
+                {{ 'panel.publicCatalog' | t }}
+              </a>
+              <hr class="menu__sep" />
+              <button type="button" class="menu__item" role="menuitem" (click)="logout()">
+                <app-icon name="log-out" [size]="16" />
+                {{ 'nav.panel.logout' | t }}
+              </button>
+            </div>
+          </ng-template>
+        </app-menu>
+      </div>
+    </header>
+
+    <div class="panel-body">
+      <main id="contenido" tabindex="-1" class="panel-content" [class.is-wide]="wide()">
+        <router-outlet />
+      </main>
+    </div>
+
+    <nav class="tabbar" [attr.aria-label]="'panel.navigation' | t">
+      @for (item of tabs; track item.label) {
+        <button
+          type="button"
+          class="tabbar__item"
+          [class.is-active]="tabActive(item)"
+          [attr.aria-current]="tabActive(item) ? 'page' : null"
+          (click)="onTab(item)"
+        >
+          <app-icon [name]="item.icon" [size]="20" />
+          <span>{{ item.shortLabel | t }}</span>
+        </button>
+      }
+    </nav>
+  </div>
+</div>
+
+@if (moreOpen()) {
+  <button
+    type="button"
+    class="sheet-backdrop"
+    [attr.aria-label]="'app.close' | t"
+    (click)="closeMore()"
+  ></button>
+  <div class="sheet" role="dialog" aria-modal="true" [attr.aria-labelledby]="'panel-more-title'">
+    <div class="sheet__handle" aria-hidden="true"></div>
+    <h2 id="panel-more-title" class="sheet__title">{{ 'panel.more.title' | t }}</h2>
+    <ul class="sheet__list">
+      @for (item of workspaceModules; track item.label) {
+        @if (item.route; as route) {
+          <li>
+            <a [routerLink]="route" class="nav-item" (click)="onSheetNavigate()">
+              <app-icon [name]="item.icon" [size]="18" />
+              {{ item.label | t }}
+            </a>
+          </li>
+        }
+      }
+      @if (isAdmin()) {
+        @for (item of adminModules; track item.label) {
+          <li>
+            @if (item.route; as route) {
+              <a [routerLink]="route" class="nav-item" (click)="onSheetNavigate()">
+                <app-icon [name]="item.icon" [size]="18" />
+                {{ item.label | t }}
+              </a>
+            } @else {
+              <div class="nav-item is-disabled" aria-disabled="true">
+                <app-icon [name]="item.icon" [size]="18" />
+                {{ item.label | t }}
+                <span class="sr-only">{{ 'panel.module.pending' | t }}</span>
+              </div>
+            }
+          </li>
+        }
+      }
+      <li>
+        <a routerLink="/eventos" class="nav-item" (click)="onSheetNavigate()">
+          <app-icon name="compass" [size]="18" />
+          {{ 'panel.publicCatalog' | t }}
+        </a>
+      </li>
+    </ul>
+  </div>
+}

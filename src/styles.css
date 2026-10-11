@@ -1,0 +1,17 @@
+@import 'tailwindcss';
+
+/* CDK overlay plumbing (positioning, backdrop, focus trap). Dialog panels are
+   rendered into `.cdk-overlay-container`, so these rules are required — they only
+   style the overlay machinery, not our components. */
+@import '@angular/cdk/overlay-prebuilt.css';
+
+/* Tailwind v4 auto-detects sources, but being explicit removes any doubt and keeps
+   the scan fast and deterministic. */
+@source './app';
+@source './index.html';
+
+@import './styles/tokens.css';
+@import './styles/themes/light.css';
+@import './styles/themes/dark.css';
+@import './styles/base.css';
+@import './styles/components.css';

@@ -1,0 +1,152 @@
+/**
+ * Design tokens — primitives only.
+ *
+ * Nothing here is theme dependent: the light/dark files map these primitives onto
+ * semantic names (`--surface-1`, `--text-2`, …). Components must consume the
+ * **semantic** tokens so a theme swap is a single file change.
+ */
+
+:root {
+  /* ── Brand palette ──────────────────────────────────────────────────────── */
+  --primary-50: #fff0f6;
+  --primary-100: #ffdceb;
+  --primary-200: #ffb9d7;
+  --primary-300: #ff8abb;
+  --primary-400: #fb5a9b;
+  --primary-500: #e8337f;
+  --primary-600: #c81f68;
+  --primary-700: #a31655;
+  --primary-800: #871347;
+  --primary-900: #6f123d;
+
+  --secondary-50: #f5f3ff;
+  --secondary-100: #ede9fe;
+  --secondary-200: #ddd6fe;
+  --secondary-400: #a78bfa;
+  --secondary-500: #7c3aed;
+  --secondary-600: #6d28d9;
+  --secondary-700: #5b21b6;
+
+  /* ── Neutrals ───────────────────────────────────────────────────────────── */
+  --neutral-0: #ffffff;
+  --neutral-50: #f8fafc;
+  --neutral-100: #f1f5f9;
+  --neutral-200: #e2e8f0;
+  --neutral-300: #cbd5e1;
+  --neutral-400: #94a3b8;
+  --neutral-500: #64748b;
+  --neutral-600: #475569;
+  --neutral-700: #334155;
+  --neutral-800: #1e293b;
+  --neutral-900: #0f172a;
+  --neutral-950: #020617;
+
+  /* ── Feedback palette ───────────────────────────────────────────────────── */
+  --success-50: #ecfdf5;
+  --success-100: #d1fae5;
+  --success-600: #047857;
+  --success-700: #065f46;
+  --success-400: #34d399;
+
+  --warning-50: #fffbeb;
+  --warning-100: #fef3c7;
+  --warning-600: #b45309;
+  --warning-400: #fbbf24;
+
+  --danger-50: #fef2f2;
+  --danger-100: #fee2e2;
+  --danger-600: #b91c1c;
+  --danger-700: #991b1b;
+  --danger-400: #f87171;
+
+  --info-50: #eff6ff;
+  --info-100: #dbeafe;
+  --info-600: #1d4ed8;
+  --info-400: #60a5fa;
+
+  /* ── Typography ─────────────────────────────────────────────────────────── */
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji';
+  --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 2.5rem;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+
+  /* ── Spacing scale (4px base) ───────────────────────────────────────────── */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* ── Radii & elevation ──────────────────────────────────────────────────── */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-full: 999px;
+
+  --shadow-1: 0 1px 2px rgb(15 23 42 / 5%), 0 1px 3px rgb(15 23 42 / 6%);
+  --shadow-2: 0 6px 16px rgb(15 23 42 / 7%), 0 2px 6px rgb(15 23 42 / 5%);
+  --shadow-3: 0 16px 40px rgb(15 23 42 / 12%), 0 4px 10px rgb(15 23 42 / 6%);
+
+  /* ── Motion ─────────────────────────────────────────────────────────────── */
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+  --duration-slow: 320ms;
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ── Layout ─────────────────────────────────────────────────────────────── */
+  --container-max: 75rem;
+  --tap-target: 2.75rem;
+  --control-height: 2.75rem;
+  --control-height-sm: 2.25rem;
+  --control-height-lg: 3.25rem;
+  --nav-height: 3.5rem;
+  --sidebar-width: 16rem;
+  --sidebar-width-collapsed: 4.5rem;
+  --tabbar-height: 3.75rem;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* ── Stacking ───────────────────────────────────────────────────────────── */
+  --z-base: 1;
+  --z-sticky: 20;
+  --z-nav: 30;
+  --z-overlay: 40;
+  --z-popover: 50;
+  --z-toast: 60;
+  --z-tooltip: 70;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0.01ms;
+    --duration-base: 0.01ms;
+    --duration-slow: 0.01ms;
+  }
+}

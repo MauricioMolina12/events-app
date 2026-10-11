@@ -1,0 +1,122 @@
+<header class="flex flex-col gap-2 sm:gap-3">
+  <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ 'catalog.hero.title' | t }}</h1>
+  <p class="max-w-2xl text-sm leading-relaxed text-[var(--text-2)] sm:text-base">{{ 'catalog.hero.subtitle' | t }}</p>
+</header>
+
+<app-quick-actions
+  class="mt-5 block"
+  [registerLink]="['/inscripcion']"
+  [registerState]="{ choose: true }"
+  [companionLink]="['/acompanantes']"
+/>
+
+<form class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end" (submit)="submitSearch($event)">
+  <app-form-field class="w-full min-w-0 sm:flex-1" controlId="catalogSearch" labelKey="catalog.search.label">
+    <input
+      id="catalogSearch"
+      class="field"
+      type="search"
+      name="search"
+      autocomplete="off"
+      [value]="term()"
+      [placeholder]="'catalog.search.placeholder' | t"
+      (input)="onTermInput($event)"
+    />
+  </app-form-field>
+
+  <div class="flex gap-2">
+    <button type="submit" appButton variant="primary">{{ 'app.search' | t }}</button>
+    @if (search()) {
+      <button type="button" appButton variant="ghost" (click)="clearSearch()">
+        {{ 'ui.filter.clearAll' | t }}
+      </button>
+    }
+  </div>
+</form>
+
+@if (state(); as view) {
+  <div class="mt-6 flex flex-col gap-6">
+    @switch (view.status) {
+      @case ('loading') {
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+          <span class="sr-only">{{ 'app.loading' | t }}</span>
+          @for (placeholder of placeholders; track placeholder) {
+            <app-skeleton class="h-44 w-full" />
+          }
+        </div>
+      }
+
+      @case ('error') {
+        <div class="card card--pad flex flex-col items-start gap-3" role="alert">
+          <h2 class="text-lg font-semibold">{{ 'app.error.title' | t }}</h2>
+          <p class="text-sm text-[var(--text-2)]">{{ errorMessage() }}</p>
+          @if (isOffline()) {
+            <p class="hint">{{ 'ui.retryOffline' | t }}</p>
+          }
+          <button type="button" appButton variant="secondary" (click)="retry()">
+            {{ 'app.retry' | t }}
+          </button>
+        </div>
+      }
+
+      @case ('loaded') {
+        @if (view.value.items.length === 0) {
+          <app-empty-state titleKey="catalog.empty.title" bodyKey="catalog.empty.body" iconName="calendar" />
+        } @else {
+          <p class="mb-3 text-sm text-[var(--text-3)]">
+            {{ 'catalog.count' | t: { count: view.value.meta.total } }}
+          </p>
+
+          <ul class="grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
+            @for (event of view.value.items; track event.id) {
+              <li>
+                <a
+                  class="card card--pad card--interactive flex h-full flex-col gap-3 no-underline"
+                  [routerLink]="['/eventos', event.slug]"
+                >
+                  <span class="flex flex-wrap items-center gap-2">
+                    @if (openCount(event) > 0) {
+                      <span class="chip chip--success">{{ 'catalog.card.open' | t }}</span>
+                    } @else {
+                      <span class="chip">{{ 'catalog.card.closed' | t }}</span>
+                    }
+                    <span class="chip">
+                      {{ 'catalog.card.locations' | t: { count: event.participations.length } }}
+                    </span>
+                  </span>
+
+                  <span class="text-lg font-semibold text-[var(--text-1)]">{{ event.name }}</span>
+
+                  <span class="text-sm text-[var(--text-2)]">
+                    {{ event.startsAt ? whenLabel(event) : ('event.noDate' | t) }}
+                  </span>
+
+                  @if (cityLabel(event); as cities) {
+                    <span class="mt-auto inline-flex items-center gap-1.5 text-sm text-[var(--text-3)]">
+                      <app-icon name="map-pin" [size]="14" />
+                      {{ cities }}
+                    </span>
+                  }
+
+                  @if (event.description) {
+                    <span class="line-clamp-3 text-sm text-[var(--text-2)]">
+                      {{ event.description }}
+                    </span>
+                  }
+                </a>
+              </li>
+            }
+          </ul>
+
+          <!-- <app-pagination
+            class="mt-6 block"
+            [page]="view.value.meta"
+            [pageSizeOptions]="pageSizeOptions"
+            (offsetChange)="onOffsetChange($event)"
+            (limitChange)="onLimitChange($event)"
+          /> -->
+        }
+      }
+    }
+  </div>
+}

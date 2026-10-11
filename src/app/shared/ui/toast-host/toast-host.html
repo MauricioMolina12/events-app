@@ -1,0 +1,32 @@
+<div
+  class="pointer-events-none fixed inset-x-0 bottom-0 z-[var(--z-toast)] flex flex-col items-stretch gap-2 p-3 pb-[calc(var(--space-3)+var(--safe-bottom))] sm:items-end"
+  role="region"
+  [attr.aria-label]="'ui.notifications' | t"
+>
+  @for (toast of toasts(); track toast.id) {
+    <div
+      class="pointer-events-auto flex w-full items-start gap-3 rounded-[var(--radius-lg)] border-l-4 bg-[var(--surface-1)] p-3.5 shadow-[var(--shadow-3)] sm:max-w-sm"
+      [class]="toneClass[toast.tone]"
+      [attr.role]="toast.tone === 'danger' ? 'alert' : 'status'"
+    >
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-semibold text-[var(--text-1)]">
+          {{ toast.messageKey | t: toast.params }}
+        </p>
+        @if (toast.supportCode; as code) {
+          <p class="mt-1 font-mono text-xs text-[var(--text-3)]">
+            {{ 'ui.supportCode' | t: { code } }}
+          </p>
+        }
+      </div>
+      <button
+        type="button"
+        class="btn btn--ghost btn--sm shrink-0"
+        [attr.aria-label]="'app.close' | t"
+        (click)="service.dismiss(toast.id)"
+      >
+        <app-icon name="x" [size]="16" />
+      </button>
+    </div>
+  }
+</div>

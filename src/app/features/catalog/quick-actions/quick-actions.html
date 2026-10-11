@@ -1,0 +1,49 @@
+<section class="flex flex-col gap-3" aria-labelledby="quickActionsTitle">
+  <h2 id="quickActionsTitle" class="text-base font-semibold">{{ 'quick.title' | t }}</h2>
+
+  <ul class="grid list-none gap-3 p-0 sm:grid-cols-2">
+    @if (canRegister()) {
+      <li>
+        <a
+          class="card card--pad card--interactive flex h-full items-start gap-3 no-underline"
+          [routerLink]="registerLink()"
+          [state]="registerState()"
+        >
+          <span
+            class="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] bg-[var(--primary-subtle)] text-[var(--primary)]"
+            aria-hidden="true"
+          >
+            <app-icon name="ticket" [size]="20" />
+          </span>
+          <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span class="text-base font-semibold text-[var(--text-1)]">
+              {{ 'quick.register.title' | t }}
+            </span>
+            <span class="text-sm text-[var(--text-2)]">{{ 'quick.register.body' | t }}</span>
+          </span>
+          <app-icon name="chevronRight" [size]="18" class="mt-1 shrink-0 text-[var(--text-3)]" />
+        </a>
+      </li>
+    }
+    <li>
+      <a
+        class="card card--pad card--interactive flex h-full items-start gap-3 no-underline"
+        [routerLink]="companionLink()"
+      >
+        <span
+          class="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] bg-[var(--success-subtle)] text-[var(--success)]"
+          aria-hidden="true"
+        >
+          <app-icon name="users" [size]="20" />
+        </span>
+        <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span class="text-base font-semibold text-[var(--text-1)]">
+            {{ 'quick.companion.title' | t }}
+          </span>
+          <span class="text-sm text-[var(--text-2)]">{{ 'quick.companion.body' | t }}</span>
+        </span>
+        <app-icon name="chevronRight" [size]="18" class="mt-1 shrink-0 text-[var(--text-3)]" />
+      </a>
+    </li>
+  </ul>
+</section>

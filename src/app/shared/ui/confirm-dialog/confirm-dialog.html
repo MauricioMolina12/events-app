@@ -1,0 +1,40 @@
+<div class="card card--pad w-full max-w-lg" role="document">
+  <h2 class="text-lg font-semibold tracking-tight">{{ data.titleKey | t }}</h2>
+  @if (data.bodyKey; as body) {
+    <p class="mt-2 text-sm text-[var(--text-2)]">{{ body | t: data.bodyParams }}</p>
+  }
+
+  @if (data.note; as spec) {
+    <div class="mt-4">
+      <label class="label" for="confirm-dialog-note">{{ spec.labelKey | t }}</label>
+      <textarea
+        id="confirm-dialog-note"
+        class="field"
+        rows="3"
+        [attr.placeholder]="spec.placeholderKey ? (spec.placeholderKey | t) : null"
+        [attr.minlength]="spec.minLength"
+        [attr.maxlength]="spec.maxLength"
+        [value]="note()"
+        (input)="onNoteInput($event)"
+      ></textarea>
+      @if (spec.hintKey; as hint) {
+        <p class="hint">{{ hint | t }}</p>
+      }
+    </div>
+  }
+
+  <div class="mt-5 flex flex-wrap justify-end gap-2">
+    <button type="button" appButton variant="secondary" (click)="cancel()">
+      {{ 'app.cancel' | t }}
+    </button>
+    <button
+      type="button"
+      appButton
+      [variant]="confirmVariant()"
+      [disabled]="!canConfirm()"
+      (click)="confirm()"
+    >
+      {{ data.confirmKey ?? 'app.confirm' | t }}
+    </button>
+  </div>
+</div>

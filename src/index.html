@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es-CO">
+  <head>
+    <meta charset="utf-8" />
+    <title>Barby Toys &amp; Cupidos — Eventos</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="Catálogo de eventos, talleres y fiestas de Barby Toys & Cupidos. Consulta la agenda e inscríbete en línea."
+    />
+    <meta name="theme-color" content="#c81f68" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#101827" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <script>
+      // Apply the persisted theme before first paint so there is no flash of light.
+      (function () {
+        try {
+          var stored = localStorage.getItem('events.theme');
+          if (stored === 'light' || stored === 'dark') {
+            document.documentElement.dataset['theme'] = stored;
+          }
+          var brand = JSON.parse(localStorage.getItem('events.brand') || 'null');
+          if (brand && brand.colorCustomized && /^#[0-9A-Fa-f]{6}$/.test(brand.primary)) {
+            var root = document.documentElement;
+            root.style.setProperty('--primary', brand.primary);
+            root.style.setProperty('--primary-hover', brand.primary);
+            root.style.setProperty('--primary-on', brand.on || '#ffffff');
+            root.style.setProperty('--focus-ring', brand.primary);
+            root.style.setProperty(
+              '--primary-subtle',
+              'color-mix(in srgb, ' + brand.primary + ' 16%, var(--surface-1))',
+            );
+          }
+        } catch (_) {
+          /* private mode / storage disabled — fall back to the OS preference */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <app-root></app-root>
+  </body>
+</html>

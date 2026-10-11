@@ -1,0 +1,51 @@
+<nav
+  class="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-3"
+  [attr.aria-label]="'ui.pagination.label' | t"
+>
+  <p class="text-sm text-[var(--text-2)]">
+    {{ 'ui.pagination.summary' | t: { from: firstItem(), to: lastItem(), total: page().total } }}
+  </p>
+
+  <div class="flex items-center gap-2">
+    <label class="text-sm text-[var(--text-2)]" [attr.for]="limitId">
+      {{ 'ui.pagination.perPage' | t }}
+    </label>
+    <app-select
+      class="w-24"
+      [options]="limitChoices()"
+      [value]="page().limit.toString()"
+      [ariaLabel]="'ui.pagination.perPage' | t"
+      (valueChange)="onLimitPicked($event)"
+    />
+
+    <button
+      type="button"
+      appButton
+      variant="secondary"
+      icon
+      size="sm"
+      [disabled]="!hasPrevious()"
+      [attr.aria-label]="'ui.pagination.previous' | t"
+      (click)="previous()"
+    >
+      <app-icon name="arrow-left" [size]="16" />
+    </button>
+
+    <span class="text-sm tabular-nums text-[var(--text-2)]">
+      {{ 'ui.pagination.page' | t: { page: pageNumber(), pages: pageCount() } }}
+    </span>
+
+    <button
+      type="button"
+      appButton
+      variant="secondary"
+      icon
+      size="sm"
+      [disabled]="!hasNext()"
+      [attr.aria-label]="'ui.pagination.next' | t"
+      (click)="next()"
+    >
+      <app-icon name="arrow-right" [size]="16" />
+    </button>
+  </div>
+</nav>

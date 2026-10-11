@@ -1,0 +1,151 @@
+.receipt {
+  animation: receipt-in 360ms var(--ease-standard) both;
+}
+
+.receipt-qr {
+  animation: receipt-qr-in 420ms 60ms var(--ease-standard) both;
+}
+
+.success-pop {
+  animation: success-pop 320ms var(--ease-standard) both;
+}
+
+.receipt--fit {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.receipt-layout {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  align-content: start;
+  gap: var(--space-3);
+}
+
+.receipt-field {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  padding: 0.55rem 0.85rem;
+}
+
+.receipt-how-steps {
+  margin: 0;
+  display: grid;
+  list-style: none;
+  gap: var(--space-2);
+  padding: 0;
+}
+
+.receipt-how-steps li {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  padding: 0.55rem 0.75rem;
+}
+
+.receipt-how-steps p {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  color: var(--text-2);
+}
+
+@media (min-width: 64rem) {
+  .receipt--fit {
+    gap: var(--space-2);
+  }
+
+  .receipt-layout {
+    grid-template-columns: minmax(0, 1.2fr) minmax(17.5rem, 21.5rem);
+    grid-template-rows: auto auto auto auto;
+    column-gap: var(--space-8);
+    row-gap: var(--space-3);
+    align-content: stretch;
+  }
+
+  .receipt-hero {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .receipt-qr {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: stretch;
+  }
+
+  .receipt-summary {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .receipt-save {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .receipt-how {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    min-height: 0;
+  }
+
+  .receipt-how-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .receipt-qr-card {
+    height: 100%;
+  }
+}
+
+@keyframes receipt-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes receipt-qr-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes success-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .receipt,
+  .receipt-qr,
+  .success-pop {
+    animation: none;
+  }
+}

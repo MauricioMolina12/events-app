@@ -1,0 +1,11 @@
+@if (src() && !broken()) {
+  <img
+    class="brand-mark"
+    [class.brand-mark--wide]="wide()"
+    [src]="src()"
+    alt=""
+    (error)="onError()"
+  />
+} @else {
+  <span class="brand-mark brand-mark--fallback" aria-hidden="true">{{ initials() }}</span>
+}

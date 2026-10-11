@@ -1,0 +1,94 @@
+<div class="chart-toolbar">
+  <p class="chart-caption">
+    {{ granularityKey() | t }}
+    @if (peak(); as peak) {
+      · {{ 'dash.timeline.peak' | t: { value: peak.value, label: peak.label } }}
+    }
+  </p>
+  <div class="segmented segmented--sm" role="group" [attr.aria-label]="'dash.timeline.mode' | t">
+    <button
+      type="button"
+      class="segmented__item"
+      [class.is-active]="mode() === 'period'"
+      [attr.aria-pressed]="mode() === 'period'"
+      (click)="setMode('period')"
+    >
+      {{ 'dash.timeline.period' | t }}
+    </button>
+    <button
+      type="button"
+      class="segmented__item"
+      [class.is-active]="mode() === 'cumulative'"
+      [attr.aria-pressed]="mode() === 'cumulative'"
+      (click)="setMode('cumulative')"
+    >
+      {{ 'dash.timeline.cumulative' | t }}
+    </button>
+  </div>
+</div>
+
+<div class="tl">
+  <div class="tl-axis" aria-hidden="true">
+    @for (tick of ticks(); track tick.top) {
+      <span class="tl-axis__tick" [style.top.%]="tick.top">{{ tick.value }}</span>
+    }
+  </div>
+
+  <div
+    class="tl-plot"
+    tabindex="0"
+    role="img"
+    [attr.aria-label]="summaryLabel()"
+    (pointermove)="onPointer($event)"
+    (pointerleave)="clear()"
+    (keydown)="onKey($event)"
+    (blur)="clear()"
+  >
+    @for (tick of ticks(); track tick.top) {
+      <span class="tl-grid" [style.top.%]="tick.top" aria-hidden="true"></span>
+    }
+
+    <svg class="tl-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      @if (areaPath()) {
+        <path class="tl-area" [attr.d]="areaPath()" />
+      }
+      <path class="tl-line" [attr.d]="linePath()" vector-effect="non-scaling-stroke" />
+    </svg>
+
+    @if (points().length === 1) {
+      <span class="tl-dot" [style.left.%]="points()[0]!.x" [style.top.%]="points()[0]!.y"></span>
+    }
+
+    @if (activePoint(); as point) {
+      <span class="tl-cursor" [style.left.%]="point.x" aria-hidden="true"></span>
+      <span
+        class="tl-dot is-active"
+        [style.left.%]="point.x"
+        [style.top.%]="point.y"
+        aria-hidden="true"
+      ></span>
+      <div
+        class="chart-tooltip"
+        [style.left.%]="tooltipLeft(point.x)"
+        [style.top.%]="point.y"
+        role="status"
+      >
+        <p class="chart-tooltip__title">{{ point.detail }}</p>
+        <p class="chart-tooltip__value">
+          {{
+            (mode() === 'cumulative'
+              ? 'dash.timeline.tooltipCumulative'
+              : 'dash.timeline.tooltipPeriod'
+            ) | t: { count: point.value.toLocaleString('es-CO') }
+          }}
+        </p>
+      </div>
+    }
+  </div>
+
+  <div class="tl-x" aria-hidden="true">
+    @for (label of xLabels(); track label.index) {
+      <span class="tl-x__label" [style.left.%]="label.x">{{ label.label }}</span>
+    }
+  </div>
+</div>

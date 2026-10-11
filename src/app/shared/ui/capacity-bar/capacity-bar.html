@@ -1,0 +1,30 @@
+<div class="flex flex-col gap-1">
+  <div
+    class="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-2)]"
+    role="progressbar"
+    [attr.aria-valuenow]="taken()"
+    [attr.aria-valuemin]="0"
+    [attr.aria-valuemax]="capacity()"
+  >
+    <div
+      class="h-full rounded-full transition-[width]"
+      [class]="tone()"
+      [style.width.%]="percent()"
+    ></div>
+  </div>
+  <p class="text-xs text-[var(--text-2)]">
+    @if (remaining() > 0) {
+      {{ 'event.venue.remaining' | t: { count: remaining() } }}
+    } @else {
+      {{ 'ui.capacity.full' | t }}
+    }
+    <span class="text-[var(--text-3)]">
+      · {{ 'ui.capacity.takenOfTotal' | t: { taken: taken(), total: capacity() } }}
+    </span>
+    @if (waitlisted() > 0) {
+      <span class="text-[var(--text-3)]">
+        · {{ 'ui.capacity.waitlisted' | t: { count: waitlisted() } }}
+      </span>
+    }
+  </p>
+</div>

@@ -1,0 +1,23 @@
+.brand-mark {
+  display: block;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.brand-mark--wide {
+  width: auto;
+  max-width: 7.5rem;
+}
+
+.brand-mark--fallback {
+  display: grid;
+  place-items: center;
+  background: var(--primary);
+  color: var(--primary-on);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}

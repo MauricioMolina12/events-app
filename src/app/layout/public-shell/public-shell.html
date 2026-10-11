@@ -1,0 +1,64 @@
+<a
+  class="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-[var(--radius-md)] focus:bg-[var(--surface-1)] focus:px-3 focus:py-2 focus:text-sm focus:shadow-[var(--shadow-2)]"
+  [href]="'#contenido'"
+>
+  {{ 'app.skipToContent' | t }}
+</a>
+
+<div
+  class="flex flex-col bg-[var(--page)] text-[var(--text-1)]"
+  [class.h-dvh]="compactChrome()"
+  [class.min-h-dvh]="!compactChrome()"
+>
+  <header
+    class="sticky top-0 z-[var(--z-nav)] shrink-0 border-b border-[var(--border)] bg-[var(--surface-1)]"
+  >
+    <div
+      class="mx-auto flex w-full items-center gap-3 px-4 sm:px-6"
+      [class.max-w-[75rem]]="compactChrome()"
+      [class.max-w-6xl]="!compactChrome()"
+      [class.py-2.5]="compactChrome()"
+      [class.py-3]="!compactChrome()"
+    >
+      <a routerLink="/eventos" class="flex min-w-0 items-center gap-2.5 no-underline">
+        <app-brand-mark
+          [src]="workspace.logoUrl()"
+          [initials]="workspace.initials()"
+          [wide]="!!workspace.logoUrl()"
+        />
+        <span class="truncate text-sm font-semibold tracking-tight text-[var(--text-1)]">{{
+          workspace.publicName()
+        }}</span>
+      </a>
+
+      <app-theme-toggle class="ml-auto" />
+    </div>
+  </header>
+
+  <main
+    id="contenido"
+    tabindex="-1"
+    class="mx-auto flex w-full flex-1 flex-col px-4 sm:px-6"
+    [class.max-w-[75rem]]="compactChrome()"
+    [class.max-w-6xl]="!compactChrome()"
+    [class.min-h-0]="compactChrome()"
+    [class.overflow-y-auto]="compactChrome()"
+    [class.lg:px-8]="compactChrome()"
+    [class.py-3]="compactChrome()"
+    [class.py-6]="!compactChrome()"
+    [class.sm:py-8]="!compactChrome()"
+  >
+    <router-outlet />
+  </main>
+
+  @if (!compactChrome()) {
+    <footer class="mt-auto border-t border-[var(--border)] bg-[var(--surface-1)] px-4 py-6">
+      <div
+        class="mx-auto flex w-full max-w-6xl flex-col items-center gap-1 text-xs text-[var(--text-3)] sm:flex-row sm:justify-between"
+      >
+        <p>© {{ year() }} {{ workspace.publicName() }}</p>
+        <p>{{ 'app.supportCodeHint' | t }}</p>
+      </div>
+    </footer>
+  }
+</div>

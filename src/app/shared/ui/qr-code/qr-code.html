@@ -1,0 +1,13 @@
+<svg
+  [attr.viewBox]="viewBox()"
+  role="img"
+  [attr.aria-label]="label()"
+  class="block size-full"
+  shape-rendering="crispEdges"
+>
+  <title>{{ label() }}</title>
+  <rect width="100%" height="100%" fill="#fff" />
+  @for (cell of modules(); track $index) {
+    <rect [attr.x]="cell.x" [attr.y]="cell.y" width="1" height="1" fill="#111" />
+  }
+</svg>

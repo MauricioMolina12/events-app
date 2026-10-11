@@ -1,0 +1,119 @@
+/**
+ * Dark theme. Applied either by the OS preference (no explicit `data-theme`) or by
+ * the user's manual choice (`data-theme="dark"` on `<html>`).
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --page: var(--neutral-950);
+    --surface-0: var(--page);
+    --overlay: rgb(2 6 23 / 62%);
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 35%);
+    --shadow-2: 0 8px 20px rgb(0 0 0 / 38%);
+    --shadow-3: 0 18px 44px rgb(0 0 0 / 48%);
+    --surface-1: #101827;
+    --surface-2: #162034;
+    --surface-3: #1e293b;
+    --surface-inverse: var(--neutral-100);
+    --border: #26334a;
+    --border-strong: #35455f;
+    --text-1: #e8eef8;
+    --text-2: #a7b4c9;
+    --text-3: #8593aa;
+    --text-inverse: var(--neutral-900);
+    --primary: var(--primary-400);
+    --primary-hover: var(--primary-300);
+    --primary-subtle: #3a1230;
+    --primary-on: var(--neutral-950);
+    --secondary: var(--secondary-400);
+    --secondary-subtle: #241b45;
+    --success: var(--success-400);
+    --success-subtle: #06301f;
+    --warning: var(--warning-400);
+    --warning-subtle: #3a2a06;
+    --danger: var(--danger-400);
+    --danger-hover: #fca5a5;
+    --danger-subtle: #3b1212;
+    --info: var(--info-400);
+    --info-subtle: #10233f;
+    --focus-ring: var(--primary-300);
+    --select-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23a7b4c9' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='m4 6 4 4 4-4'/></svg>");
+    --status-draft-fg: #d4dceb;
+    --status-draft-bg: #2b3648;
+    --status-published-fg: #6ee7b7;
+    --status-published-bg: #06301f;
+    --status-closed-fg: #fcd34d;
+    --status-closed-bg: #3a2a06;
+    --status-archived-fg: #a7b4c9;
+    --status-archived-bg: #232f43;
+    --status-open-fg: #6ee7b7;
+    --status-open-bg: #06301f;
+    --status-cancelled-fg: #fca5a5;
+    --status-cancelled-bg: #3b1212;
+    --status-confirmed-fg: #93c5fd;
+    --status-confirmed-bg: #10233f;
+    --status-waitlisted-fg: #fcd34d;
+    --status-waitlisted-bg: #3a2a06;
+    --status-active-fg: #6ee7b7;
+    --status-active-bg: #06301f;
+    --status-inactive-fg: #a7b4c9;
+    --status-inactive-bg: #2b3648;
+  }
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --page: var(--neutral-950);
+  --surface-0: var(--page);
+  --overlay: rgb(2 6 23 / 62%);
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 35%);
+  --shadow-2: 0 8px 20px rgb(0 0 0 / 38%);
+  --shadow-3: 0 18px 44px rgb(0 0 0 / 48%);
+  --surface-1: #101827;
+  --surface-2: #162034;
+  --surface-3: #1e293b;
+  --surface-inverse: var(--neutral-100);
+  --border: #26334a;
+  --border-strong: #35455f;
+  --text-1: #e8eef8;
+  --text-2: #a7b4c9;
+  --text-3: #8593aa;
+  --text-inverse: var(--neutral-900);
+  --primary: var(--primary-400);
+  --primary-hover: var(--primary-300);
+  --primary-subtle: #3a1230;
+  --primary-on: var(--neutral-950);
+  --secondary: var(--secondary-400);
+  --secondary-subtle: #241b45;
+  --success: var(--success-400);
+  --success-subtle: #06301f;
+  --warning: var(--warning-400);
+  --warning-subtle: #3a2a06;
+  --danger: var(--danger-400);
+  --danger-hover: #fca5a5;
+  --danger-subtle: #3b1212;
+  --info: var(--info-400);
+  --info-subtle: #10233f;
+  --focus-ring: var(--primary-300);
+  --select-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23a7b4c9' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='m4 6 4 4 4-4'/></svg>");
+  --status-draft-fg: #d4dceb;
+  --status-draft-bg: #2b3648;
+  --status-published-fg: #6ee7b7;
+  --status-published-bg: #06301f;
+  --status-closed-fg: #fcd34d;
+  --status-closed-bg: #3a2a06;
+  --status-archived-fg: #a7b4c9;
+  --status-archived-bg: #232f43;
+  --status-open-fg: #6ee7b7;
+  --status-open-bg: #06301f;
+  --status-cancelled-fg: #fca5a5;
+  --status-cancelled-bg: #3b1212;
+  --status-confirmed-fg: #93c5fd;
+  --status-confirmed-bg: #10233f;
+  --status-waitlisted-fg: #fcd34d;
+  --status-waitlisted-bg: #3a2a06;
+  --status-active-fg: #6ee7b7;
+  --status-active-bg: #06301f;
+  --status-inactive-fg: #a7b4c9;
+  --status-inactive-bg: #2b3648;
+}

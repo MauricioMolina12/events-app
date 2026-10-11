@@ -1,0 +1,273 @@
+@switch (state().status) {
+  @case ('loading') {
+    <div class="flex h-full min-h-0 w-full flex-col justify-center gap-4" aria-busy="true">
+      <span class="sr-only">{{ 'register.confirmed.loading' | t }}</span>
+      <app-skeleton class="mx-auto size-16 rounded-full" />
+      <app-skeleton class="mx-auto h-9 w-2/3 max-w-md" />
+      <app-skeleton class="mx-auto h-[22rem] w-full max-w-5xl rounded-[var(--radius-lg)]" />
+    </div>
+  }
+
+  @case ('error') {
+    @if (isMissing()) {
+      <app-empty-state
+        titleKey="register.receipt.notFound"
+        bodyKey="register.receipt.notFoundBody"
+        iconName="compass"
+      >
+        <a routerLink="/eventos" appButton variant="primary">{{ 'event.back' | t }}</a>
+      </app-empty-state>
+    } @else {
+      <div
+        class="card card--pad mx-auto flex w-full max-w-2xl flex-col items-start gap-3"
+        role="alert"
+      >
+        <h1 class="text-lg font-semibold">{{ 'app.error.title' | t }}</h1>
+        <p class="text-sm text-[var(--text-2)]">{{ errorMessage() }}</p>
+        @if (isOffline()) {
+          <p class="hint">{{ 'ui.retryOffline' | t }}</p>
+        }
+        <button type="button" appButton variant="secondary" (click)="retry()">
+          {{ 'app.retry' | t }}
+        </button>
+      </div>
+    }
+  }
+
+  @case ('loaded') {
+    <article class="receipt receipt--fit mx-auto w-full max-w-[75rem]">
+      <a
+        appButton
+        variant="ghost"
+        size="sm"
+        class="hidden w-fit shrink-0 no-underline lg:inline-flex"
+        [routerLink]="backLink()"
+      >
+        <app-icon name="arrow-left" [size]="16" />
+        <span>{{ 'register.back' | t }}</span>
+      </a>
+
+      <div class="receipt-layout">
+        <header class="receipt-hero order-1 flex min-w-0 items-start gap-3">
+          <span
+            class="success-pop grid size-10 shrink-0 place-items-center rounded-full bg-[var(--success-subtle)] text-[var(--success)]"
+            aria-hidden="true"
+          >
+            <app-icon name="check-circle" [size]="22" />
+          </span>
+          <div class="min-w-0">
+            <div class="mb-1">
+              <app-status-badge [kind]="kind()" />
+            </div>
+            <h1 class="text-pretty text-2xl font-bold leading-tight tracking-tight xl:text-[1.75rem]">
+              {{ 'register.confirmed.title' | t: { name: fullName() } }}
+            </h1>
+            <p class="mt-1 text-sm leading-snug text-[var(--text-2)]">
+              {{ confirmationBody() }}
+            </p>
+          </div>
+        </header>
+
+        <aside class="receipt-qr order-2 min-w-0">
+          <section
+            class="receipt-qr-card card flex flex-col items-center gap-3 px-5 py-4"
+            [attr.aria-label]="'register.receipt.title' | t"
+          >
+            <h2 class="text-center text-sm font-semibold">{{ 'register.receipt.qr' | t }}</h2>
+            @if (qrVisible()) {
+              <div
+                class="size-[11.25rem] shrink-0 rounded-[var(--radius-lg)] bg-white p-2.5 shadow-[var(--shadow-1)] xl:size-[12.5rem]"
+              >
+                <app-qr-code [value]="qrValue()" [label]="'register.receipt.qr' | t" />
+              </div>
+            }
+            <p class="max-w-[16rem] text-center text-xs leading-snug text-[var(--text-2)]">
+              {{ 'register.receipt.qrUse' | t }}
+            </p>
+            <div
+              class="mt-auto flex w-full flex-col items-center gap-2 border-t border-[var(--border)] pt-3"
+            >
+              <div class="w-full text-center">
+                <p class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                  {{ 'register.receipt.folio' | t }}
+                </p>
+                <p class="mt-0.5 break-all font-mono text-xs font-semibold tracking-wide">
+                  {{ receiptId() }}
+                </p>
+              </div>
+              <button
+                type="button"
+                appButton
+                variant="secondary"
+                size="sm"
+                class="w-full"
+                [disabled]="copyBusy()"
+                aria-live="polite"
+                (click)="copyCode()"
+              >
+                {{ copyLabel() | t }}
+              </button>
+              @if (qrVisible()) {
+                <button
+                  type="button"
+                  appButton
+                  variant="primary"
+                  size="sm"
+                  class="w-full"
+                  [loading]="downloading()"
+                  [disabled]="downloading()"
+                  (click)="downloadTicket()"
+                >
+                  <app-icon name="download" [size]="16" />
+                  {{
+                    (downloading() ? 'register.receipt.downloading' : 'register.receipt.download')
+                      | t
+                  }}
+                </button>
+              }
+            </div>
+          </section>
+        </aside>
+
+        <section
+          class="receipt-summary order-3 flex min-w-0 flex-col gap-2"
+          aria-labelledby="receipt-summary"
+        >
+          <h2 id="receipt-summary" class="text-base font-semibold">
+            {{ 'register.confirmed.summary' | t }}
+          </h2>
+          <dl class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div class="receipt-field">
+              <dt class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                {{ 'register.receipt.titular' | t }}
+              </dt>
+              <dd class="mt-0.5 text-sm font-semibold text-[var(--text-1)]">{{ fullName() }}</dd>
+            </div>
+            <div class="receipt-field">
+              <dt class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                {{ 'register.receipt.document' | t }}
+              </dt>
+              <dd class="mt-0.5 text-sm font-semibold text-[var(--text-1)]">{{ document() }}</dd>
+            </div>
+            <div class="receipt-field">
+              <dt class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                {{ 'register.receipt.people' | t }}
+              </dt>
+              <dd class="mt-0.5 text-sm font-semibold text-[var(--text-1)]">
+                {{ 'register.companions.count' | t: { count: companionsCount() } }}
+              </dd>
+              @if (canAddCompanion()) {
+                <dd class="mt-1">
+                  <a
+                    appButton
+                    variant="link"
+                    size="sm"
+                    class="inline-flex items-center gap-1 px-0"
+                    [routerLink]="addCompanionLink()"
+                    [state]="addCompanionState()"
+                  >
+                    <app-icon name="plus" [size]="14" />
+                    {{ 'register.receipt.addCompanion' | t }}
+                  </a>
+                </dd>
+              }
+            </div>
+            <div class="receipt-field">
+              <dt class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                {{ 'register.receipt.issuedLabel' | t }}
+              </dt>
+              <dd class="mt-0.5 text-sm font-semibold text-[var(--text-1)]">{{ issuedAt() }}</dd>
+            </div>
+            @if (establishmentName(); as name) {
+              <div class="receipt-field">
+                <dt class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                  {{ 'register.sede' | t }}
+                </dt>
+                <dd class="mt-0.5 text-sm font-semibold text-[var(--text-1)]">
+                  {{ name }}
+                  @if (establishmentCity()) {
+                    <span class="font-medium text-[var(--text-2)]"> · {{ establishmentCity() }}</span>
+                  }
+                </dd>
+              </div>
+            }
+            @if (eventName(); as name) {
+              <div class="receipt-field">
+                <dt class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                  {{ 'register.receipt.event' | t }}
+                </dt>
+                <dd class="mt-0.5 text-sm font-semibold text-[var(--text-1)]">{{ name }}</dd>
+                @if (when()) {
+                  <dd class="text-xs text-[var(--text-3)]">{{ when() }}</dd>
+                }
+              </div>
+            }
+          </dl>
+        </section>
+
+        <section
+          class="receipt-save order-4 flex min-w-0 flex-col gap-2"
+          aria-labelledby="receipt-save"
+        >
+          <h2 id="receipt-save" class="text-base font-semibold">
+            {{ 'register.receipt.saveTitle' | t }}
+          </h2>
+          <p class="text-sm leading-snug text-[var(--text-2)]">
+            {{ 'register.receipt.saveBody' | t }}
+          </p>
+          <div class="flex flex-col gap-2 sm:flex-row">
+            @if (whatsappHref(); as href) {
+              <a
+                appButton
+                variant="primary"
+                [href]="href"
+                target="_blank"
+                rel="noopener"
+              >
+                <app-icon name="phone" [size]="16" />
+                {{ 'register.confirmed.send.whatsapp' | t }}
+              </a>
+            } @else {
+              <button type="button" appButton variant="primary" disabled>
+                <app-icon name="phone" [size]="16" />
+                {{ 'register.confirmed.send.whatsapp' | t }}
+              </button>
+            }
+            @if (mailtoHref(); as href) {
+              <a appButton variant="secondary" [href]="href">
+                <app-icon name="mail" [size]="16" />
+                {{ 'register.confirmed.send.email' | t }}
+              </a>
+            } @else {
+              <button type="button" appButton variant="secondary" disabled>
+                <app-icon name="mail" [size]="16" />
+                {{ 'register.confirmed.send.email' | t }}
+              </button>
+            }
+          </div>
+          @if (!whatsappHref() && !mailtoHref()) {
+            <p class="hint">{{ 'register.confirmed.send.unavailable' | t }}</p>
+          }
+        </section>
+
+        <section class="receipt-how order-5 min-w-0" aria-labelledby="receipt-how">
+          <h2 id="receipt-how" class="mb-2 text-base font-semibold">
+            {{ 'register.receipt.howTitle' | t }}
+          </h2>
+          <ol class="receipt-how-steps">
+            @for (step of howSteps; track step; let i = $index) {
+              <li>
+                <span
+                  class="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--primary-subtle)] text-[0.7rem] font-bold text-[var(--primary)]"
+                  >{{ i + 1 }}</span
+                >
+                <p>{{ step | t }}</p>
+              </li>
+            }
+          </ol>
+        </section>
+      </div>
+
+    </article>
+  }
+}

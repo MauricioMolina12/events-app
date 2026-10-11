@@ -1,0 +1,66 @@
+/** Light theme — the default. Every semantic name a component may use lives here. */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  --page: #f4f6fa;
+  --surface-0: var(--page);
+  --surface-1: var(--neutral-0);
+  --surface-2: var(--neutral-50);
+  --surface-3: var(--neutral-100);
+  --surface-inverse: var(--neutral-900);
+  --overlay: rgb(15 23 42 / 45%);
+
+  --border: var(--neutral-200);
+  --border-strong: var(--neutral-300);
+
+  --text-1: var(--neutral-900);
+  --text-2: var(--neutral-700);
+  /* neutral-500 (#64748b) lands at 4.34:1 on --page, under the WCAG AA floor for the
+     12px footnotes and hints that use it, so the muted step is neutral-600 (6.9:1). */
+  --text-3: var(--neutral-600);
+  --text-inverse: var(--neutral-0);
+
+  --primary: var(--primary-600);
+  --primary-hover: var(--primary-700);
+  --primary-subtle: var(--primary-50);
+  --primary-on: var(--neutral-0);
+
+  --secondary: var(--secondary-600);
+  --secondary-subtle: var(--secondary-50);
+
+  --success: var(--success-600);
+  --success-subtle: var(--success-50);
+  --warning: var(--warning-600);
+  --warning-subtle: var(--warning-50);
+  --danger: var(--danger-600);
+  --danger-hover: var(--danger-700);
+  --danger-subtle: var(--danger-50);
+  --info: var(--info-600);
+  --info-subtle: var(--info-50);
+
+  --focus-ring: var(--primary-500);
+  --select-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23475569' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='m4 6 4 4 4-4'/></svg>");
+
+  /* Domain status colours */
+  --status-draft-fg: var(--neutral-700);
+  --status-draft-bg: var(--neutral-200);
+  --status-published-fg: var(--success-700);
+  --status-published-bg: var(--success-100);
+  --status-closed-fg: var(--warning-600);
+  --status-closed-bg: var(--warning-100);
+  --status-archived-fg: var(--neutral-600);
+  --status-archived-bg: var(--neutral-100);
+  --status-open-fg: var(--success-700);
+  --status-open-bg: var(--success-100);
+  --status-cancelled-fg: var(--danger-700);
+  --status-cancelled-bg: var(--danger-100);
+  --status-confirmed-fg: var(--info-600);
+  --status-confirmed-bg: var(--info-100);
+  --status-waitlisted-fg: var(--warning-600);
+  --status-waitlisted-bg: var(--warning-100);
+  --status-active-fg: var(--success-700);
+  --status-active-bg: var(--success-100);
+  --status-inactive-fg: var(--neutral-600);
+  --status-inactive-bg: var(--neutral-200);
+}

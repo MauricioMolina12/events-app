@@ -1,0 +1,139 @@
+<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+  <app-page-header
+    [titleKey]="editing() ? 'establishments.form.edit' : 'establishments.form.create'"
+    subtitleKey="establishments.subtitle"
+  >
+    <a routerLink="/panel/sedes" appButton variant="secondary">{{ 'app.cancel' | t }}</a>
+  </app-page-header>
+
+  @if (editing() && state().status === 'loading') {
+    <div class="flex flex-col gap-3" aria-busy="true">
+      <app-skeleton class="h-10 w-2/3" />
+      <app-skeleton class="h-10 w-full" />
+    </div>
+  } @else if (editing() && state().status === 'error') {
+    <div
+      class="callout callout--danger"
+      role="alert"
+    >
+      <p class="text-sm text-(--danger-700)">{{ errorMessage() }}</p>
+      <button type="button" appButton variant="secondary" (click)="retry()">
+        {{ 'app.retry' | t }}
+      </button>
+    </div>
+  } @else {
+    <form class="card card--pad flex flex-col gap-6" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      @if (saveError()) {
+        <p
+          class="callout callout--danger"
+          role="alert"
+        >
+          {{ saveError() }}
+        </p>
+      }
+      @if (submitted() && form.invalid) {
+        <p
+          class="callout callout--warning"
+          role="alert"
+        >
+          {{ 'establishments.form.errors' | t }}
+        </p>
+      }
+
+      <section class="grid gap-5 sm:grid-cols-2">
+        <div>
+          <label for="establishment-name" class="mb-1.5 block text-sm font-medium">{{
+            'establishments.form.name' | t
+          }}</label>
+          <input
+            id="establishment-name"
+            formControlName="name"
+            required
+            maxlength="160"
+            [attr.aria-invalid]="submitted() && form.controls.name.invalid"
+            class="field"
+          />
+          @if (submitted() && form.controls.name.hasError('required')) {
+            <p class="mt-1.5 text-xs text-(--danger-700)">{{ 'validation.required' | t }}</p>
+          }
+        </div>
+
+        <div>
+          <label for="establishment-code" class="mb-1.5 block text-sm font-medium">{{
+            'establishments.form.code' | t
+          }}</label>
+          <input
+            id="establishment-code"
+            formControlName="code"
+            required
+            minlength="2"
+            maxlength="32"
+            readonly
+            aria-describedby="establishment-code-hint"
+            [attr.aria-invalid]="submitted() && form.controls.code.invalid"
+            class="field font-mono"
+          />
+          <p id="establishment-code-hint" class="mt-1.5 text-xs text-(--text-3)">
+            {{ (editing() ? 'establishments.form.codeLocked' : 'establishments.form.codeHint') | t }}
+          </p>
+          @if (submitted() && form.controls.code.invalid) {
+            <p class="mt-1.5 text-xs text-(--danger-700)">
+              {{ 'establishments.validation.code' | t }}
+            </p>
+          }
+        </div>
+
+        <div>
+          <label for="establishment-city" class="mb-1.5 block text-sm font-medium">{{
+            'establishments.form.city' | t
+          }}</label>
+          <input
+            id="establishment-city"
+            formControlName="city"
+            maxlength="80"
+            class="field"
+          />
+        </div>
+
+        <div>
+          <label for="establishment-address" class="mb-1.5 block text-sm font-medium">{{
+            'establishments.form.address' | t
+          }}</label>
+          <input
+            id="establishment-address"
+            formControlName="address"
+            maxlength="200"
+            class="field"
+          />
+        </div>
+
+        @if (editing()) {
+          <div class="sm:col-span-2">
+            <label for="establishment-status" class="mb-1.5 block text-sm font-medium">{{
+              'establishments.form.status' | t
+            }}</label>
+            <app-select formControlName="status" [options]="statusChoices()" />
+            @if (deactivating()) {
+              <p class="mt-2 text-xs font-medium text-(--danger-700)" role="alert">
+                {{ 'establishments.deactivate.warn' | t }}
+              </p>
+            }
+          </div>
+        }
+      </section>
+
+      <div class="flex flex-wrap items-center justify-end gap-3">
+        <a routerLink="/panel/sedes" appButton variant="secondary">{{ 'app.cancel' | t }}</a>
+        <button
+          type="submit"
+          appButton
+          variant="primary"
+          [loading]="saving()"
+          [disabled]="saving()"
+        >
+          {{ (editing() ? 'app.save' : 'establishments.form.create') | t }}
+        </button>
+      </div>
+    </form>
+  }
+</div>

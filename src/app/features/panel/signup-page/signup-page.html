@@ -1,0 +1,138 @@
+<main
+  class="grid min-h-dvh bg-(--page) text-(--text-1) lg:h-dvh lg:overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.8fr)]"
+>
+  <section
+    class="flex flex-col justify-between border-b border-(--border) bg-(--surface-1) p-5 sm:p-8 lg:border-b-0 lg:border-r lg:p-12"
+  >
+    <div class="flex items-center justify-between gap-4">
+      <a routerLink="/eventos" class="text-sm font-semibold text-(--text-1) no-underline">{{
+        workspace.publicName()
+      }}</a>
+      <app-theme-toggle />
+    </div>
+    <div class="py-12 lg:py-20">
+      <p class="mb-3 text-xs font-semibold uppercase text-(--primary)">
+        {{ 'panel.label' | t }}
+      </p>
+      <h1 class="max-w-xl text-3xl font-bold leading-tight sm:text-4xl">
+        {{ 'auth.signup.title' | t }}
+      </h1>
+      <p class="mt-4 max-w-lg text-base leading-relaxed text-(--text-2)">
+        {{ 'auth.signup.subtitle' | t }}
+      </p>
+      <p
+        class="mt-5 max-w-lg border-l-4 border-(--primary-500) pl-4 text-sm leading-relaxed text-(--text-2)"
+      >
+        {{ 'auth.signup.roleNotice' | t }}
+      </p>
+    </div>
+    <a
+      routerLink="/eventos"
+      class="text-sm font-medium text-(--primary) underline-offset-4 hover:underline"
+      >{{ 'panel.publicCatalog' | t }}</a
+    >
+  </section>
+
+  <section class="flex items-center justify-center bg-(--page) p-4 sm:p-8 lg:min-h-0 lg:overflow-y-auto lg:p-12">
+    <form [formGroup]="form" (ngSubmit)="submit()" class="card card--pad w-full max-w-md" novalidate>
+      <div class="mb-7">
+        <h2 class="text-xl font-semibold">{{ 'auth.signup.title' | t }}</h2>
+        <p class="mt-2 text-sm text-(--text-2)">{{ 'auth.signup.subtitle' | t }}</p>
+      </div>
+
+      @if (errorMessage(); as message) {
+        <p
+          role="alert"
+          class="mb-5 callout callout--danger"
+        >
+          {{ message }}
+        </p>
+      }
+
+      <label for="signup-name" class="mb-2 block text-sm font-medium">{{
+        'auth.signup.fullName' | t
+      }}</label>
+      <input
+        id="signup-name"
+        type="text"
+        formControlName="fullName"
+        autocomplete="name"
+        required
+        maxlength="160"
+        class="field mb-5"
+      />
+
+      <label for="signup-email" class="mb-2 block text-sm font-medium">{{
+        'auth.login.email' | t
+      }}</label>
+      <input
+        id="signup-email"
+        type="email"
+        formControlName="email"
+        autocomplete="email"
+        required
+        maxlength="320"
+        class="field mb-5"
+      />
+
+      <label for="signup-password" class="mb-2 block text-sm font-medium">{{
+        'auth.login.password' | t
+      }}</label>
+      <input
+        id="signup-password"
+        type="password"
+        formControlName="password"
+        autocomplete="new-password"
+        required
+        minlength="12"
+        maxlength="200"
+        aria-describedby="signup-password-hint"
+        class="field"
+      />
+      <p id="signup-password-hint" class="mb-5 mt-2 text-xs text-(--text-3)">
+        {{ 'auth.signup.passwordHint' | t }}
+      </p>
+
+      <label for="signup-confirm-password" class="mb-2 block text-sm font-medium">{{
+        'auth.signup.confirmPassword' | t
+      }}</label>
+      <input
+        id="signup-confirm-password"
+        type="password"
+        formControlName="confirmPassword"
+        autocomplete="new-password"
+        required
+        maxlength="200"
+        [attr.aria-invalid]="
+          form.hasError('passwordMismatch') && form.controls.confirmPassword.touched
+        "
+        aria-describedby="signup-confirm-hint"
+        class="field mb-2"
+      />
+      <p id="signup-confirm-hint" class="mb-6 text-xs text-(--danger-700)" aria-live="polite">
+        @if (form.hasError('passwordMismatch') && form.controls.confirmPassword.touched) {
+          {{ 'auth.signup.passwordMismatch' | t }}
+        }
+      </p>
+
+      <button
+        type="submit"
+        appButton
+        variant="primary"
+        block
+        [loading]="submitting()"
+        [disabled]="form.invalid"
+      >
+        {{ (submitting() ? 'auth.signup.submitting' : 'auth.signup.submit') | t }}
+      </button>
+      <p class="mt-5 text-center text-sm text-(--text-2)">
+        {{ 'auth.signup.haveAccount' | t }}
+        <a
+          routerLink="/panel/login"
+          class="font-semibold text-(--primary) underline-offset-4 hover:underline"
+          >{{ 'auth.signup.link' | t }}</a
+        >
+      </p>
+    </form>
+  </section>
+</main>

@@ -1,0 +1,512 @@
+@switch (state().status) {
+  @case ('loading') {
+    <div class="mx-auto flex w-full flex-col gap-4" aria-busy="true">
+      <h1 class="sr-only">{{ 'companions.title' | t }}</h1>
+      <span class="sr-only">{{ 'app.loading' | t }}</span>
+      <app-skeleton class="h-4 w-28" />
+      <app-skeleton class="h-9 w-2/3" />
+      <app-skeleton class="h-4 w-1/2" />
+      @for (placeholder of placeholders; track placeholder) {
+        <app-skeleton class="h-40 w-full" />
+      }
+    </div>
+  }
+
+  @case ('error') {
+    <h1 class="sr-only">{{ 'companions.title' | t }}</h1>
+    @if (isMissing()) {
+      <app-empty-state titleKey="app.notFound.title" bodyKey="app.notFound.body" iconName="compass">
+        <a routerLink="/eventos" appButton variant="primary">{{ 'event.back' | t }}</a>
+      </app-empty-state>
+    } @else {
+      <div class="card card--pad flex flex-col items-start gap-3" role="alert">
+        <h2 class="text-lg font-semibold">{{ 'app.error.title' | t }}</h2>
+        <p class="text-sm text-[var(--text-2)]">{{ errorMessage() }}</p>
+        @if (isOffline()) {
+          <p class="hint">{{ 'ui.retryOffline' | t }}</p>
+        }
+        <button type="button" appButton variant="secondary" (click)="retry()">
+          {{ 'app.retry' | t }}
+        </button>
+      </div>
+    }
+  }
+
+  @case ('loaded') {
+    <article class="mx-auto flex w-full flex-col gap-6">
+      <header class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+          @if (fixedEvent(); as event) {
+            <p
+              class="inline-flex items-center gap-1.5 text-xs font-semibold uppercase text-[var(--text-3)]"
+            >
+              <app-icon name="ticket" [size]="14" />
+              <span>{{ event.name }}</span>
+            </p>
+          }
+          <h1 class="text-3xl font-bold sm:text-4xl">{{ 'companions.title' | t }}</h1>
+          <p class="max-w-prose text-sm text-[var(--text-2)]">{{ 'companions.subtitle' | t }}</p>
+          @if (whenLabel()) {
+            <p class="inline-flex items-center gap-1.5 text-sm text-[var(--text-2)]">
+              <app-icon name="calendar" [size]="16" class="text-[var(--text-3)]" />
+              {{ whenLabel() }}
+            </p>
+          }
+        </div>
+
+        <ol class="stepper" [attr.aria-label]="'companions.steps' | t">
+          @for (step of steps; track step.index) {
+            <li
+              class="stepper__item"
+              [attr.data-state]="stepState(step.index)"
+              [attr.aria-current]="stepState(step.index) === 'current' ? 'step' : null"
+            >
+              <span class="stepper__dot" aria-hidden="true">
+                @if (stepState(step.index) === 'done') {
+                  <app-icon name="check" [size]="14" />
+                } @else {
+                  {{ step.index }}
+                }
+              </span>
+              <span class="stepper__label">{{ step.labelKey | t }}</span>
+              @if (!$last) {
+                <span class="stepper__bar" aria-hidden="true"></span>
+              }
+            </li>
+          }
+        </ol>
+      </header>
+
+      @if (holder(); as found) {
+        <section class="card card--pad flex flex-col gap-4" aria-labelledby="holderTitle">
+          <header class="flex flex-wrap items-start justify-between gap-3">
+            <div class="flex items-start gap-3">
+              <span
+                class="grid size-9 shrink-0 place-items-center rounded-[var(--radius-md)] bg-[var(--success-subtle)] text-[var(--success)]"
+                aria-hidden="true"
+              >
+                <app-icon name="check-circle" [size]="18" />
+              </span>
+              <div class="flex min-w-0 flex-col gap-0.5">
+                <h2 id="holderTitle" class="text-lg font-semibold">
+                  {{ 'companions.holder.title' | t }}
+                </h2>
+                <p class="hint">{{ found.fullName }} · {{ holderDocument() }}</p>
+              </div>
+            </div>
+            <button type="button" appButton variant="ghost" size="sm" (click)="changeHolder()">
+              <app-icon name="arrow-left" [size]="16" />
+              {{ 'companions.holder.change' | t }}
+            </button>
+          </header>
+
+          <dl class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            @if (holderEvent(); as event) {
+              <div
+                class="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-2)] p-3"
+              >
+                <dt class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                  {{ 'register.receipt.event' | t }}
+                </dt>
+                <dd class="mt-0.5 text-sm font-semibold">{{ event.name }}</dd>
+              </div>
+            }
+            @if (participation(); as sede) {
+              <div
+                class="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-2)] p-3"
+              >
+                <dt class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                  {{ 'register.sede' | t }}
+                </dt>
+                <dd class="mt-0.5 text-sm font-semibold">
+                  {{ sede.establishment.name }}
+                  @if (sede.establishment.city) {
+                    <span class="font-medium text-[var(--text-2)]">
+                      · {{ sede.establishment.city }}</span
+                    >
+                  }
+                </dd>
+              </div>
+            }
+            <div
+              class="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-2)] p-3"
+            >
+              <dt class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                {{ 'register.companions' | t }}
+              </dt>
+              <dd class="mt-0.5 flex items-center gap-2 text-sm font-semibold">
+                {{
+                  'companions.holder.count'
+                    | t: { count: found.companionsCount, max: found.maxCompanions }
+                }}
+                @if (remaining() === 0) {
+                  <span class="chip chip--danger">{{ 'ui.capacity.full' | t }}</span>
+                }
+              </dd>
+              <dd class="mt-2">
+                <div
+                  class="progress"
+                  role="progressbar"
+                  aria-valuemin="0"
+                  [attr.aria-valuemax]="found.maxCompanions"
+                  [attr.aria-valuenow]="found.companionsCount"
+                  [attr.aria-label]="'register.companions' | t"
+                >
+                  <div
+                    class="progress__bar"
+                    [style.width.%]="(found.companionsCount / found.maxCompanions) * 100"
+                  ></div>
+                </div>
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        @if (remaining() === 0) {
+          <div class="card card--pad flex items-start gap-3" role="status">
+            <app-icon name="info" [size]="20" class="mt-0.5 shrink-0 text-[var(--primary)]" />
+            <div class="flex flex-col items-start gap-2">
+              <p class="text-sm font-semibold">{{ 'companions.limit.title' | t }}</p>
+              <p class="hint">{{ 'companions.limit.body' | t: { max: found.maxCompanions } }}</p>
+              <a
+                appButton
+                variant="secondary"
+                size="sm"
+                class="no-underline"
+                [routerLink]="['/inscripcion', found.id]"
+              >
+                {{ 'companions.viewReceipt' | t }}
+              </a>
+            </div>
+          </div>
+        } @else if (blockedReason(); as reason) {
+          <div class="card card--pad flex items-start gap-3" role="alert">
+            <app-icon
+              name="alert-triangle"
+              [size]="20"
+              class="mt-0.5 shrink-0 text-[var(--warning)]"
+            />
+            <div class="flex flex-col gap-1">
+              <p class="text-sm font-semibold">{{ 'companions.blocked' | t }}</p>
+              <p class="hint">{{ reason | t }}</p>
+            </div>
+          </div>
+        } @else {
+          <form
+            class="flex flex-col gap-6"
+            [formGroup]="addForm"
+            novalidate
+            (ngSubmit)="submit()"
+            #addFormRef
+          >
+            <fieldset class="field-group flex flex-col gap-6" [disabled]="saving()">
+              <section class="card card--pad flex flex-col gap-4">
+                <header class="flex flex-wrap items-start justify-between gap-3">
+                  <div class="flex items-start gap-3">
+                    <span
+                      class="grid size-9 shrink-0 place-items-center rounded-[var(--radius-md)] bg-[var(--primary-subtle)] text-[var(--primary)]"
+                      aria-hidden="true"
+                    >
+                      <app-icon name="users" [size]="18" />
+                    </span>
+                    <div class="flex min-w-0 flex-col gap-0.5">
+                      <h2 class="text-lg font-semibold">{{ 'register.companions' | t }}</h2>
+                      <p class="hint">{{ 'companions.remaining' | t: { count: maxRows() } }}</p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    appButton
+                    variant="secondary"
+                    size="sm"
+                    [disabled]="!canAddRow()"
+                    (click)="addRow()"
+                  >
+                    <app-icon name="plus" [size]="16" />
+                    {{ 'register.companions.add' | t }}
+                  </button>
+                </header>
+
+                <p class="hint">{{ 'register.companions.subtitle' | t }}</p>
+
+                <ul class="flex list-none flex-col gap-4 p-0">
+                  @for (companion of companions.controls; track companion; let index = $index) {
+                    <li
+                      class="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-2)] p-3 sm:p-4"
+                    >
+                      <div class="flex items-start justify-between gap-2">
+                        <h3 class="text-sm font-semibold">
+                          {{
+                            'register.companions.item'
+                              | t: { index: found.companionsCount + index + 1 }
+                          }}
+                        </h3>
+                        <button
+                          type="button"
+                          appButton
+                          variant="ghost"
+                          size="sm"
+                          (click)="removeRow(index)"
+                        >
+                          <app-icon name="trash" [size]="16" />
+                          <span class="sr-only">
+                            {{
+                              'register.companions.remove'
+                                | t: { index: found.companionsCount + index + 1 }
+                            }}
+                          </span>
+                        </button>
+                      </div>
+
+                      <div class="grid gap-4 sm:grid-cols-6">
+                        <app-form-field
+                          class="sm:col-span-6"
+                          [controlId]="'addComp' + index + 'Name'"
+                          labelKey="register.companions.name"
+                          [error]="
+                            companionError(
+                              companion.controls.fullName,
+                              'companions.' + index + '.fullName'
+                            )
+                          "
+                          required
+                        >
+                          <input
+                            [id]="'addComp' + index + 'Name'"
+                            appField
+                            class="field"
+                            type="text"
+                            autocomplete="off"
+                            [formControl]="companion.controls.fullName"
+                          />
+                        </app-form-field>
+
+                        <app-form-field
+                          class="sm:col-span-2"
+                          [controlId]="'addComp' + index + 'DocumentType'"
+                          labelKey="register.documentType"
+                        >
+                          <select
+                            [id]="'addComp' + index + 'DocumentType'"
+                            appField
+                            class="field"
+                            [formControl]="companion.controls.documentType"
+                          >
+                            @for (type of documentTypes; track type) {
+                              <option [value]="type">{{ documentLabel(type) }}</option>
+                            }
+                          </select>
+                        </app-form-field>
+
+                        <app-form-field
+                          class="sm:col-span-4"
+                          [controlId]="'addComp' + index + 'DocumentNumber'"
+                          labelKey="register.documentNumber"
+                          [error]="
+                            companionError(
+                              companion.controls.documentNumber,
+                              'companions.' + index + '.documentNumber'
+                            )
+                          "
+                        >
+                          <input
+                            [id]="'addComp' + index + 'DocumentNumber'"
+                            appField
+                            class="field"
+                            type="text"
+                            inputmode="numeric"
+                            autocomplete="off"
+                            [formControl]="companion.controls.documentNumber"
+                          />
+                        </app-form-field>
+                      </div>
+                    </li>
+                  } @empty {
+                    <li class="text-sm text-[var(--text-3)]">
+                      {{ 'register.companions.empty' | t }}
+                    </li>
+                  }
+                </ul>
+              </section>
+            </fieldset>
+
+            @if (submitMessage(); as message) {
+              <div class="card card--pad flex flex-col items-start gap-2" role="alert">
+                <p class="inline-flex items-center gap-2 text-sm font-semibold">
+                  <app-icon name="alert-circle" [size]="18" class="text-[var(--danger)]" />
+                  {{ 'app.error.title' | t }}
+                </p>
+                <p class="text-sm text-[var(--text-2)]">{{ message }}</p>
+                @if (submitSupportCode(); as supportCode) {
+                  <p class="hint">{{ 'ui.supportCode' | t: { code: supportCode } }}</p>
+                }
+              </div>
+            }
+
+            <div
+              class="safe-bottom sticky bottom-0 z-20 flex flex-col gap-3 border-t border-[var(--border)] bg-[var(--page)]/95 pt-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between"
+            >
+              <p class="hidden text-xs text-[var(--text-3)] sm:block">
+                {{ 'register.actions.note' | t }}
+              </p>
+              <div class="w-full sm:w-auto">
+                <button
+                  type="submit"
+                  appButton
+                  variant="primary"
+                  size="lg"
+                  block
+                  [loading]="saving()"
+                  [disabled]="!canSubmit()"
+                >
+                  @if (saving()) {
+                    <span class="spinner" aria-hidden="true"></span>
+                    {{ 'companions.submitting' | t }}
+                  } @else {
+                    <app-icon name="check-circle" [size]="18" />
+                    {{ 'companions.submit' | t }}
+                  }
+                </button>
+              </div>
+            </div>
+          </form>
+        }
+      } @else if (events().length === 0) {
+        <app-empty-state
+          titleKey="catalog.empty.title"
+          bodyKey="companions.lookup.noEvents"
+          iconName="inbox"
+        >
+          <a routerLink="/eventos" appButton variant="primary">{{ 'register.entry.browse' | t }}</a>
+        </app-empty-state>
+      } @else {
+        <form
+          class="flex flex-col gap-6"
+          [formGroup]="lookupForm"
+          novalidate
+          (ngSubmit)="lookup()"
+          #lookupFormRef
+        >
+          <fieldset class="field-group" [disabled]="searching()">
+            <section class="card card--pad flex flex-col gap-5">
+              <header class="flex items-start gap-3">
+                <span
+                  class="grid size-9 shrink-0 place-items-center rounded-[var(--radius-md)] bg-[var(--primary-subtle)] text-[var(--primary)]"
+                  aria-hidden="true"
+                >
+                  <app-icon name="search" [size]="18" />
+                </span>
+                <div class="flex min-w-0 flex-col gap-0.5">
+                  <h2 class="text-lg font-semibold">{{ 'companions.lookup.title' | t }}</h2>
+                  <p class="hint">{{ 'companions.lookup.hint' | t }}</p>
+                </div>
+              </header>
+
+              <div class="grid gap-4 sm:grid-cols-6">
+                @if (!fixedEvent()) {
+                  <app-form-field
+                    class="sm:col-span-6"
+                    controlId="addEvent"
+                    labelKey="companions.lookup.event"
+                    [error]="lookupError(lookupForm.controls.event, 'event')"
+                    required
+                  >
+                    <select id="addEvent" appField class="field" formControlName="event">
+                      <option value="" disabled>
+                        {{ 'companions.lookup.eventPlaceholder' | t }}
+                      </option>
+                      @for (event of events(); track event.id) {
+                        <option [value]="event.slug">{{ event.name }}</option>
+                      }
+                    </select>
+                  </app-form-field>
+                }
+
+                <app-form-field
+                  class="sm:col-span-2"
+                  controlId="addDocumentType"
+                  labelKey="register.documentType"
+                  required
+                >
+                  <select
+                    id="addDocumentType"
+                    appField
+                    class="field"
+                    formControlName="documentType"
+                  >
+                    @for (type of documentTypes; track type) {
+                      <option [value]="type">{{ documentLabel(type) }}</option>
+                    }
+                  </select>
+                </app-form-field>
+
+                <app-form-field
+                  class="sm:col-span-4"
+                  controlId="addDocumentNumber"
+                  labelKey="register.documentNumber"
+                  hintKey="register.documentNumber.hint"
+                  [error]="lookupError(lookupForm.controls.documentNumber, 'documentNumber')"
+                  required
+                >
+                  <input
+                    id="addDocumentNumber"
+                    appField
+                    class="field"
+                    type="text"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    formControlName="documentNumber"
+                  />
+                </app-form-field>
+
+                <app-form-field
+                  class="sm:col-span-6"
+                  controlId="addEmail"
+                  labelKey="register.email"
+                  [error]="lookupError(lookupForm.controls.email, 'email')"
+                  required
+                >
+                  <input
+                    id="addEmail"
+                    appField
+                    class="field"
+                    type="email"
+                    inputmode="email"
+                    autocomplete="email"
+                    formControlName="email"
+                  />
+                </app-form-field>
+              </div>
+            </section>
+          </fieldset>
+
+          @if (lookupMessage(); as message) {
+            <div class="card card--pad flex items-start gap-3" role="alert">
+              <app-icon name="alert-circle" [size]="18" class="mt-0.5 shrink-0 text-[var(--danger)]" />
+              <p class="text-sm text-[var(--text-2)]">{{ message }}</p>
+            </div>
+          }
+
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <button
+              type="submit"
+              appButton
+              variant="primary"
+              size="lg"
+              [loading]="searching()"
+            >
+              @if (searching()) {
+                <span class="spinner" aria-hidden="true"></span>
+                {{ 'companions.lookup.searching' | t }}
+              } @else {
+                <app-icon name="search" [size]="18" />
+                {{ 'companions.lookup.submit' | t }}
+              }
+            </button>
+          </div>
+        </form>
+      }
+    </article>
+  }
+}

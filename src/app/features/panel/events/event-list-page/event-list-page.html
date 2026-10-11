@@ -1,0 +1,160 @@
+<div class="flex flex-col gap-6">
+  <app-page-header titleKey="events.title" subtitleKey="events.subtitle">
+    @if (canCreate()) {
+      <a routerLink="/panel/eventos/nuevo" appButton variant="primary">
+        <app-icon name="plus" [size]="18" />
+        {{ 'events.new' | t }}
+      </a>
+    }
+  </app-page-header>
+
+  <section
+    [attr.aria-label]="'events.filters.title' | t"
+    class="toolbar"
+  >
+    <form class="min-w-0 flex-1" (submit)="submitSearch($event)">
+      <label for="event-search" class="mb-1.5 block text-sm font-medium">{{
+        'events.search.label' | t
+      }}</label>
+      <div class="flex gap-2">
+        <input
+          id="event-search"
+          type="search"
+          [value]="term()"
+          (input)="onTermInput($event)"
+          [placeholder]="'events.search.placeholder' | t"
+          class="field min-w-0 flex-1"
+        />
+        <button type="submit" appButton variant="secondary">{{ 'app.search' | t }}</button>
+      </div>
+    </form>
+
+    <div class="w-full sm:w-52">
+      <p class="mb-1.5 text-sm font-medium">{{ 'events.filter.status' | t }}</p>
+      <app-select
+        [options]="statusChoices()"
+        [value]="status()"
+        [ariaLabel]="'events.filter.status' | t"
+        (valueChange)="applyStatus($event)"
+      />
+    </div>
+  </section>
+
+  @switch (state().status) {
+    @case ('loading') {
+      <div class="flex flex-col gap-3" aria-busy="true" [attr.aria-label]="'app.loading' | t">
+        @for (row of placeholders; track row) {
+          <app-skeleton class="h-12 w-full" />
+        }
+      </div>
+    }
+    @case ('error') {
+      <div
+        class="callout callout--danger"
+        role="alert"
+      >
+        <p class="text-sm text-(--danger-700)">{{ errorMessage() }}</p>
+        <button type="button" appButton variant="secondary" (click)="retry()">
+          {{ 'app.retry' | t }}
+        </button>
+      </div>
+    }
+    @case ('loaded') {
+      @if (page(); as loadedPage) {
+        @if (loadedPage.items.length === 0) {
+          <app-empty-state
+            titleKey="events.empty.title"
+            bodyKey="events.empty.body"
+            iconName="calendar"
+          >
+            @if (canCreate()) {
+              <a routerLink="/panel/eventos/nuevo" appButton variant="primary">{{
+                'events.new' | t
+              }}</a>
+            }
+          </app-empty-state>
+        } @else {
+          <div class="table-shell table-shell--responsive">
+            <table class="data-table">
+              <thead class="bg-(--surface-1) text-xs uppercase text-(--text-3)">
+                <tr>
+                  <th scope="col" class="px-3 py-3 font-semibold">
+                    {{ 'events.column.name' | t }}
+                  </th>
+                  <th scope="col" class="px-3 py-3 font-semibold">
+                    {{ 'events.column.slug' | t }}
+                  </th>
+                  <th scope="col" class="px-3 py-3 font-semibold">
+                    {{ 'events.column.status' | t }}
+                  </th>
+                  <th scope="col" class="px-3 py-3 font-semibold">
+                    {{ 'events.column.startsAt' | t }}
+                  </th>
+                  <th scope="col" class="px-3 py-3 text-right font-semibold">
+                    {{ 'events.actions' | t }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-(--border)">
+                @for (event of loadedPage.items; track event.id) {
+                  <tr class="hover:bg-(--surface-1)">
+                    <td class="max-w-64 px-3 py-4 font-semibold">{{ event.name }}</td>
+                    <td class="px-3 py-4 font-mono text-xs text-(--text-2)">{{ event.slug }}</td>
+                    <td class="px-3 py-4">
+                      <app-status-badge [kind]="statusKind(event.status)" />
+                    </td>
+                    <td class="px-3 py-4 text-(--text-2)">{{ eventDate(event) }}</td>
+                    <td class="px-3 py-4 text-right">
+                      @if (canEdit(event)) {
+                        <a
+                          [routerLink]="['/panel/eventos', event.id, 'editar']"
+                          appButton
+                          variant="ghost"
+                          size="sm"
+                        >
+                          {{ 'events.action.edit' | t }}
+                          <app-icon name="chevronRight" [size]="17" />
+                        </a>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <ul class="table-cards">
+            @for (event of loadedPage.items; track event.id) {
+              <li class="card table-card">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="table-card__title">{{ event.name }}</p>
+                    <p class="table-card__meta font-mono">{{ event.slug }}</p>
+                  </div>
+                  <app-status-badge [kind]="statusKind(event.status)" />
+                </div>
+                <p class="table-card__meta">{{ eventDate(event) }}</p>
+                @if (canEdit(event)) {
+                  <a
+                    [routerLink]="['/panel/eventos', event.id, 'editar']"
+                    appButton
+                    variant="ghost"
+                    size="sm"
+                  >
+                    {{ 'events.action.edit' | t }}
+                    <app-icon name="chevronRight" [size]="16" />
+                  </a>
+                }
+              </li>
+            }
+          </ul>
+          <app-pagination
+            [page]="loadedPage.meta"
+            [pageSizeOptions]="pageSizeOptions"
+            (offsetChange)="onOffsetChange($event)"
+            (limitChange)="onLimitChange($event)"
+          />
+        }
+      }
+    }
+  }
+</div>

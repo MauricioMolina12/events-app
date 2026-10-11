@@ -1,0 +1,22 @@
+<header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+  <div class="min-w-0">
+    @if (backLink(); as link) {
+      <a
+        class="mb-2 inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-[var(--text-2)] no-underline hover:text-[var(--primary)]"
+        [href]="link"
+      >
+        <app-icon name="arrow-left" [size]="16" />
+        <span>{{ backLabelKey() | t }}</span>
+      </a>
+    }
+    <h1 class="text-xl font-semibold tracking-tight sm:text-2xl lg:text-[1.65rem]">
+      {{ titleKey() | t }}
+    </h1>
+    @if (subtitleKey(); as subtitle) {
+      <p class="mt-1 max-w-2xl text-sm leading-relaxed text-[var(--text-2)]">{{ subtitle | t }}</p>
+    }
+  </div>
+  <div class="flex shrink-0 flex-wrap items-center gap-2">
+    <ng-content />
+  </div>
+</header>

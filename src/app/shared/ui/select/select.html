@@ -1,0 +1,69 @@
+<button
+  #trigger
+  type="button"
+  class="field field--select"
+  [class.field--select-title]="appearance() === 'title'"
+  [class.is-open]="open()"
+  [disabled]="isDisabled()"
+  [attr.aria-expanded]="open()"
+  [attr.aria-haspopup]="'listbox'"
+  [attr.aria-controls]="panelId"
+  [attr.aria-label]="ariaLabel() || null"
+  (click)="toggle()"
+  (keydown)="onTriggerKey($event)"
+>
+  <span class="field--select__value" [class.is-placeholder]="!selected()">
+    {{ selected()?.label || placeholder() }}
+  </span>
+  <app-icon name="chevronDown" [size]="16" />
+</button>
+
+<ng-template #panel>
+  <div
+    class="select-panel"
+    [id]="panelId"
+    role="listbox"
+    tabindex="-1"
+    (keydown)="onPanelKey($event)"
+  >
+    @if (showSearch()) {
+      <input
+        #search
+        type="search"
+        class="field field--compact select-panel__search"
+        autocomplete="off"
+        [attr.aria-label]="'ui.select.search' | t"
+        [placeholder]="'ui.select.search' | t"
+        [value]="query()"
+        (input)="onQuery($event)"
+      />
+    }
+    <ul class="select-panel__list">
+      @if (filtered().length === 0) {
+        <li>
+          <p class="select-panel__empty">{{ 'ui.select.empty' | t }}</p>
+        </li>
+      }
+      @for (option of filtered(); track option.value; let index = $index) {
+        <li>
+          <button
+            type="button"
+            role="option"
+            class="select-panel__option"
+            [class.is-active]="index === activeIndex()"
+            [class.is-selected]="option.value === (selected()?.value ?? current())"
+            [attr.aria-selected]="option.value === (selected()?.value ?? current())"
+            [disabled]="option.disabled"
+            (click)="choose(option)"
+            (mouseenter)="activeIndex.set(index)"
+          >
+            <span>{{ option.label }}</span>
+            @if (option.value === (selected()?.value ?? current())) {
+              <app-icon name="check" [size]="16" />
+            }
+          </button>
+        </li>
+      }
+    </ul>
+  </div>
+</ng-template>

@@ -1,0 +1,21 @@
+<div class="flex flex-col gap-1.5">
+  <label class="label" [attr.for]="controlId()">
+    <span>{{ labelKey() | t }}</span>
+    @if (required()) {
+      <span class="text-[var(--danger)]" aria-hidden="true">*</span>
+    }
+    @if (optional()) {
+      <span class="text-xs font-normal text-[var(--text-3)]">({{ 'app.optional' | t }})</span>
+    }
+  </label>
+
+  <ng-content />
+
+  @if (error(); as message) {
+    <p class="error-text" [id]="errorId()" role="alert">{{ message }}</p>
+  } @else if (hintKey(); as hint) {
+    <p class="hint" [id]="hintId()">{{ hint | t }}</p>
+  } @else if (hintText(); as hint) {
+    <p class="hint" [id]="hintId()">{{ hint }}</p>
+  }
+</div>
