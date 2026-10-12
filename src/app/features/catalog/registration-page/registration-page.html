@@ -83,6 +83,7 @@
           </ol>
         </header>
 
+        @if (view.value.registrationScope !== 'all_venues') {
         <section class="card card--pad flex flex-col gap-4">
           <header class="flex flex-col gap-1">
             <h2 class="flex items-center gap-2 text-lg font-semibold">
@@ -187,6 +188,7 @@
 
           <p class="sr-only" aria-live="polite">{{ announcement() }}</p>
         </section>
+        }
 
         @if (selectedBlocked(); as reason) {
           <div class="card card--pad flex items-start gap-3" role="alert">

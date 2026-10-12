@@ -33,6 +33,13 @@ export interface OverviewEvent {
   readonly checkedIn: number;
   /** 0..1 */
   readonly attendanceRate: number;
+  readonly capacity: number;
+  readonly companions: number;
+  readonly available: number;
+  /** 0 a 100. Se queda por debajo de 100 si todavía hay cupo. */
+  readonly occupancy: number;
+  readonly occupancyLevel: 'unassigned' | 'normal' | 'high' | 'critical' | 'full';
+  readonly client: { readonly id: string; readonly slug: string; readonly displayName: string } | null;
 }
 
 export interface DashboardOverview {
@@ -45,6 +52,8 @@ export interface DashboardOverview {
   };
   /** Most relevant first: in progress, open, upcoming, finished, drafts, archived. */
   readonly items: readonly OverviewEvent[];
+  /** Null for an operator: the client total is a platform metric. */
+  readonly clients: { readonly total: number } | null;
 }
 
 export type TimelineGranularity = 'hour' | 'day' | 'week';

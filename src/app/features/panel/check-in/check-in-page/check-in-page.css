@@ -134,6 +134,10 @@
   color: var(--primary);
 }
 
+.confirm-check {
+  border-radius: 0.35rem;
+}
+
 .turn-card__name {
   max-width: 100%;
   overflow: hidden;

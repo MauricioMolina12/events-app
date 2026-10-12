@@ -4,6 +4,7 @@ import { baseUrlInterceptor } from './base-url.interceptor';
 import { errorInterceptor } from './error.interceptor';
 import { requestIdInterceptor } from './request-id.interceptor';
 import { retryInterceptor } from './retry.interceptor';
+import { sessionEpochInterceptor } from './session-epoch.interceptor';
 
 /**
  * HTTP stack, wired once. Order matters: the response travels back through the
@@ -16,6 +17,7 @@ export function provideAppHttp(): EnvironmentProviders {
     withInterceptors([
       baseUrlInterceptor,
       requestIdInterceptor,
+      sessionEpochInterceptor,
       errorInterceptor,
       retryInterceptor,
     ]),

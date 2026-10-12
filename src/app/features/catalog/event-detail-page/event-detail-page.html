@@ -32,16 +32,18 @@
 
     @case ('loaded') {
       <article class="flex flex-col gap-6">
-        <!-- <a
+        <a
           class="inline-flex w-fit items-center gap-1 text-sm font-medium no-underline hover:underline"
           routerLink="/eventos"
         >
           <span aria-hidden="true">←</span>
           <span>{{ 'event.back' | t }}</span>
-        </a> -->
+        </a>
 
-        <header class="flex flex-col gap-2">
-          <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ view.value.name }}</h1>
+        <header class="section-block flex flex-col gap-3">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ view.value.name }}</h1>
+          </div>
 
           <dl class="flex flex-col gap-1 text-sm text-[var(--text-2)]">
             <div class="flex flex-wrap gap-2">
@@ -52,8 +54,10 @@
         </header>
 
         <app-quick-actions
+          class="section-block"
           [registerLink]="['/eventos', view.value.slug, 'inscripcion']"
           [companionLink]="['/eventos', view.value.slug, 'acompanantes']"
+          [lookupLink]="['/eventos', view.value.slug, 'buscar']"
           [canRegister]="hasRegistrable(view.value)"
         />
 

@@ -3,6 +3,7 @@ import type { HttpInterceptorFn } from '@angular/common/http';
 import { catchError, throwError } from 'rxjs';
 import { toApiError } from '@core/api/api-error';
 import { SessionEvents } from '@core/auth/session-events';
+import { SESSION_EPOCH, currentSessionEpoch } from '@core/auth/session-epoch';
 import { logger } from '@core/utils/logger';
 
 /** Error codes that mean "the session is gone" and force a re-login. */
@@ -28,7 +29,10 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
         code: apiError.code,
         requestId: apiError.requestId,
       });
-      if (SESSION_DEAD_CODES.has(apiError.code)) {
+      if (
+        SESSION_DEAD_CODES.has(apiError.code) &&
+        request.context.get(SESSION_EPOCH) === currentSessionEpoch()
+      ) {
         sessionEvents.notifyUnauthorized(apiError);
       }
       return throwError(() => apiError);

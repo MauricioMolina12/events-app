@@ -1,0 +1,41 @@
+<div class="flex flex-col gap-6">
+  <app-page-header titleKey="participations.title" subtitleKey="participations.subtitle" />
+
+  @switch (state().status) {
+    @case ('loading') {
+      <app-skeleton class="h-10 w-full max-w-md" />
+    }
+    @case ('error') {
+      <p class="callout callout--danger" role="alert">{{ errorMessage() }}</p>
+    }
+    @default {
+      @if (choices().length === 0) {
+        <p class="text-sm text-(--text-3)">{{ 'events.empty.title' | t }}</p>
+      } @else {
+        <div class="max-w-md">
+          <p class="mb-1.5 text-sm font-medium">{{ 'participations.filter.event' | t }}</p>
+          <app-select
+            [options]="choices()"
+            [value]="eventId()"
+            [placeholder]="'cupos.choose' | t"
+            [ariaLabel]="'participations.filter.event' | t"
+            (valueChange)="choose($event)"
+          />
+        </div>
+        @if (selected(); as event) {
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <p class="text-sm font-semibold text-(--text-1)">{{ event.name }}</p>
+            <app-event-invite [name]="event.name" [slug]="event.slug" />
+          </div>
+          <app-event-participations
+            [eventId]="event.id"
+            [eventCapacity]="event.capacity"
+            [showHeader]="false"
+          />
+        } @else {
+          <p class="text-sm text-(--text-3)">{{ 'cupos.none' | t }}</p>
+        }
+      }
+    }
+  }
+</div>

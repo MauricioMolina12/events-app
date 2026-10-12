@@ -8,7 +8,7 @@ import { I18nService, TranslatePipe } from '@core/i18n';
 import { ApiErrorPresenter } from '@core/ui';
 import { loadingState, loadedState, toAsyncState } from '@core/utils/async-state';
 import { venueCode } from '@core/utils/ids';
-import { ButtonDirective, PageHeader, Select, Skeleton, type SelectChoice } from '@shared/ui';
+import { ButtonDirective, Icon, PageHeader, Select, Skeleton, type SelectChoice } from '@shared/ui';
 import { EstablishmentsApi } from '../establishments.api';
 import { ESTABLISHMENT_STATUSES } from '../establishment-status';
 
@@ -16,7 +16,7 @@ const CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 @Component({
   selector: 'app-establishment-form-page',
-  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, ButtonDirective, PageHeader, Select, Skeleton],
+  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, ButtonDirective, Icon, PageHeader, Select, Skeleton],
   templateUrl: './establishment-form-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

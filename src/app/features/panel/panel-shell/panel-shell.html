@@ -21,21 +21,24 @@
 
     <nav class="panel-navlist">
       @for (item of primaryNav; track item.label) {
-        <a
-          [routerLink]="item.route"
-          routerLinkActive="is-active"
-          [routerLinkActiveOptions]="{ exact: item.exact === true }"
-          class="nav-item"
-          [appTooltip]="item.label | t"
-          [appTooltipDisabled]="!collapsed()"
-        >
-          <app-icon [name]="item.icon" [size]="18" />
-          <span class="nav-item__label">{{ item.label | t }}</span>
-        </a>
+        @if (visible(item)) {
+          <a
+            [routerLink]="item.route"
+            routerLinkActive="is-active"
+            [routerLinkActiveOptions]="{ exact: item.exact === true }"
+            class="nav-item"
+            [appTooltip]="item.label | t"
+            [appTooltipDisabled]="!collapsed()"
+          >
+            <app-icon [name]="item.icon" [size]="18" />
+            <span class="nav-item__label">{{ item.label | t }}</span>
+          </a>
+        }
       }
 
       @for (item of workspaceModules; track item.label) {
         @if (item.route; as route) {
+          @if (visible(item)) {
           <a
             [routerLink]="route"
             routerLinkActive="is-active"
@@ -46,6 +49,7 @@
             <app-icon [name]="item.icon" [size]="18" />
             <span class="nav-item__label">{{ item.label | t }}</span>
           </a>
+          }
         }
       }
 
@@ -82,7 +86,7 @@
     </nav>
 
     <a
-      routerLink="/eventos"
+      [routerLink]="workspace.catalogPath()"
       class="panel-catalog"
       [appTooltip]="'panel.publicCatalog' | t"
       [appTooltipDisabled]="!collapsed()"
@@ -136,7 +140,7 @@
                 <app-icon name="settings" [size]="16" />
                 {{ 'nav.panel.settings' | t }}
               </a>
-              <a routerLink="/eventos" class="menu__item" role="menuitem">
+              <a [routerLink]="workspace.catalogPath()" class="menu__item" role="menuitem">
                 <app-icon name="compass" [size]="16" />
                 {{ 'panel.publicCatalog' | t }}
               </a>
@@ -187,12 +191,14 @@
     <ul class="sheet__list">
       @for (item of workspaceModules; track item.label) {
         @if (item.route; as route) {
+          @if (visible(item)) {
           <li>
             <a [routerLink]="route" class="nav-item" (click)="onSheetNavigate()">
               <app-icon [name]="item.icon" [size]="18" />
               {{ item.label | t }}
             </a>
           </li>
+          }
         }
       }
       @if (isAdmin()) {
@@ -214,7 +220,7 @@
         }
       }
       <li>
-        <a routerLink="/eventos" class="nav-item" (click)="onSheetNavigate()">
+        <a [routerLink]="workspace.catalogPath()" class="nav-item" (click)="onSheetNavigate()">
           <app-icon name="compass" [size]="18" />
           {{ 'panel.publicCatalog' | t }}
         </a>

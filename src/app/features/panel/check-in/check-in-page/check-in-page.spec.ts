@@ -4,15 +4,20 @@ import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@core/api';
 import { MESSAGES } from '../../../../core/i18n/messages';
-import { CheckInApi, type CheckInResult } from '../check-in.api';
+import { CheckInApi, type CheckInPreview, type CheckInResult } from '../check-in.api';
 import { CheckInPage } from './check-in-page';
 
 /**
- * The turn numbers come from the server; the page only has to show them big, in order, and
- * make a repeated scan obvious so the staff doesn't hand out a second number.
+ * The turn numbers come from the server. The page must ask who arrived before
+ * requesting them, and a repeated scan must skip the questions.
  */
 
-function result(alreadyAssigned = false): CheckInResult {
+const COMPANIONS = [
+  { id: 'cmp-luis', fullName: 'Luis Pérez', documentType: 'CC' as const, documentNumber: '1020' },
+  { id: 'cmp-marta', fullName: 'Marta Gil', documentType: null, documentNumber: null },
+];
+
+function preview(alreadyAssigned = false): CheckInPreview {
   return {
     alreadyAssigned,
     assignedAt: '2026-11-25T15:04:00.000Z',
@@ -26,25 +31,49 @@ function result(alreadyAssigned = false): CheckInResult {
     },
     event: { id: 'evt-1', slug: 'gran-madrugon-2026', name: 'Gran Madrugón 2026' },
     sede: { id: 'part-1', name: 'Sede Norte', city: 'Bogotá' },
+    companions: alreadyAssigned
+      ? COMPANIONS.slice(0, 1).map((companion) => ({ ...companion, checkedIn: true }))
+      : COMPANIONS,
+    turns: alreadyAssigned
+      ? [
+          { number: 41, position: 0, role: 'holder', fullName: 'Ana Pérez' },
+          { number: 42, position: 1, role: 'companion', fullName: 'Luis Pérez' },
+        ]
+      : [],
+  };
+}
+
+function result(releasedCompanionsCount = 0): CheckInResult {
+  return {
+    ...preview(),
+    alreadyAssigned: false,
+    releasedCompanionsCount,
+    companions: releasedCompanionsCount > 0 ? COMPANIONS.slice(0, 1) : COMPANIONS,
     turns: [
       { number: 41, position: 0, role: 'holder', fullName: 'Ana Pérez' },
       { number: 42, position: 1, role: 'companion', fullName: 'Luis Pérez' },
-      { number: 43, position: 2, role: 'companion', fullName: 'Marta Gil' },
+      ...(releasedCompanionsCount > 0
+        ? []
+        : [{ number: 43, position: 2, role: 'companion' as const, fullName: 'Marta Gil' }]),
     ],
   };
 }
 
 describe('CheckInPage', () => {
   let fixture: ComponentFixture<CheckInPage>;
-  let scan: ReturnType<typeof vi.fn>;
+  let lookup: ReturnType<typeof vi.fn>;
+  let confirm: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    // No camera in the test runner: the page must fall back to the manual field.
     Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true });
-    scan = vi.fn();
+    lookup = vi.fn();
+    confirm = vi.fn();
     await TestBed.configureTestingModule({
       imports: [CheckInPage],
-      providers: [provideZonelessChangeDetection(), { provide: CheckInApi, useValue: { scan } }],
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: CheckInApi, useValue: { lookup, confirm } },
+      ],
     }).compileComponents();
     fixture = TestBed.createComponent(CheckInPage);
     await fixture.whenStable();
@@ -61,43 +90,92 @@ describe('CheckInPage', () => {
     await fixture.whenStable();
   }
 
+  function clickNamed(label: string): HTMLButtonElement {
+    const button = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+      (node) => node.textContent?.includes(label),
+    );
+    expect(button).toBeTruthy();
+    button!.click();
+    return button!;
+  }
+
   it('offers the manual field when there is no camera', () => {
     expect(text()).toContain(MESSAGES['checkIn.camera.unavailable']);
     expect((fixture.nativeElement as HTMLElement).querySelector('#check-in-code')).not.toBeNull();
   });
 
-  it('shows one turn per person, titular first', async () => {
-    scan.mockReturnValue(of(result()));
+  it('asks if the titular is present before assigning turns', async () => {
+    lookup.mockReturnValue(of(preview()));
     await submit(' 3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d ');
 
-    expect(scan).toHaveBeenCalledWith('3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d');
+    expect(lookup).toHaveBeenCalledWith('3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d');
+    expect(confirm).not.toHaveBeenCalled();
+    expect(text()).toContain(MESSAGES['checkIn.confirm.holderQuestion']);
+    expect(text()).toContain('Ana Pérez');
+    expect((fixture.nativeElement as HTMLElement).querySelector('.turn-card')).toBeNull();
+  });
+
+  it('then asks which companions arrived and assigns only those present', async () => {
+    lookup.mockReturnValue(of(preview()));
+    confirm.mockReturnValue(of(result(1)));
+    await submit('3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d');
+
+    clickNamed(MESSAGES['checkIn.confirm.holderYes']);
+    await fixture.whenStable();
+
+    expect(text()).toContain(MESSAGES['checkIn.confirm.companionsQuestion']);
+    const marta = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      '#check-in-companion-cmp-marta',
+    );
+    expect(marta?.checked).toBe(true);
+    marta!.checked = false;
+    marta!.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+
+    clickNamed(MESSAGES['checkIn.confirm.submit']);
+    await fixture.whenStable();
+
+    expect(confirm).toHaveBeenCalledWith('3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d', {
+      holderPresent: true,
+      presentCompanionIds: ['cmp-luis'],
+    });
     const numbers = [
       ...(fixture.nativeElement as HTMLElement).querySelectorAll('.turn-card__number'),
     ].map((node) => node.textContent?.trim());
-    expect(numbers).toEqual(['41', '42', '43']);
+    expect(numbers).toEqual(['41', '42']);
     expect(text()).toContain(MESSAGES['checkIn.result.assigned']);
-    expect(text()).toContain('Gran Madrugón 2026');
   });
 
-  it('flags a repeated scan instead of looking like a new turn', async () => {
-    scan.mockReturnValue(of(result(true)));
+  it('does not assign if the titular is not at the door', async () => {
+    lookup.mockReturnValue(of(preview()));
     await submit('3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d');
 
+    clickNamed(MESSAGES['checkIn.confirm.holderNo']);
+    await fixture.whenStable();
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(text()).toContain(MESSAGES['checkIn.error.holderAbsent']);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.turn-card')).toBeNull();
+  });
+
+  it('skips the questions when the code already had turns', async () => {
+    lookup.mockReturnValue(of(preview(true)));
+    await submit('3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d');
+
+    expect(confirm).not.toHaveBeenCalled();
     expect(text()).toContain(MESSAGES['checkIn.result.already']);
+    expect(text()).not.toContain(MESSAGES['checkIn.confirm.holderQuestion']);
     expect(text()).not.toContain(MESSAGES['checkIn.result.assigned']);
   });
 
   it('explains a cancelled registration and lets the staff scan the next one', async () => {
-    scan.mockReturnValue(
+    lookup.mockReturnValue(
       throwError(() => new ApiError({ status: 409, code: 'QR_REVOKED', message: 'x' })),
     );
     await submit('3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d');
 
     expect(text()).toContain(MESSAGES['errors.qrRevoked']);
-    const next = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
-      (button) => button.textContent?.includes(MESSAGES['checkIn.next']),
-    );
-    next!.click();
+    clickNamed(MESSAGES['checkIn.next']);
     await fixture.whenStable();
 
     expect(text()).not.toContain(MESSAGES['errors.qrRevoked']);

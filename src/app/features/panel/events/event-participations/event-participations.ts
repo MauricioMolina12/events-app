@@ -3,13 +3,15 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { firstValueFrom, forkJoin, map, switchMap } from 'rxjs';
 import type { Establishment, Participation } from '@core/domain';
-import { I18nService, TranslatePipe } from '@core/i18n';
+import { RouterLink } from '@angular/router';
+import { I18nService, TranslatePipe, type MessageKey } from '@core/i18n';
 import { ApiErrorPresenter } from '@core/ui';
 import { loadingState, toAsyncState } from '@core/utils/async-state';
 import { venueCode } from '@core/utils/ids';
 import {
   ButtonDirective,
   EmptyState,
+  Icon,
   Select,
   Skeleton,
   StatusBadge,
@@ -18,6 +20,16 @@ import {
 } from '@shared/ui';
 import { EstablishmentsApi } from '../../establishments/establishments.api';
 import { EventConfigurationApi } from '../event-configuration.api';
+import {
+  formatCount,
+  formatPercent,
+  occupancyLevel,
+  occupancyPercent,
+  summarizeVenues,
+  venueSnapshot,
+  type OccupancyLevel,
+  type VenueSnapshot,
+} from './venue-occupancy';
 
 const CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -30,13 +42,26 @@ const MAX_CAPACITY = 100_000;
 
 @Component({
   selector: 'app-event-participations',
-  imports: [ReactiveFormsModule, TranslatePipe, ButtonDirective, EmptyState, Select, Skeleton, StatusBadge],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    TranslatePipe,
+    ButtonDirective,
+    EmptyState,
+    Icon,
+    Select,
+    Skeleton,
+    StatusBadge,
+  ],
   templateUrl: './event-participations.html',
+  styleUrl: './event-participations.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EventParticipations {
   readonly eventId = input.required<string>();
   readonly eventCapacity = input.required<number>();
+  /** The event form keeps the section title; the cupos page already has a page header. */
+  readonly showHeader = input(true);
 
   readonly #api = inject(EventConfigurationApi);
   readonly #establishments = inject(EstablishmentsApi);
@@ -63,6 +88,8 @@ export class EventParticipations {
     { initialValue: loadingState<EventParticipationData>() },
   );
 
+  protected readonly query = signal('');
+  protected readonly selectedId = signal<string | null>(null);
   protected readonly formOpen = signal(false);
   protected readonly creatingVenue = signal(false);
   protected readonly editingId = signal<string | null>(null);
@@ -123,6 +150,36 @@ export class EventParticipations {
       .filter((item) => item.status !== 'cancelled')
       .reduce((total, item) => total + item.titularCapacity + item.companionCapacity, 0);
   });
+  protected readonly snapshots = computed(() => {
+    const data = this.data();
+    return data ? data.participations.map((item) => venueSnapshot(item)) : [];
+  });
+  protected readonly activeSnapshots = computed(() =>
+    this.snapshots().filter((venue) => venue.status !== 'cancelled'),
+  );
+  protected readonly summary = computed(() => summarizeVenues(this.activeSnapshots()));
+  protected readonly comparison = computed(() =>
+    this.activeSnapshots()
+      .slice()
+      .sort(
+        (left, right) =>
+          right.percent - left.percent || left.name.localeCompare(right.name, 'es'),
+      ),
+  );
+  protected readonly visibleVenues = computed(() => {
+    const query = this.query().trim().toLocaleLowerCase('es');
+    const venues = this.snapshots();
+    if (!query) {
+      return venues;
+    }
+    return venues.filter((venue) => {
+      const city = venue.city?.toLocaleLowerCase('es') ?? '';
+      return venue.name.toLocaleLowerCase('es').includes(query) || city.includes(query);
+    });
+  });
+  protected readonly selected = computed(
+    () => this.snapshots().find((venue) => venue.id === this.selectedId()) ?? null,
+  );
 
   constructor() {
     this.form.controls.venueName.valueChanges.pipe(takeUntilDestroyed()).subscribe((name) => {
@@ -168,6 +225,9 @@ export class EventParticipations {
     });
     this.#setCreatingVenue(false);
     this.formOpen.set(true);
+    queueMicrotask(() => {
+      document.getElementById('participation-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   protected cancelForm(): void {
@@ -179,6 +239,53 @@ export class EventParticipations {
 
   protected retry(): void {
     this.#attempt.update((attempt) => attempt + 1);
+  }
+
+  protected formatCount(value: number): string {
+    return formatCount(value);
+  }
+
+  protected formatPercent(value: number): string {
+    return formatPercent(value);
+  }
+
+  protected levelKey(level: OccupancyLevel): MessageKey {
+    return `participations.level.${level}` as MessageKey;
+  }
+
+  protected selectVenue(id: string): void {
+    this.selectedId.update((current) => (current === id ? null : id));
+  }
+
+  protected editVenue(id: string): void {
+    const participation = this.data()?.participations.find((item) => item.id === id);
+    if (participation) {
+      this.editCapacity(participation);
+    }
+  }
+
+  protected onQuery(event: Event): void {
+    const target = event.target;
+    this.query.set(target instanceof HTMLInputElement ? target.value : '');
+  }
+
+  protected poolLabel(used: number, total: number): string {
+    return this.#i18n.t('participations.detail.of', {
+      used: formatCount(used),
+      total: formatCount(total),
+    });
+  }
+
+  protected trackWidth(venue: VenueSnapshot): number {
+    return venue.capacity <= 0 ? 0 : venue.percent;
+  }
+
+  protected poolPercent(used: number, capacity: number, available: number): number {
+    return occupancyPercent(used, capacity, available);
+  }
+
+  protected poolLevel(capacity: number, available: number, occupied: number): OccupancyLevel {
+    return occupancyLevel(capacity, available, occupied);
   }
 
   protected statusKind(status: Participation['status']): StatusKind {

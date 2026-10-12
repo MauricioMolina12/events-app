@@ -1,47 +1,60 @@
 <section
-  class="flex flex-col gap-4 border-t border-(--border) pt-6"
+  class="venues"
+  [class.venues--embedded]="!showHeader()"
   aria-labelledby="event-venues-title"
 >
-  <header class="flex flex-wrap items-end justify-between gap-3">
-    <div>
-      <h2 id="event-venues-title" class="text-lg font-semibold">
-        {{ 'participations.title' | t }}
-      </h2>
-      <p class="mt-1 text-sm text-(--text-2)">{{ 'participations.subtitle' | t }}</p>
-      <p class="mt-1 text-xs text-(--text-3)">
-        {{
-          'participations.capacity.used'
-            | t: { used: allocatedSeats(), total: eventCapacity() }
-        }}
+  @if (showHeader()) {
+    <header class="venues__head">
+      <div class="min-w-0">
+        <h2 id="event-venues-title" class="venues__title">{{ 'participations.title' | t }}</h2>
+        <p class="venues__subtitle">{{ 'participations.subtitle' | t }}</p>
+        <p class="venues__allocation">
+          {{ 'participations.capacity.used' | t: { used: allocatedSeats(), total: eventCapacity() } }}
+        </p>
+      </div>
+      @if (!formOpen() && state().status === 'loaded') {
+        <button type="button" appButton variant="secondary" (click)="addEstablishment()">
+          <app-icon name="plus" [size]="16" />
+          {{ 'participations.new' | t }}
+        </button>
+      }
+    </header>
+  } @else {
+    <h2 id="event-venues-title" class="sr-only">{{ 'participations.title' | t }}</h2>
+    <div class="venues__head">
+      <p class="venues__allocation">
+        {{ 'participations.capacity.used' | t: { used: allocatedSeats(), total: eventCapacity() } }}
       </p>
+      @if (!formOpen() && state().status === 'loaded') {
+        <button type="button" appButton variant="secondary" (click)="addEstablishment()">
+          <app-icon name="plus" [size]="16" />
+          {{ 'participations.new' | t }}
+        </button>
+      }
     </div>
-    @if (!formOpen() && state().status === 'loaded') {
-      <button type="button" appButton variant="secondary" (click)="addEstablishment()">
-        {{ 'participations.new' | t }}
-      </button>
-    }
-  </header>
+  }
 
   @if (actionError()) {
-    <p
-      class="callout callout--danger"
-      role="alert"
-    >
-      {{ actionError() }}
-    </p>
+    <p class="callout callout--danger" role="alert">{{ actionError() }}</p>
   }
 
   @switch (state().status) {
     @case ('loading') {
-      <div class="flex flex-col gap-3" aria-busy="true" [attr.aria-label]="'app.loading' | t">
-        <app-skeleton class="h-12 w-full" />
-        <app-skeleton class="h-12 w-full" />
+      <div class="kpi-grid" aria-busy="true" [attr.aria-label]="'app.loading' | t">
+        @for (item of [1, 2, 3, 4]; track item) {
+          <app-skeleton class="kpi-skeleton" />
+        }
+      </div>
+      <div class="card-grid">
+        <app-skeleton class="card-skeleton" />
+        <app-skeleton class="card-skeleton" />
       </div>
     }
     @case ('error') {
       <div class="callout callout--danger" role="alert">
-        <p class="text-sm text-(--danger-700)">{{ errorMessage() }}</p>
+        <p>{{ errorMessage() }}</p>
         <button type="button" appButton variant="secondary" (click)="retry()">
+          <app-icon name="refresh" [size]="16" />
           {{ 'app.retry' | t }}
         </button>
       </div>
@@ -56,98 +69,369 @@
           >
             @if (!formOpen()) {
               <button type="button" appButton variant="primary" (click)="addEstablishment()">
-                {{ 'participations.new' | t }}
+                <app-icon name="plus" [size]="16" />
+          {{ 'participations.new' | t }}
               </button>
             }
           </app-empty-state>
         } @else {
-          <div class="table-shell table-shell--responsive">
-            <table class="data-table">
-              <thead class="bg-(--surface-1) text-xs uppercase text-(--text-3)">
-                <tr>
-                  <th scope="col" class="px-3 py-3 font-semibold">
-                    {{ 'participations.column.venue' | t }}
-                  </th>
-                  <th scope="col" class="px-3 py-3 font-semibold">
-                    {{ 'participations.column.status' | t }}
-                  </th>
-                  <th scope="col" class="px-3 py-3 font-semibold">
-                    {{ 'participations.column.titular' | t }}
-                  </th>
-                  <th scope="col" class="px-3 py-3 font-semibold">
-                    {{ 'participations.column.companion' | t }}
-                  </th>
-                  <th scope="col" class="px-3 py-3 text-right font-semibold">
-                    {{ 'events.actions' | t }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-(--border)">
-                @for (participation of loadedData.participations; track participation.id) {
-                  <tr class="hover:bg-(--surface-1)">
-                    <td class="px-3 py-4">
-                      <span class="block font-semibold">{{
-                        participation.establishment.name
-                      }}</span>
-                      @if (participation.establishment.city) {
-                        <span class="mt-1 block text-xs text-(--text-3)">{{
-                          participation.establishment.city
-                        }}</span>
-                      }
-                    </td>
-                    <td class="px-3 py-4">
-                      <app-status-badge [kind]="statusKind(participation.status)" />
-                    </td>
-                    <td class="px-3 py-4 tabular-nums">
-                      {{ participation.confirmedTitulares }} / {{ participation.titularCapacity }}
-                    </td>
-                    <td class="px-3 py-4 tabular-nums">
-                      {{ participation.confirmedCompanions }} /
-                      {{ participation.companionCapacity }}
-                    </td>
-                    <td class="px-3 py-4 text-right">
-                      <button
-                        type="button"
-                        appButton
-                        variant="ghost"
-                        (click)="editCapacity(participation)"
-                      >
-                        {{ 'events.action.edit' | t }}
-                      </button>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
+          <div class="kpi-grid">
+            <article class="kpi kpi--occupied">
+              <header class="kpi__head">
+                <span class="kpi__icon"><app-icon name="users" [size]="18" /></span>
+                <h3 class="kpi__label">{{ 'participations.kpi.occupied' | t }}</h3>
+              </header>
+              <p class="kpi__value">{{ formatCount(summary().occupied) }}</p>
+              <p class="kpi__hint">{{ 'participations.kpi.occupiedHint' | t }}</p>
+            </article>
+            <article class="kpi kpi--available">
+              <header class="kpi__head">
+                <span class="kpi__icon"><app-icon name="ticket" [size]="18" /></span>
+                <h3 class="kpi__label">{{ 'participations.kpi.available' | t }}</h3>
+              </header>
+              <p class="kpi__value">{{ formatCount(summary().available) }}</p>
+              <p class="kpi__hint">{{ 'participations.kpi.availableHint' | t }}</p>
+            </article>
+            <article class="kpi kpi--rate">
+              <header class="kpi__head">
+                <span class="kpi__icon"><app-icon name="pie-chart" [size]="18" /></span>
+                <h3 class="kpi__label">{{ 'participations.kpi.occupancy' | t }}</h3>
+              </header>
+              <p class="kpi__value">{{ formatPercent(summary().percent) }}</p>
+              <p class="kpi__hint">{{ 'participations.kpi.occupancyHint' | t }}</p>
+            </article>
+            <article class="kpi kpi--registrations">
+              <header class="kpi__head">
+                <span class="kpi__icon"><app-icon name="id-card" [size]="18" /></span>
+                <h3 class="kpi__label">{{ 'participations.kpi.registrations' | t }}</h3>
+              </header>
+              <p class="kpi__value">{{ formatCount(summary().registrations) }}</p>
+              <p class="kpi__hint">{{ 'participations.kpi.registrationsHint' | t }}</p>
+            </article>
           </div>
-          <ul class="table-cards">
-            @for (participation of loadedData.participations; track participation.id) {
-              <li class="card table-card">
-                <div class="flex items-start justify-between gap-3">
-                  <div class="min-w-0">
-                    <p class="table-card__title">{{ participation.establishment.name }}</p>
-                    @if (participation.establishment.city) {
-                      <p class="table-card__meta">{{ participation.establishment.city }}</p>
-                    }
+
+          @if (summary().busiest || summary().criticalCount > 0 || summary().fullCount > 0) {
+            <ul class="insights">
+              @if (summary().busiest; as busiest) {
+                <li>
+                  {{
+                    'participations.insight.busiest'
+                      | t: { name: busiest.name, percent: formatPercent(busiest.percent) }
+                  }}
+                </li>
+              }
+              @if (summary().criticalCount > 0) {
+                <li>{{ 'participations.insight.critical' | t: { count: summary().criticalCount } }}</li>
+              }
+              @if (summary().fullCount > 0) {
+                <li>{{ 'participations.insight.full' | t: { count: summary().fullCount } }}</li>
+              }
+            </ul>
+          }
+
+          <div class="toolbar">
+            <label class="search" for="venue-search">
+              <span class="search__label">{{ 'participations.search.label' | t }}</span>
+              <input
+                id="venue-search"
+                type="search"
+                class="field"
+                [value]="query()"
+                [placeholder]="'participations.search.placeholder' | t"
+                (input)="onQuery($event)"
+              />
+            </label>
+          </div>
+
+          @if (visibleVenues().length === 0) {
+            <p class="search-empty">{{ 'participations.search.empty' | t }}</p>
+          } @else {
+            <div class="card-grid">
+              @for (venue of visibleVenues(); track venue.id) {
+                <article
+                  class="venue"
+                  [class.venue--selected]="selectedId() === venue.id"
+                  [attr.data-level]="venue.level"
+                >
+                  <header class="venue__head">
+                    <span class="venue__mark" aria-hidden="true">
+                      <app-icon name="map-pin" [size]="18" />
+                    </span>
+                    <div class="min-w-0">
+                      <h3 class="venue__name">{{ venue.name }}</h3>
+                      @if (venue.city) {
+                        <p class="venue__city">{{ venue.city }}</p>
+                      }
+                    </div>
+                    <app-status-badge [kind]="statusKind(venue.status)" />
+                  </header>
+
+                  <p class="venue__level">
+                    <span class="venue__dot" aria-hidden="true"></span>
+                    {{ levelKey(venue.level) | t }}
+                  </p>
+
+                  <div
+                    class="meter"
+                    role="progressbar"
+                    [attr.aria-valuemin]="0"
+                    [attr.aria-valuemax]="venue.capacity"
+                    [attr.aria-valuenow]="venue.occupied"
+                    [attr.aria-valuetext]="levelKey(venue.level) | t"
+                  >
+                    <span class="meter__fill" [style.width.%]="trackWidth(venue)"></span>
                   </div>
-                  <app-status-badge [kind]="statusKind(participation.status)" />
+
+                  <dl class="venue__stats">
+                    <div>
+                      <dt>{{ 'participations.card.capacity' | t }}</dt>
+                      <dd>{{ formatCount(venue.capacity) }}</dd>
+                    </div>
+                    <div>
+                      <dt>{{ 'participations.card.occupied' | t }}</dt>
+                      <dd>{{ formatCount(venue.occupied) }}</dd>
+                    </div>
+                    <div>
+                      <dt>{{ 'participations.card.available' | t }}</dt>
+                      <dd>{{ formatCount(venue.available) }}</dd>
+                    </div>
+                    <div>
+                      <dt>{{ 'participations.card.occupancy' | t }}</dt>
+                      <dd>{{ formatPercent(venue.percent) }}</dd>
+                    </div>
+                  </dl>
+
+                  <p class="venue__split">
+                    {{ 'participations.detail.titulares' | t }}
+                    {{ poolLabel(venue.confirmedTitulares, venue.titularCapacity) }}
+                    ·
+                    {{ 'participations.detail.companions' | t }}
+                    {{ poolLabel(venue.confirmedCompanions, venue.companionCapacity) }}
+                  </p>
+
+                  <div class="venue__actions">
+                    <button
+                      type="button"
+                      appButton
+                      variant="secondary"
+                      size="sm"
+                      [attr.aria-expanded]="selectedId() === venue.id"
+                      (click)="selectVenue(venue.id)"
+                    >
+                      <app-icon [name]="selectedId() === venue.id ? 'x' : 'bar-chart'" [size]="16" />
+                      {{
+                        (selectedId() === venue.id
+                          ? 'participations.detail.close'
+                          : 'participations.card.details'
+                        ) | t
+                      }}
+                    </button>
+                    <a
+                      appButton
+                      variant="ghost"
+                      size="sm"
+                      icon
+                      [attr.aria-label]="'events.action.edit' | t"
+                      [routerLink]="['/panel/sedes', venue.establishmentId, 'editar']"
+                    >
+                      <app-icon name="pencil" [size]="16" />
+                    </a>
+                    <button
+                      type="button"
+                      appButton
+                      variant="secondary"
+                      size="sm"
+                      (click)="editVenue(venue.id)"
+                    >
+                      {{ 'participations.card.editCapacity' | t }}
+                    </button>
+                  </div>
+                </article>
+              }
+            </div>
+          }
+
+          @if (selected(); as venue) {
+            <section class="detail" aria-labelledby="venue-detail-title">
+              <header class="detail__head">
+                <div class="min-w-0">
+                  <p class="detail__kicker">{{ 'participations.detail.title' | t }}</p>
+                  <h3 id="venue-detail-title" class="detail__title">{{ venue.name }}</h3>
+                  @if (venue.city) {
+                    <p class="detail__city">{{ venue.city }}</p>
+                  }
                 </div>
-                <dl class="grid grid-cols-2 gap-3">
-                  <div class="table-card__row">
-                    <dt>{{ 'participations.column.titular' | t }}</dt>
-                    <dd>{{ participation.confirmedTitulares }} / {{ participation.titularCapacity }}</dd>
+                <button type="button" appButton variant="ghost" size="sm" (click)="selectVenue(venue.id)">
+                  <app-icon name="x" [size]="16" />
+                  {{ 'participations.detail.close' | t }}
+                </button>
+              </header>
+
+              <div class="detail__grid">
+                <article class="pool">
+                  <h4>{{ 'participations.detail.titulares' | t }}</h4>
+                  <p class="pool__value">
+                    {{ poolLabel(venue.confirmedTitulares, venue.titularCapacity) }}
+                  </p>
+                  <p class="pool__free">
+                    {{ 'participations.card.available' | t }}:
+                    {{ formatCount(venue.availableTitulares) }}
+                  </p>
+                  <div
+                    class="meter"
+                    [attr.data-level]="poolLevel(venue.titularCapacity, venue.availableTitulares, venue.confirmedTitulares)"
+                    role="progressbar"
+                    [attr.aria-valuemin]="0"
+                    [attr.aria-valuemax]="venue.titularCapacity"
+                    [attr.aria-valuenow]="venue.confirmedTitulares"
+                  >
+                    <span
+                      class="meter__fill"
+                      [style.width.%]="poolPercent(venue.confirmedTitulares, venue.titularCapacity, venue.availableTitulares)"
+                    ></span>
                   </div>
-                  <div class="table-card__row">
-                    <dt>{{ 'participations.column.companion' | t }}</dt>
-                    <dd>{{ participation.confirmedCompanions }} / {{ participation.companionCapacity }}</dd>
+                </article>
+                <article class="pool">
+                  <h4>{{ 'participations.detail.companions' | t }}</h4>
+                  <p class="pool__value">
+                    {{ poolLabel(venue.confirmedCompanions, venue.companionCapacity) }}
+                  </p>
+                  <p class="pool__free">
+                    {{ 'participations.card.available' | t }}:
+                    {{ formatCount(venue.availableCompanions) }}
+                  </p>
+                  <div
+                    class="meter"
+                    [attr.data-level]="poolLevel(venue.companionCapacity, venue.availableCompanions, venue.confirmedCompanions)"
+                    role="progressbar"
+                    [attr.aria-valuemin]="0"
+                    [attr.aria-valuemax]="venue.companionCapacity"
+                    [attr.aria-valuenow]="venue.confirmedCompanions"
+                  >
+                    <span
+                      class="meter__fill"
+                      [style.width.%]="poolPercent(venue.confirmedCompanions, venue.companionCapacity, venue.availableCompanions)"
+                    ></span>
+                  </div>
+                </article>
+                <dl class="detail__facts">
+                  <div>
+                    <dt>{{ 'participations.detail.registrations' | t }}</dt>
+                    <dd>{{ formatCount(venue.confirmedTitulares) }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ 'participations.detail.used' | t }}</dt>
+                    <dd>{{ formatCount(venue.occupied) }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ 'participations.detail.remaining' | t }}</dt>
+                    <dd>{{ formatCount(venue.available) }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ 'participations.card.occupancy' | t }}</dt>
+                    <dd>{{ formatPercent(venue.percent) }}</dd>
                   </div>
                 </dl>
-                <button type="button" appButton variant="ghost" size="sm" (click)="editCapacity(participation)">
-                  {{ 'events.action.edit' | t }}
-                </button>
-              </li>
+              </div>
+            </section>
+          }
+
+          <section class="compare" aria-labelledby="venue-compare-title">
+            <header class="compare__head">
+              <div>
+                <h3 id="venue-compare-title">{{ 'participations.compare.title' | t }}</h3>
+                <p>{{ 'participations.compare.subtitle' | t }}</p>
+              </div>
+              <ul class="legend">
+                <li><span class="legend__swatch legend__swatch--occupied"></span>{{ 'participations.compare.occupied' | t }}</li>
+                <li><span class="legend__swatch legend__swatch--free"></span>{{ 'participations.compare.free' | t }}</li>
+              </ul>
+            </header>
+            @if (comparison().length === 0) {
+              <p class="search-empty">{{ 'participations.compare.empty' | t }}</p>
+            } @else {
+              <ol class="compare__list">
+                @for (venue of comparison(); track venue.id) {
+                  <li class="compare__row">
+                    <div class="compare__meta">
+                      <span class="compare__name">{{ venue.name }}</span>
+                      <span class="compare__value">
+                        {{ formatCount(venue.occupied) }} / {{ formatCount(venue.capacity) }}
+                        · {{ formatPercent(venue.percent) }}
+                      </span>
+                    </div>
+                    <div
+                      class="meter meter--compare"
+                      [attr.data-level]="venue.level"
+                      role="progressbar"
+                      [attr.aria-label]="venue.name"
+                      [attr.aria-valuemin]="0"
+                      [attr.aria-valuemax]="venue.capacity"
+                      [attr.aria-valuenow]="venue.occupied"
+                      [attr.aria-valuetext]="formatPercent(venue.percent)"
+                    >
+                      <span class="meter__fill" [style.width.%]="trackWidth(venue)"></span>
+                    </div>
+                  </li>
+                }
+              </ol>
             }
-          </ul>
+          </section>
+
+          <details class="table-block">
+            <summary>{{ 'participations.table.toggle' | t }}</summary>
+            <div class="table-shell">
+              <table class="data-table quota-table">
+                <thead>
+                  <tr>
+                    <th scope="col">{{ 'participations.column.venue' | t }}</th>
+                    <th scope="col">{{ 'participations.column.status' | t }}</th>
+                    <th scope="col" class="num">{{ 'participations.column.titular' | t }}</th>
+                    <th scope="col" class="num">{{ 'participations.column.companion' | t }}</th>
+                    <th scope="col" class="num">{{ 'participations.column.available' | t }}</th>
+                    <th scope="col" class="num">{{ 'participations.column.occupancy' | t }}</th>
+                    <th scope="col">{{ 'participations.column.availability' | t }}</th>
+                    <th scope="col"><span class="sr-only">{{ 'events.actions' | t }}</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (venue of visibleVenues(); track venue.id) {
+                    <tr>
+                      <th scope="row">
+                        {{ venue.name }}
+                        @if (venue.city) {
+                          <span class="table-city">{{ venue.city }}</span>
+                        }
+                      </th>
+                      <td><app-status-badge [kind]="statusKind(venue.status)" /></td>
+                      <td class="num">{{ poolLabel(venue.confirmedTitulares, venue.titularCapacity) }}</td>
+                      <td class="num">{{ poolLabel(venue.confirmedCompanions, venue.companionCapacity) }}</td>
+                      <td class="num">{{ formatCount(venue.available) }}</td>
+                      <td class="num">{{ formatPercent(venue.percent) }}</td>
+                      <td>
+                        <span class="level-text" [attr.data-level]="venue.level">
+                          {{ levelKey(venue.level) | t }}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          appButton
+                          variant="ghost"
+                          size="sm"
+                          icon
+                          [attr.aria-label]="'events.action.edit' | t"
+                          (click)="editVenue(venue.id)"
+                        >
+                          <app-icon name="pencil" [size]="16" />
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </details>
         }
       }
     }
@@ -155,7 +439,8 @@
 
   @if (formOpen()) {
     <form
-      class="card card--pad grid gap-4 sm:grid-cols-2"
+      id="participation-form"
+      class="card card--pad grid scroll-mt-6 gap-4 sm:grid-cols-2"
       [formGroup]="form"
       (ngSubmit)="save()"
       novalidate
@@ -173,6 +458,7 @@
               [variant]="creatingVenue() ? 'secondary' : 'primary'"
               (click)="useExistingVenue()"
             >
+              <app-icon name="map-pin" [size]="16" />
               {{ 'participations.form.useExisting' | t }}
             </button>
           }
@@ -182,6 +468,7 @@
             [variant]="creatingVenue() ? 'primary' : 'secondary'"
             (click)="createNewVenue()"
           >
+            <app-icon name="plus" [size]="16" />
             {{ 'participations.form.createVenue' | t }}
           </button>
         </div>
@@ -191,13 +478,7 @@
             <label for="participation-venue-name" class="mb-1.5 block text-sm font-medium">{{
               'establishments.form.name' | t
             }}</label>
-            <input
-              id="participation-venue-name"
-              formControlName="venueName"
-              required
-              maxlength="160"
-              class="field"
-            />
+            <input id="participation-venue-name" formControlName="venueName" required maxlength="160" class="field" />
           </div>
           <div>
             <label for="participation-venue-code" class="mb-1.5 block text-sm font-medium">{{
@@ -218,23 +499,13 @@
             <label for="participation-venue-city" class="mb-1.5 block text-sm font-medium">{{
               'establishments.form.city' | t
             }}</label>
-            <input
-              id="participation-venue-city"
-              formControlName="venueCity"
-              maxlength="80"
-              class="field"
-            />
+            <input id="participation-venue-city" formControlName="venueCity" maxlength="80" class="field" />
           </div>
           <div>
             <label for="participation-venue-address" class="mb-1.5 block text-sm font-medium">{{
               'establishments.form.address' | t
             }}</label>
-            <input
-              id="participation-venue-address"
-              formControlName="venueAddress"
-              maxlength="200"
-              class="field"
-            />
+            <input id="participation-venue-address" formControlName="venueAddress" maxlength="200" class="field" />
           </div>
         } @else {
           <div class="sm:col-span-2">
@@ -289,15 +560,11 @@
 
       <div class="flex flex-wrap justify-end gap-3 sm:col-span-2">
         <button type="button" appButton variant="secondary" (click)="cancelForm()">
+          <app-icon name="x" [size]="16" />
           {{ 'app.cancel' | t }}
         </button>
-        <button
-          type="submit"
-          appButton
-          variant="primary"
-          [loading]="saving()"
-          [disabled]="saving()"
-        >
+        <button type="submit" appButton variant="primary" [loading]="saving()" [disabled]="saving()">
+          <app-icon name="check" [size]="16" />
           {{ (isEditing() ? 'app.save' : 'participations.form.create') | t }}
         </button>
       </div>

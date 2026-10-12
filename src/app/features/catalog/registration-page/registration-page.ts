@@ -620,6 +620,7 @@ export class RegistrationPage {
       companionNames,
       email: value.email.trim() || null,
       phone: value.phone.trim() || null,
+      ticketDesign: event.ticketDesign ?? null,
     };
   }
 }

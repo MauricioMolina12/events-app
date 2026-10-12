@@ -7,12 +7,11 @@ import { Menu, MenuContentDirective, MenuTriggerDirective } from '../menu/menu';
 
 const OPTIONS: readonly {
   readonly value: ThemePreference;
-  readonly labelKey: 'app.theme.light' | 'app.theme.dark' | 'app.theme.system';
+  readonly labelKey: 'app.theme.light' | 'app.theme.dark';
   readonly icon: IconName;
 }[] = [
   { value: 'light', labelKey: 'app.theme.light', icon: 'sun' },
   { value: 'dark', labelKey: 'app.theme.dark', icon: 'moon' },
-  { value: 'system', labelKey: 'app.theme.system', icon: 'monitor' },
 ];
 
 /**
@@ -35,6 +34,6 @@ export class ThemeToggle {
 
   protected currentIcon(): IconName {
     const preference = this.theme.preference();
-    return OPTIONS.find((option) => option.value === preference)?.icon ?? 'monitor';
+    return OPTIONS.find((option) => option.value === preference)?.icon ?? 'sun';
   }
 }

@@ -1,0 +1,229 @@
+.auth {
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+  background:
+    radial-gradient(
+      42rem 24rem at 0% -10%,
+      color-mix(in srgb, var(--primary) 16%, transparent),
+      transparent 70%
+    ),
+    var(--page);
+  color: var(--text-1);
+}
+
+.auth__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: min(100% - 2rem, 68rem);
+  margin: 0 auto;
+  padding: var(--space-5) 0;
+}
+
+.auth__brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.auth__brand span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth__stage {
+  display: grid;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-8);
+  width: min(100% - 2rem, 68rem);
+  margin: 0 auto;
+  padding-bottom: var(--space-12);
+}
+
+.auth__intro {
+  min-width: 0;
+}
+
+.auth__lockup {
+  --brand-mark-size: 4.5rem;
+  margin-bottom: var(--space-6);
+}
+
+.auth__kicker {
+  margin: 0 0 var(--space-3);
+  color: var(--primary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth__title {
+  max-width: 16ch;
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.auth__lead {
+  max-width: 36rem;
+  margin: var(--space-4) 0 0;
+  color: var(--text-2);
+  font-size: var(--text-base);
+  line-height: 1.6;
+}
+
+.auth__note {
+  max-width: 36rem;
+  margin: var(--space-5) 0 0;
+  padding-left: var(--space-4);
+  border-left: 3px solid var(--primary);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.auth__catalog {
+  display: inline-flex;
+  margin-top: var(--space-8);
+  color: var(--primary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-underline-offset: 0.2em;
+}
+
+.auth__catalog:hover {
+  text-decoration: underline;
+}
+
+.auth__card {
+  width: 100%;
+  max-width: 26rem;
+  justify-self: end;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-3);
+  padding: var(--space-8);
+}
+
+.auth__card .callout {
+  margin-bottom: var(--space-5);
+}
+
+.auth__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.auth__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.auth__label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.auth__secret {
+  position: relative;
+}
+
+.auth__secret .field {
+  padding-right: 2.75rem;
+}
+
+.auth__secret-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.auth__secret-toggle:hover,
+.auth__secret-toggle:focus-visible {
+  color: var(--text-1);
+  outline: none;
+}
+
+.auth__secret-toggle:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.auth__hint {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--text-xs);
+}
+
+.auth__error {
+  margin: calc(var(--space-2) * -1) 0 0;
+  color: var(--danger-700);
+  font-size: var(--text-xs);
+}
+
+.auth__switch {
+  margin: var(--space-5) 0 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.auth__switch a {
+  color: var(--primary);
+  font-weight: var(--weight-semibold);
+  text-underline-offset: 0.2em;
+}
+
+.auth__switch a:hover {
+  text-decoration: underline;
+}
+
+.auth__aside {
+  margin: var(--space-3) 0 0;
+  color: var(--text-3);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+@media (max-width: 63.99rem) {
+  .auth__card {
+    max-width: none;
+    justify-self: stretch;
+  }
+
+  .auth__lockup {
+    --brand-mark-size: 3.25rem;
+  }
+}
+
+@media (min-width: 64rem) {
+  .auth__stage {
+    grid-template-columns: minmax(0, 1fr) minmax(22rem, 26rem);
+    gap: var(--space-16);
+  }
+}

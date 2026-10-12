@@ -3,7 +3,10 @@
     [titleKey]="editing() ? 'establishments.form.edit' : 'establishments.form.create'"
     subtitleKey="establishments.subtitle"
   >
-    <a routerLink="/panel/sedes" appButton variant="secondary">{{ 'app.cancel' | t }}</a>
+    <a routerLink="/panel/sedes" appButton variant="secondary">
+      <app-icon name="x" [size]="16" />
+      {{ 'app.cancel' | t }}
+    </a>
   </app-page-header>
 
   @if (editing() && state().status === 'loading') {
@@ -18,6 +21,7 @@
     >
       <p class="text-sm text-(--danger-700)">{{ errorMessage() }}</p>
       <button type="button" appButton variant="secondary" (click)="retry()">
+        <app-icon name="refresh" [size]="16" />
         {{ 'app.retry' | t }}
       </button>
     </div>
@@ -123,7 +127,10 @@
       </section>
 
       <div class="flex flex-wrap items-center justify-end gap-3">
-        <a routerLink="/panel/sedes" appButton variant="secondary">{{ 'app.cancel' | t }}</a>
+        <a routerLink="/panel/sedes" appButton variant="secondary">
+      <app-icon name="x" [size]="16" />
+      {{ 'app.cancel' | t }}
+    </a>
         <button
           type="submit"
           appButton
@@ -131,6 +138,7 @@
           [loading]="saving()"
           [disabled]="saving()"
         >
+          <app-icon name="check" [size]="16" />
           {{ (editing() ? 'app.save' : 'establishments.form.create') | t }}
         </button>
       </div>

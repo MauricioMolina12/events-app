@@ -10,10 +10,12 @@ import {
   untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
-import type { Subscription } from 'rxjs';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { firstValueFrom, type Subscription } from 'rxjs';
 import { toApiError, type Page } from '@core/api';
-import type { Event } from '@core/domain';
+import type { DocumentType, Event } from '@core/domain';
+import { DOCUMENT_TYPES } from '@core/domain';
 import { I18nService, TranslatePipe, type MessageKey } from '@core/i18n';
 import { ApiErrorPresenter } from '@core/ui';
 import {
@@ -27,6 +29,7 @@ import { formatDocument } from '@core/utils/documents';
 import {
   ButtonDirective,
   EmptyState,
+  EventInvite,
   Icon,
   PageHeader,
   Pagination,
@@ -36,10 +39,12 @@ import {
   type SelectChoice,
 } from '@shared/ui';
 import { EventsApi } from '../../events/events.api';
+import { RegistrationsApi } from '../../registrations/registrations.api';
 import { listenCheckIns } from '../../check-in/check-in-events';
 import {
   RegistrationDeskApi,
   type CheckInStatus,
+  type DeskCompanion,
   type DeskMetrics,
   type DeskQuery,
   type DeskRow,
@@ -85,9 +90,11 @@ interface Kpi {
   selector: 'app-registration-desk-page',
   imports: [
     TranslatePipe,
+    ReactiveFormsModule,
     RouterLink,
     ButtonDirective,
     EmptyState,
+    EventInvite,
     Icon,
     PageHeader,
     Pagination,
@@ -113,13 +120,32 @@ export class RegistrationDeskPage {
   });
 
   readonly #router = inject(Router);
+  readonly #route = inject(ActivatedRoute);
   readonly #api = inject(RegistrationDeskApi);
+  readonly #registrations = inject(RegistrationsApi);
   readonly #errors = inject(ApiErrorPresenter);
   readonly #i18n = inject(I18nService);
 
   protected readonly pageSizeOptions = PAGE_SIZE_OPTIONS;
   protected readonly placeholders = SKELETON_ROWS;
   protected readonly kpiPlaceholders = KPI_PLACEHOLDERS;
+  protected readonly documentTypes = DOCUMENT_TYPES;
+  protected readonly creating = signal(false);
+  protected readonly createError = signal('');
+  protected readonly createForm = new FormGroup({
+    participationId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    fullName: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.minLength(3)],
+    }),
+    documentType: new FormControl<DocumentType>('CC', { nonNullable: true }),
+    documentNumber: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.minLength(4)],
+    }),
+    email: new FormControl('', { nonNullable: true }),
+    phone: new FormControl('', { nonNullable: true }),
+  });
 
   protected readonly events = toSignal(
     inject(EventsApi).list({ limit: 100 }).pipe(toAsyncState()),
@@ -229,11 +255,22 @@ export class RegistrationDeskPage {
   );
 
   #subscriptions: Partial<Record<'summary' | 'table' | 'history', Subscription>> = {};
+  #companionSubs = new Map<string, Subscription>();
+  protected readonly expandedId = signal<string | null>(null);
+  readonly #companions = signal<Readonly<Record<string, AsyncState<readonly DeskCompanion[]>>>>({});
   #signature = '';
   #searchTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
     effect(() => this.term.set(this.q()));
+    effect(() => {
+      this.historyMode();
+      if (this.#route.snapshot.fragment === 'desk-table') {
+        queueMicrotask(() =>
+          document.getElementById('desk-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+        );
+      }
+    });
 
     effect(() => {
       const key = this.#summaryKey();
@@ -281,6 +318,7 @@ export class RegistrationDeskPage {
       document.removeEventListener('visibilitychange', onVisible);
       stopListening();
       Object.values(this.#subscriptions).forEach((subscription) => subscription?.unsubscribe());
+      this.#companionSubs.forEach((subscription) => subscription.unsubscribe());
     });
   }
 
@@ -406,6 +444,66 @@ export class RegistrationDeskPage {
     return count === 1
       ? this.#i18n.t('desk.row.companionOne')
       : this.#i18n.t('desk.row.companions', { count: count.toLocaleString('es-CO') });
+  }
+
+  protected expanded(id: string): boolean {
+    return this.expandedId() === id;
+  }
+
+  protected expandable(row: DeskRow): boolean {
+    return row.companionsCount > 0;
+  }
+
+  protected companionPeople(count: number): string {
+    return count === 1
+      ? this.#i18n.t('desk.companions.person')
+      : this.#i18n.t('desk.companions.people', { count: count.toLocaleString('es-CO') });
+  }
+
+  protected companionState(id: string): AsyncState<readonly DeskCompanion[]> | null {
+    return this.#companions()[id] ?? null;
+  }
+
+  protected companionList(id: string): readonly DeskCompanion[] {
+    const state = this.#companions()[id];
+    return state?.status === 'loaded' ? state.value : [];
+  }
+
+  protected companionDocument(companion: DeskCompanion): string {
+    if (!companion.documentType || !companion.documentNumber) {
+      return '—';
+    }
+    return `${companion.documentType} ${formatDocument(companion.documentNumber, companion.documentType)}`;
+  }
+
+  protected toggleRow(row: DeskRow): void {
+    if (this.expandedId() === row.id) {
+      this.expandedId.set(null);
+      return;
+    }
+    if (!this.expandable(row)) {
+      this.expandedId.set(null);
+      return;
+    }
+    this.expandedId.set(row.id);
+    const current = this.#companions()[row.id];
+    if (current?.status === 'loaded' || current?.status === 'loading') {
+      return;
+    }
+    this.#companionSubs.get(row.id)?.unsubscribe();
+    this.#companions.update((states) => ({ ...states, [row.id]: loadingState() }));
+    this.#companionSubs.set(
+      row.id,
+      this.#api.companions(row.id).subscribe({
+        next: (companions) =>
+          this.#companions.update((states) => ({ ...states, [row.id]: loadedState(companions) })),
+        error: (error: unknown) =>
+          this.#companions.update((states) => ({
+            ...states,
+            [row.id]: errorState(toApiError(error)),
+          })),
+      }),
+    );
   }
 
   protected turnLabel(row: DeskRow): string {
@@ -600,6 +698,52 @@ export class RegistrationDeskPage {
       ...options,
       timeZone: this.selectedEvent()?.timezone || 'America/Bogota',
     }).format(new Date(iso));
+  }
+
+  protected venueChoices(): readonly SelectChoice[] {
+    const summary = this.summaryValue();
+    if (!summary) {
+      return [];
+    }
+    return summary.sedes.map((sede) => ({
+      value: sede.participationId,
+      label: sede.establishment.name,
+    }));
+  }
+
+  protected async createRegistration(): Promise<void> {
+    if (this.createForm.invalid || this.creating()) {
+      this.createForm.markAllAsTouched();
+      return;
+    }
+    this.creating.set(true);
+    this.createError.set('');
+    try {
+      const value = this.createForm.getRawValue();
+      await firstValueFrom(
+        this.#registrations.create({
+          participationId: value.participationId,
+          fullName: value.fullName.trim(),
+          documentType: value.documentType,
+          documentNumber: value.documentNumber.trim(),
+          email: value.email.trim() || null,
+          phone: value.phone.trim() || null,
+        }),
+      );
+      this.createForm.reset({
+        participationId: value.participationId,
+        fullName: '',
+        documentType: 'CC',
+        documentNumber: '',
+        email: '',
+        phone: '',
+      });
+      this.refresh();
+    } catch (error: unknown) {
+      this.createError.set(this.#errors.message(error));
+    } finally {
+      this.creating.set(false);
+    }
   }
 
   #navigate(params: Record<string, string | number | null>): void {

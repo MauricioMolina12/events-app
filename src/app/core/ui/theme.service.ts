@@ -1,6 +1,6 @@
 import { Injectable, effect, signal } from '@angular/core';
 
-export type ThemePreference = 'light' | 'dark' | 'system';
+export type ThemePreference = 'light' | 'dark';
 
 /**
  * Must match the inline script in `index.html`, which applies the stored value
@@ -12,19 +12,15 @@ const STORAGE_KEY = 'events.theme';
 function readPreference(): ThemePreference {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === 'light' || stored === 'dark' ? stored : 'system';
+    return stored === 'dark' ? 'dark' : 'light';
   } catch {
-    return 'system';
+    return 'light';
   }
 }
 
 function persist(preference: ThemePreference): void {
   try {
-    if (preference === 'system') {
-      localStorage.removeItem(STORAGE_KEY);
-    } else {
-      localStorage.setItem(STORAGE_KEY, preference);
-    }
+    localStorage.setItem(STORAGE_KEY, preference);
   } catch {
     /* private mode / storage disabled — the choice simply will not survive a reload */
   }
@@ -54,11 +50,6 @@ export class ThemeService {
     if (typeof document === 'undefined') {
       return;
     }
-    const root = document.documentElement;
-    if (preference === 'system') {
-      delete root.dataset['theme'];
-    } else {
-      root.dataset['theme'] = preference;
-    }
+    document.documentElement.dataset['theme'] = preference;
   }
 }

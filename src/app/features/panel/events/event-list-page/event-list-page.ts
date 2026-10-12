@@ -20,6 +20,7 @@ import { toZonedDateTimeDisplay } from '@core/utils/dates';
 import {
   ButtonDirective,
   EmptyState,
+  EventInvite,
   Icon,
   PageHeader,
   Pagination,
@@ -48,6 +49,7 @@ const SKELETON_ROWS: readonly number[] = [1, 2, 3, 4, 5];
     RouterLink,
     ButtonDirective,
     EmptyState,
+    EventInvite,
     Icon,
     PageHeader,
     Pagination,
@@ -78,7 +80,8 @@ export class EventListPage {
   readonly #errors = inject(ApiErrorPresenter);
   readonly #i18n = inject(I18nService);
   readonly #session = inject(SessionStore);
-  protected readonly canCreate = computed(() => this.#session.isAuthenticated());
+  protected readonly canCreate = computed(() => this.#session.isAdmin());
+  protected readonly isAdmin = this.#session.isAdmin;
   readonly #attempt = signal(0);
   readonly #request = computed(() => ({
     query: {

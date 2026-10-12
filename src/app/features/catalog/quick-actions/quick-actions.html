@@ -25,6 +25,28 @@
         </a>
       </li>
     }
+    @if (lookupLink(); as lookup) {
+      <li>
+        <a
+          class="card card--pad card--interactive flex h-full items-start gap-3 no-underline"
+          [routerLink]="lookup"
+        >
+          <span
+            class="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] bg-[var(--warning-subtle)] text-[var(--warning)]"
+            aria-hidden="true"
+          >
+            <app-icon name="search" [size]="20" />
+          </span>
+          <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span class="text-base font-semibold text-[var(--text-1)]">
+              {{ 'quick.lookup.title' | t }}
+            </span>
+            <span class="text-sm text-[var(--text-2)]">{{ 'quick.lookup.body' | t }}</span>
+          </span>
+          <app-icon name="chevronRight" [size]="18" class="mt-1 shrink-0 text-[var(--text-3)]" />
+        </a>
+      </li>
+    }
     <li>
       <a
         class="card card--pad card--interactive flex h-full items-start gap-3 no-underline"

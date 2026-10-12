@@ -9,8 +9,9 @@ import {
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { switchMap } from 'rxjs';
+import { catchError, of, switchMap } from 'rxjs';
 import type { Page } from '@core/api';
+import { ClientsApi } from '@core/clients/clients.api';
 import type { PublicEvent } from '@core/domain';
 import { TranslatePipe } from '@core/i18n';
 import { ApiErrorPresenter } from '@core/ui';
@@ -31,12 +32,10 @@ const PAGE_SIZE_OPTIONS: readonly number[] = [12, 24, 48];
 const PLACEHOLDER_CARDS: readonly number[] = [1, 2, 3, 4, 5, 6];
 
 /**
- * Public catalog (`/eventos`).
+ * Public catalog of one client (`/clientes/:clienteSlug/eventos`).
  *
- * Filters live in the **URL**, not in component state: `withComponentInputBinding`
- * feeds `?search`, `?limit` and `?offset` straight into the inputs below, so a shared
- * link reproduces exactly what the sender was looking at and the server is the one who
- * paginates.
+ * `/eventos` is the directory of spaces, not this list. Event detail and
+ * registration links stay on `/eventos/:slug` so existing QR links keep working.
  */
 @Component({
   selector: 'app-event-list-page',
@@ -55,6 +54,8 @@ const PLACEHOLDER_CARDS: readonly number[] = [1, 2, 3, 4, 5, 6];
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EventListPage {
+  /** Client slug from `/clientes/:clienteSlug/eventos`. */
+  readonly clienteSlug = input.required<string>();
   /** Committed term, from `?search=`. */
   readonly search = input('', {
     transform: (value: string | undefined) => value?.trim() ?? '',
@@ -72,6 +73,16 @@ export class EventListPage {
   readonly #router = inject(Router);
   readonly #api = inject(CatalogApi);
   readonly #errors = inject(ApiErrorPresenter);
+  readonly #directory = toSignal(
+    inject(ClientsApi)
+      .listPublic()
+      .pipe(catchError(() => of([]))),
+    { initialValue: [] },
+  );
+
+  protected readonly clientName = computed(
+    () => this.#directory().find((client) => client.slug === this.clienteSlug())?.displayName ?? '',
+  );
 
   /** Bumped by `retry()`. It is part of the request so a retry re-subscribes. */
   readonly #attempt = signal(0);
@@ -82,12 +93,13 @@ export class EventListPage {
       limit: this.limit(),
       offset: this.offset(),
     } satisfies CatalogQuery,
+    slug: this.clienteSlug(),
     attempt: this.#attempt(),
   }));
 
   readonly state = toSignal(
     toObservable(this.#request).pipe(
-      switchMap(({ query }) => this.#api.listEvents(query).pipe(toAsyncState())),
+      switchMap(({ query, slug }) => this.#api.listClientEvents(slug, query).pipe(toAsyncState())),
     ),
     { initialValue: loadingState<Page<PublicEvent>>() },
   );
@@ -174,7 +186,10 @@ export class EventListPage {
   }
 
   #navigate(params: Record<string, string | number | null>): void {
-    void this.#router.navigate(['/eventos'], { queryParams: params, queryParamsHandling: 'merge' });
+    void this.#router.navigate(['/clientes', this.clienteSlug(), 'eventos'], {
+      queryParams: params,
+      queryParamsHandling: 'merge',
+    });
   }
 }
 

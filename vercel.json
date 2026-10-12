@@ -3,5 +3,17 @@
   "framework": null,
   "buildCommand": "npm run build -- --configuration=vercel",
   "outputDirectory": "dist/events-f/browser",
-  "rewrites": [{ "source": "/((?!.*\\.).*)", "destination": "/index.html" }]
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "private, no-store" }]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://events-development.stargrowstudioevents.workers.dev/api/:path*"
+    },
+    { "source": "/((?!.*\\.).*)", "destination": "/index.html" }
+  ]
 }

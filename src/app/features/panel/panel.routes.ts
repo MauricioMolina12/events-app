@@ -4,14 +4,14 @@ import { authGuard, publicOnlyGuard, roleGuard } from '@core/auth';
 export const panelRoutes: Routes = [
   {
     path: 'signup',
-    title: 'Crear cuenta · Eventos Barby Toys & Cupidos',
+    title: 'Crear cuenta · Star Grow Studio',
     canMatch: [publicOnlyGuard],
     loadComponent: () =>
       import('@features/panel/signup-page/signup-page').then((m) => m.PanelSignupPage),
   },
   {
     path: 'login',
-    title: 'Ingreso · Eventos Barby Toys & Cupidos',
+    title: 'Ingreso · Star Grow Studio',
     canMatch: [publicOnlyGuard],
     loadComponent: () =>
       import('@features/panel/login-page/login-page').then((m) => m.PanelLoginPage),
@@ -71,7 +71,7 @@ export const panelRoutes: Routes = [
       {
         path: 'eventos/nuevo',
         title: 'Nuevo evento · Panel · Barby Toys & Cupidos',
-        canActivate: [roleGuard('admin', 'operator')],
+        canActivate: [roleGuard('admin')],
         loadComponent: () =>
           import('@features/panel/events/event-form-page/event-form-page').then(
             (m) => m.EventFormPage,
@@ -108,11 +108,34 @@ export const panelRoutes: Routes = [
       {
         path: 'sedes/:id/editar',
         title: 'Editar sede · Panel · Barby Toys & Cupidos',
-        canActivate: [roleGuard('admin')],
+        canActivate: [roleGuard('admin', 'operator')],
         loadComponent: () =>
           import(
             '@features/panel/establishments/establishment-form-page/establishment-form-page'
           ).then((m) => m.EstablishmentFormPage),
+      },
+      {
+        path: 'cupos',
+        title: 'Cupos · Panel · Barby Toys & Cupidos',
+        canActivate: [roleGuard('admin', 'operator')],
+        loadComponent: () =>
+          import('@features/panel/quotas/quotas-page/quotas-page').then((m) => m.QuotasPage),
+      },
+      {
+        path: 'usuarios',
+        title: 'Usuarios · Panel · Barby Toys & Cupidos',
+        canActivate: [roleGuard('admin')],
+        loadComponent: () =>
+          import('@features/panel/users/users-page/users-page').then((m) => m.UsersPage),
+      },
+      {
+        path: 'colaboradores',
+        title: 'Colaboradores · Panel · Star Grow Studio',
+        canActivate: [roleGuard('admin', 'operator')],
+        loadComponent: () =>
+          import('@features/panel/collaborators/collaborators-page/collaborators-page').then(
+            (m) => m.CollaboratorsPage,
+          ),
       },
       {
         path: 'configuracion',

@@ -11,6 +11,8 @@ import { ChangeDetectionStrategy, Component, effect, input, signal } from '@angu
 })
 export class BrandMark {
   readonly src = input<string | null>(null);
+  /** Same mark for dark backgrounds. Falls back to `src` when omitted. */
+  readonly darkSrc = input<string | null>(null);
   readonly initials = input('E');
   readonly wide = input(false);
 

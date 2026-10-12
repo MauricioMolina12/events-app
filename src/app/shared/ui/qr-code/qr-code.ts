@@ -21,6 +21,7 @@ interface QrCell {
 export class QrCode {
   readonly value = input.required<string>();
   readonly label = input('');
+  readonly color = input('#111111');
 
   protected readonly encoded = computed(() => {
     const value = this.value();

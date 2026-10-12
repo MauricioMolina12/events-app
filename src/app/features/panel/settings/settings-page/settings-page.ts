@@ -7,6 +7,7 @@ import { I18nService, TranslatePipe } from '@core/i18n';
 import type { MessageKey } from '@core/i18n/messages';
 import { ApiErrorPresenter, ConfirmService, ThemeService, ToastService } from '@core/ui';
 import type { ThemePreference } from '@core/ui/theme.service';
+import { ClientsApi, type ClientSpace } from '@core/clients/clients.api';
 import { contrastText, normalizeHex, shadeHex } from '@core/workspace/brand-color';
 import { WorkspaceApi, type WorkspaceSettings } from '@core/workspace/workspace.api';
 import { WorkspaceService } from '@core/workspace/workspace.service';
@@ -48,6 +49,7 @@ interface ThemeChoice {
 })
 export class SettingsPage {
   readonly #api = inject(WorkspaceApi);
+  readonly #clients = inject(ClientsApi);
   readonly #session = inject(SessionStore);
   readonly #i18n = inject(I18nService);
   readonly #errors = inject(ApiErrorPresenter);
@@ -56,7 +58,8 @@ export class SettingsPage {
   readonly #theme = inject(ThemeService);
 
   protected readonly workspace = inject(WorkspaceService);
-  protected readonly canEdit = this.#session.isAdmin;
+  protected readonly isAdmin = this.#session.isAdmin;
+  protected readonly canEdit = computed(() => this.isAdmin() || this.#session.role() === 'operator');
   protected readonly theme = this.#theme.preference;
   protected readonly tab = signal<SettingsTab>('general');
   protected readonly saving = signal(false);
@@ -65,7 +68,6 @@ export class SettingsPage {
   protected readonly themes: readonly ThemeChoice[] = [
     { value: 'light', labelKey: 'app.theme.light', icon: 'sun' },
     { value: 'dark', labelKey: 'app.theme.dark', icon: 'moon' },
-    { value: 'system', labelKey: 'app.theme.system', icon: 'monitor' },
   ];
   protected readonly tabs: readonly { id: SettingsTab; labelKey: MessageKey }[] = [
     { id: 'general', labelKey: 'settings.tab.general' },
@@ -90,7 +92,6 @@ export class SettingsPage {
 
   readonly #baseline = signal({ name: '', description: '', color: '#C81F68' });
   readonly #formTick = signal(0);
-  #hydrated = false;
 
   protected readonly dirty = computed(() => {
     this.#formTick();
@@ -134,10 +135,9 @@ export class SettingsPage {
 
     effect(() => {
       const settings = this.workspace.settings();
-      if (!settings || this.#hydrated) {
+      if (!settings || this.dirty()) {
         return;
       }
-      this.#hydrated = true;
       this.#apply(settings);
     });
   }
@@ -190,34 +190,51 @@ export class SettingsPage {
       }
       const value = this.form.getRawValue();
       const base = this.#baseline();
-      const patch: { displayName?: string; description?: string | null; primaryColor?: string } = {};
-      if (value.name.trim() !== base.name) {
-        patch.displayName = value.name.trim();
-      }
-      const description = value.description.trim();
-      if (description !== base.description) {
-        patch.description = description.length === 0 ? null : description;
-      }
-      const color = normalizeHex(value.color);
-      if (color && color !== base.color.toUpperCase()) {
-        patch.primaryColor = color;
-      }
-      if (patch.displayName || patch.description !== undefined || patch.primaryColor) {
-        current = await firstValueFrom(this.#api.patch(patch));
+      if (this.#session.role() === 'operator') {
+        const patch: { displayName?: string; primaryColor?: string } = {};
+        if (value.name.trim() !== base.name) {
+          patch.displayName = value.name.trim();
+        }
+        const color = normalizeHex(value.color);
+        if (color && color !== base.color.toUpperCase()) {
+          patch.primaryColor = color;
+        }
+        if (patch.displayName || patch.primaryColor) {
+          const client = await firstValueFrom(this.#clients.updateMine(patch));
+          current = clientSettings(client, current.updatedAt);
+        }
+      } else {
+        const patch: { displayName?: string; description?: string | null; primaryColor?: string } = {};
+        if (value.name.trim() !== base.name) {
+          patch.displayName = value.name.trim();
+        }
+        const description = value.description.trim();
+        if (description !== base.description) {
+          patch.description = description.length === 0 ? null : description;
+        }
+        const color = normalizeHex(value.color);
+        if (color && color !== base.color.toUpperCase()) {
+          patch.primaryColor = color;
+        }
+        if (patch.displayName || patch.description !== undefined || patch.primaryColor) {
+          current = await firstValueFrom(this.#api.patch(patch));
+        }
       }
       this.workspace.replace(current);
       this.#apply(current);
       this.#toast.success('toast.saved');
     } catch (error) {
       this.saveError.set(this.#errors.message(error));
-      await this.workspace.refresh();
+      if (this.#session.role() !== 'operator') {
+        await this.workspace.refresh();
+      }
     } finally {
       this.saving.set(false);
     }
   }
 
   protected async restore(): Promise<void> {
-    if (!this.canEdit() || this.restoring()) {
+    if (!this.isAdmin() || this.restoring()) {
       return;
     }
     const result = await this.#confirm.open({
@@ -244,12 +261,16 @@ export class SettingsPage {
   }
 
   #apply(settings: WorkspaceSettings): void {
+    this.form.enable({ emitEvent: false });
     this.form.reset({
       name: settings.displayName,
       description: settings.description ?? '',
       color: settings.primaryColor,
     });
-    if (!this.#session.isAdmin()) {
+    if (!this.isAdmin()) {
+      this.form.controls.description.disable({ emitEvent: false });
+    }
+    if (!this.canEdit()) {
       this.form.disable({ emitEvent: false });
     }
     this.#baseline.set({
@@ -259,4 +280,17 @@ export class SettingsPage {
     });
     this.#formTick.update((value) => value + 1);
   }
+}
+
+function clientSettings(client: ClientSpace, updatedAt: string): WorkspaceSettings {
+  return {
+    displayName: client.displayName,
+    description: null,
+    nameCustomized: client.nameCustomized,
+    primaryColor: client.primaryColor,
+    colorCustomized: client.colorCustomized,
+    logoUrl: null,
+    markUrl: null,
+    updatedAt,
+  };
 }

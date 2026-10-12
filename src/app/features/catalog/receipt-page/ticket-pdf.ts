@@ -25,6 +25,20 @@ export interface TicketData {
   readonly folio: string;
   readonly issued: string;
   readonly footer: string;
+  readonly primaryColor?: string;
+  readonly design?: {
+    readonly bgColor?: string;
+    readonly textColor?: string;
+    readonly accentColor?: string;
+    readonly titleWeight?: number;
+    readonly titleSize?: number;
+    readonly titleX?: number;
+    readonly titleY?: number;
+    readonly qrX?: number;
+    readonly qrY?: number;
+    readonly qrSize?: number;
+    readonly fieldWeight?: number;
+  };
 }
 
 /** Page in PDF points; the canvas is painted `SCALE` times larger so print stays sharp. */
@@ -41,8 +55,31 @@ const COLORS = {
   ink: '#111827',
   muted: '#6b7280',
   line: '#e5e7eb',
-  gradient: ['#fb5a9b', '#c81f68', '#6f123d'],
 } as const;
+
+function gradientFrom(primary = '#C81F68'): readonly [string, string, string] {
+  return [mixHex(primary, '#ffffff', 0.28), primary, mixHex(primary, '#111827', 0.42)];
+}
+
+function mixHex(hex: string, other: string, amount: number): string {
+  const left = parseHex(hex);
+  const right = parseHex(other);
+  const mix = (a: number, b: number) => Math.round(a + (b - a) * amount);
+  return toHex(mix(left.r, right.r), mix(left.g, right.g), mix(left.b, right.b));
+}
+
+function parseHex(hex: string): { r: number; g: number; b: number } {
+  const value = hex.replace('#', '');
+  return {
+    r: Number.parseInt(value.slice(0, 2), 16),
+    g: Number.parseInt(value.slice(2, 4), 16),
+    b: Number.parseInt(value.slice(4, 6), 16),
+  };
+}
+
+function toHex(r: number, g: number, b: number): string {
+  return `#${[r, g, b].map((value) => value.toString(16).padStart(2, '0')).join('')}`;
+}
 
 export async function downloadTicketPdf(data: TicketData, fileName: string): Promise<void> {
   const canvas = document.createElement('canvas');
@@ -74,6 +111,13 @@ function paintTicket(ctx: CanvasRenderingContext2D, data: TicketData): void {
   const card = { x: 20, y: 20, w: WIDTH - 40, h: HEIGHT - 40, r: 24 };
   const headerHeight = 200;
   const tearY = card.y + headerHeight;
+  const design = data.design;
+  const primary = design?.accentColor ?? data.primaryColor;
+  const gradientColors = gradientFrom(primary);
+  const ink = design?.textColor ?? COLORS.ink;
+  const titleWeight = design?.titleWeight ?? 800;
+  const titleSize = design?.titleSize ?? 22;
+  const fieldWeight = design?.fieldWeight ?? 700;
 
   ctx.fillStyle = COLORS.page;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -92,9 +136,9 @@ function paintTicket(ctx: CanvasRenderingContext2D, data: TicketData): void {
   roundRect(ctx, card.x, card.y, card.w, card.h, card.r);
   ctx.clip();
   const gradient = ctx.createLinearGradient(card.x, card.y, card.x + card.w, card.y + headerHeight);
-  gradient.addColorStop(0, COLORS.gradient[0]);
-  gradient.addColorStop(0.55, COLORS.gradient[1]);
-  gradient.addColorStop(1, COLORS.gradient[2]);
+  gradient.addColorStop(0, gradientColors[0]);
+  gradient.addColorStop(0.55, gradientColors[1]);
+  gradient.addColorStop(1, gradientColors[2]);
   ctx.fillStyle = gradient;
   ctx.fillRect(card.x, card.y, card.w, headerHeight);
   ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
@@ -108,7 +152,7 @@ function paintTicket(ctx: CanvasRenderingContext2D, data: TicketData): void {
   ctx.fillStyle = '#ffffff';
   roundRect(ctx, left, card.y + 24, 30, 30, 9);
   ctx.fill();
-  ctx.fillStyle = COLORS.gradient[1];
+  ctx.fillStyle = gradientColors[1];
   ctx.font = `800 12px ${FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -125,8 +169,11 @@ function paintTicket(ctx: CanvasRenderingContext2D, data: TicketData): void {
   withSpacing(ctx, '1.5px', () => ctx.fillText(data.title.toUpperCase(), left, card.y + 92));
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = `800 22px ${FONT}`;
+  ctx.font = `${titleWeight} ${titleSize}px ${FONT}`;
   let y = card.y + 120;
+  if (design?.titleX !== undefined || design?.titleY !== undefined) {
+    y = card.y + ((design.titleY ?? 18) / 100) * headerHeight;
+  }
   for (const line of wrap(ctx, data.eventName ?? data.title, inner, 2)) {
     ctx.fillText(line, left, y);
     y += 27;
@@ -143,16 +190,16 @@ function paintTicket(ctx: CanvasRenderingContext2D, data: TicketData): void {
   circle(ctx, card.x + card.w, tearY, 12);
 
   // QR on a white tile.
-  const qrBox = 184;
-  const qrX = (WIDTH - qrBox) / 2;
-  const qrY = tearY + 28;
+  const qrBox = design?.qrSize ?? 184;
+  const qrX = design?.qrX !== undefined ? (WIDTH * design.qrX) / 100 - qrBox / 2 : (WIDTH - qrBox) / 2;
+  const qrY = design?.qrY !== undefined ? (HEIGHT * design.qrY) / 100 - qrBox / 2 : tearY + 28;
   ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = COLORS.line;
   ctx.lineWidth = 1;
   roundRect(ctx, qrX, qrY, qrBox, qrBox, 16);
   ctx.fill();
   ctx.stroke();
-  paintQr(ctx, data.qrValue, qrX + 12, qrY + 12, qrBox - 24);
+  paintQr(ctx, data.qrValue, qrX + 12, qrY + 12, qrBox - 24, primary ?? design?.textColor ?? '#111111');
 
   ctx.fillStyle = COLORS.muted;
   ctx.font = `500 11px ${FONT}`;
@@ -169,12 +216,12 @@ function paintTicket(ctx: CanvasRenderingContext2D, data: TicketData): void {
       rowY += 38;
     }
     ctx.fillStyle = COLORS.muted;
-    ctx.font = `700 8.5px ${FONT}`;
+    ctx.font = `${fieldWeight} 8.5px ${FONT}`;
     withSpacing(ctx, '1px', () =>
       ctx.fillText(fit(ctx, field.label.toUpperCase(), columnWidth), x, rowY),
     );
-    ctx.fillStyle = COLORS.ink;
-    ctx.font = `700 12.5px ${FONT}`;
+    ctx.fillStyle = ink;
+    ctx.font = `${fieldWeight} 12.5px ${FONT}`;
     ctx.fillText(fit(ctx, field.value, columnWidth), x, rowY + 16);
   });
 
@@ -194,10 +241,17 @@ function paintTicket(ctx: CanvasRenderingContext2D, data: TicketData): void {
   ctx.fillText(fit(ctx, data.footer, inner), left, footerY + 59);
 }
 
-function paintQr(ctx: CanvasRenderingContext2D, value: string, x: number, y: number, size: number) {
+function paintQr(
+  ctx: CanvasRenderingContext2D,
+  value: string,
+  x: number,
+  y: number,
+  size: number,
+  color = '#111111',
+) {
   const { data, size: count } = encode(value, { ecc: 'M', border: 1 });
   const cell = size / count;
-  ctx.fillStyle = '#000000';
+  ctx.fillStyle = color;
   for (let row = 0; row < count; row += 1) {
     for (let col = 0; col < count; col += 1) {
       if (data[row]?.[col]) {

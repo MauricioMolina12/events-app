@@ -1,4 +1,4 @@
-<div class="mx-auto flex w-full max-w-3xl flex-col gap-6">
+<div class="flex w-full flex-col gap-6">
   <app-page-header titleKey="checkIn.title" subtitleKey="checkIn.subtitle" />
 
   <section class="flex flex-col gap-4" [hidden]="!showScanner()" aria-labelledby="check-in-scanner">
@@ -41,7 +41,12 @@
         @if (phase() === 'processing') {
           <div class="scanner-placeholder" aria-live="polite">
             <span class="scanner-spinner" aria-hidden="true"></span>
-            <p class="text-sm font-medium text-(--text-1)">{{ 'checkIn.processing' | t }}</p>
+            <p class="text-sm font-medium text-(--text-1)">
+              {{
+                (processingKind() === 'confirm' ? 'checkIn.processing.confirm' : 'checkIn.processing')
+                  | t
+              }}
+            </p>
           </div>
         }
       </div>
@@ -54,6 +59,7 @@
             {{ (phase() === 'starting' ? 'checkIn.camera.starting' : 'checkIn.camera.hint') | t }}
           </p>
           <button type="button" appButton variant="ghost" size="sm" (click)="stopCamera()">
+            <app-icon name="x" [size]="16" />
             {{ 'checkIn.camera.stop' | t }}
           </button>
         </div>
@@ -86,12 +92,169 @@
           class="shrink-0"
           [disabled]="phase() === 'processing'"
         >
+          <app-icon name="check" [size]="16" />
           {{ 'checkIn.manual.submit' | t }}
         </button>
       </div>
       <p id="check-in-code-hint" class="hint">{{ 'checkIn.manual.hint' | t }}</p>
     </form>
+
+    <form class="card card--pad section-block flex flex-col gap-3" (submit)="$event.preventDefault(); searchPerson()" novalidate>
+      <h2 class="text-sm font-semibold">{{ 'checkIn.search.title' | t }}</h2>
+      <p class="hint">{{ 'checkIn.search.hint' | t }}</p>
+      @if (eventChoices().length > 1) {
+        <app-select
+          [options]="eventChoices()"
+          [value]="eventId()"
+          [ariaLabel]="'checkIn.search.event' | t"
+          (valueChange)="eventId.set($event); loadRecent()"
+        />
+      }
+      <div class="flex flex-col gap-2 sm:flex-row">
+        <input
+          class="field"
+          type="search"
+          [value]="searchQuery()"
+          (input)="searchQuery.set($any($event.target).value)"
+          [placeholder]="'checkIn.search.placeholder' | t"
+        />
+        <button type="submit" appButton variant="secondary" [disabled]="searching()">
+          <app-icon name="search" [size]="16" />
+          {{ 'checkIn.search.submit' | t }}
+        </button>
+      </div>
+      @if (searchResults().length > 1) {
+        <ul class="flex flex-col gap-2">
+          @for (hit of searchResults(); track hit.registration.id) {
+            <li>
+              <button type="button" class="choice-card w-full text-left" (click)="pickSearchResult(hit)">
+                <span class="block font-semibold">{{ hit.registration.fullName }}</span>
+                <span class="block font-mono text-xs text-(--text-3)">{{ hit.registration.documentNumber }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </form>
   </section>
+
+  @if (phase() === 'confirm' && preview(); as view) {
+    <section class="check-in-result flex flex-col gap-5" aria-live="polite">
+      <header class="flex items-start gap-3">
+        <span class="result-badge" aria-hidden="true">
+          <app-icon [name]="confirmStep() === 'holder' ? 'user' : 'users'" [size]="26" />
+        </span>
+        <div class="min-w-0">
+          <h2 class="text-xl font-bold tracking-tight sm:text-2xl">
+            {{ 'checkIn.confirm.title' | t }}
+          </h2>
+          <p class="mt-1 text-sm text-(--text-2)">
+            {{ view.event.name }}
+            @if (view.sede.city) {
+              <span>· {{ view.sede.name }} · {{ view.sede.city }}</span>
+            } @else {
+              <span>· {{ view.sede.name }}</span>
+            }
+          </p>
+        </div>
+      </header>
+
+      <div class="card card--pad flex flex-col gap-2">
+        <p class="text-xs font-medium uppercase tracking-wider text-(--text-3)">
+          {{ 'checkIn.result.holder' | t }}
+        </p>
+        <p class="text-2xl font-bold tracking-tight">{{ view.registration.fullName }}</p>
+        <p class="font-mono text-sm text-(--text-2)">{{ holderDocument() }}</p>
+      </div>
+
+      @if (confirmStep() === 'late') {
+        <div class="flex flex-col gap-3">
+          <h3 class="text-lg font-semibold">{{ 'checkIn.late.title' | t }}</h3>
+          <p class="text-sm text-(--text-2)">{{ 'checkIn.late.hint' | t }}</p>
+          <ul class="flex flex-col gap-2">
+            @for (companion of pendingCompanions(); track companion.id) {
+              <li>
+                <label class="choice-card" [attr.data-selected]="companionPresent(companion.id) ? 'true' : null">
+                  <input
+                    class="choice-card__input confirm-check"
+                    type="checkbox"
+                    [checked]="companionPresent(companion.id)"
+                    (change)="toggleCompanion(companion.id)"
+                  />
+                  <span class="text-sm font-semibold">{{ companion.fullName }}</span>
+                </label>
+              </li>
+            }
+          </ul>
+          <button type="button" appButton variant="primary" [disabled]="presentCompanionIds().size === 0" (click)="confirmLateCompanions()">
+            {{ 'checkIn.late.submit' | t }}
+          </button>
+        </div>
+      } @else if (confirmStep() === 'holder') {
+        <div class="flex flex-col gap-3">
+          <h3 class="text-lg font-semibold">{{ 'checkIn.confirm.holderQuestion' | t }}</h3>
+          <p class="text-sm text-(--text-2)">
+            {{ 'checkIn.confirm.holderHint' | t: { name: view.registration.fullName } }}
+          </p>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <button type="button" appButton variant="primary" size="lg" (click)="confirmHolderPresent()">
+              <app-icon name="check" [size]="18" />
+              <span>{{ 'checkIn.confirm.holderYes' | t }}</span>
+            </button>
+            <button type="button" appButton variant="secondary" size="lg" (click)="confirmHolderAbsent()">
+              <app-icon name="x" [size]="18" />
+              <span>{{ 'checkIn.confirm.holderNo' | t }}</span>
+            </button>
+          </div>
+        </div>
+      } @else {
+        <div class="flex flex-col gap-3">
+          <h3 class="text-lg font-semibold">{{ 'checkIn.confirm.companionsQuestion' | t }}</h3>
+          <p class="text-sm text-(--text-2)">{{ 'checkIn.confirm.companionsHint' | t }}</p>
+          <ul class="flex flex-col gap-2" [attr.aria-label]="'checkIn.result.companion' | t">
+            @for (companion of view.companions; track companion.id) {
+              <li>
+                <label
+                  class="choice-card"
+                  [attr.data-selected]="companionPresent(companion.id) ? 'true' : null"
+                  [attr.for]="'check-in-companion-' + companion.id"
+                >
+                  <input
+                    class="choice-card__input confirm-check"
+                    type="checkbox"
+                    [id]="'check-in-companion-' + companion.id"
+                    [checked]="companionPresent(companion.id)"
+                    (change)="toggleCompanion(companion.id)"
+                  />
+                  <span class="min-w-0">
+                    <span class="block text-sm font-semibold">{{ companion.fullName }}</span>
+                    @if (companionDocument(companion); as document) {
+                      <span class="mt-0.5 block font-mono text-xs text-(--text-3)">{{ document }}</span>
+                    }
+                  </span>
+                </label>
+              </li>
+            }
+          </ul>
+          @if (releasedCount() > 0) {
+            <p class="text-sm text-(--warning)">
+              {{ 'checkIn.confirm.release' | t: { count: releasedCount() } }}
+            </p>
+          }
+          <div class="flex flex-col gap-2 sm:flex-row">
+            <button type="button" appButton variant="ghost" (click)="backToHolder()">
+              <app-icon name="arrow-left" [size]="16" />
+              <span>{{ 'app.back' | t }}</span>
+            </button>
+            <button type="button" appButton variant="primary" class="sm:ml-auto" (click)="confirmCompanions()">
+              <app-icon name="check" [size]="16" />
+              <span>{{ 'checkIn.confirm.submit' | t }}</span>
+            </button>
+          </div>
+        </div>
+      }
+    </section>
+  }
 
   @if (phase() === 'result' && result(); as view) {
     <section class="check-in-result flex flex-col gap-5" aria-live="polite">
@@ -114,6 +277,11 @@
               {{ 'checkIn.result.assignedBody' | t }}
             }
           </p>
+          @if (!view.alreadyAssigned && view.releasedCompanionsCount > 0) {
+            <p class="mt-2 text-sm text-(--warning)">
+              {{ 'checkIn.result.released' | t: { count: view.releasedCompanionsCount } }}
+            </p>
+          }
         </div>
       </header>
 
@@ -181,4 +349,35 @@
       </button>
     </section>
   }
+
+  <section class="section-block card card--pad flex flex-col gap-3" aria-labelledby="check-in-recent">
+    <h2 id="check-in-recent" class="text-sm font-semibold">{{ 'checkIn.recent.title' | t }}</h2>
+    @if (recent().length === 0) {
+      <p class="text-sm text-(--text-3)">{{ 'checkIn.recent.empty' | t }}</p>
+    } @else {
+      <ol class="flex flex-col gap-2">
+        @for (row of recent(); track row.id) {
+          <li>
+            <button type="button" class="choice-card w-full text-left" (click)="submitCode(row.id)">
+              <span class="block font-semibold">{{ row.fullName }}</span>
+              <span class="mt-0.5 block text-xs text-(--text-2)">
+                {{ row.sede.name }}
+                @if (row.checkIn.firstTurn !== null) {
+                  · {{ 'desk.col.turn' | t }} {{ row.checkIn.firstTurn }}
+                }
+                @if (row.checkIn.at) {
+                  · {{ recentTime(row.checkIn.at) }}
+                }
+                @if (row.checkIn.operator; as operator) {
+                  · {{ 'desk.history.by' | t: { name: operator.fullName } }}
+                }
+              </span>
+              <span class="mt-1 block font-mono text-xs text-(--text-3)">{{ row.id }}</span>
+              <span class="mt-1 block text-xs font-medium text-(--primary)">{{ 'checkIn.recent.open' | t }}</span>
+            </button>
+          </li>
+        }
+      </ol>
+    }
+  </section>
 </div>

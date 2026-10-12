@@ -57,6 +57,12 @@ function overviewEvent(id: string, overrides: Partial<OverviewEvent> = {}): Over
     people: 200,
     checkedIn: 0,
     attendanceRate: 0,
+    capacity: 300,
+    companions: 80,
+    available: 100,
+    occupancy: 66.7,
+    occupancyLevel: 'normal',
+    client: null,
     ...overrides,
   };
 }
@@ -70,6 +76,7 @@ function overview(items: OverviewEvent[]): DashboardOverview {
       byStatus: { draft: 0, published: items.length, closed: 0, archived: 0 },
     },
     items,
+    clients: null,
   };
 }
 
@@ -135,8 +142,14 @@ describe('DashboardPage', () => {
       overview: vi.fn(() =>
         of(
           overview([
-            overviewEvent('madrugon', { name: 'Madrugón 2026' }),
-            overviewEvent('pasado', { phase: 'finished' }),
+            overviewEvent('madrugon', {
+              name: 'Madrugón 2026',
+              client: { id: 'c-barby', slug: 'barby', displayName: 'Barby' },
+            }),
+            overviewEvent('pasado', {
+              phase: 'finished',
+              client: { id: 'c-otro', slug: 'otro', displayName: 'Otro cliente' },
+            }),
           ]),
         ),
       ),
@@ -166,7 +179,9 @@ describe('DashboardPage', () => {
   const kpi = (id: string): string =>
     host().querySelector(`[data-kpi="${id}"] .kpi__value`)?.textContent?.trim() ?? '';
 
-  it('shows the server metrics as-is and keeps titulares apart from people', () => {
+  it('shows the server metrics as-is and keeps titulares apart from people', async () => {
+    fixture.componentRef.setInput('evento', 'madrugon');
+    await fixture.whenStable();
     expect(desk.summary).toHaveBeenCalledWith('madrugon', undefined);
     expect(kpi('events')).toBe('2');
     expect(kpi('titulares')).toBe('120');
@@ -178,6 +193,8 @@ describe('DashboardPage', () => {
   });
 
   it('leads with registration numbers before scanning and with entries once it starts', async () => {
+    fixture.componentRef.setInput('evento', 'madrugon');
+    await fixture.whenStable();
     const order = (): (string | null)[] =>
       [...host().querySelectorAll('.kpi')].map((node) => node.getAttribute('data-kpi'));
     expect(order().slice(0, 3)).toEqual(['titulares', 'people', 'attendance']);
@@ -207,6 +224,8 @@ describe('DashboardPage', () => {
   });
 
   it('sends the selected sede to every request and ignores sedes from other events', async () => {
+    fixture.componentRef.setInput('evento', 'madrugon');
+    await fixture.whenStable();
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const buttons = [...host().querySelectorAll<HTMLButtonElement>('.context .segmented__item')];
     buttons.find((button) => button.textContent?.includes('Cupidos'))!.click();
@@ -228,6 +247,8 @@ describe('DashboardPage', () => {
   });
 
   it('polls only the summary and re-reads the rest when the numbers changed', async () => {
+    fixture.componentRef.setInput('evento', 'madrugon');
+    await fixture.whenStable();
     const calls = (): number[] => [
       dashboard.overview.mock.calls.length,
       dashboard.timeline.mock.calls.length,
@@ -248,7 +269,9 @@ describe('DashboardPage', () => {
     expect(calls()).toEqual(before.map((value) => value + 1));
   });
 
-  it('links the quick actions to real routes, with the desk carrying the selected event', () => {
+  it('links the quick actions to real routes, with the desk carrying the selected event', async () => {
+    fixture.componentRef.setInput('evento', 'madrugon');
+    await fixture.whenStable();
     const hrefs = [...host().querySelectorAll<HTMLAnchorElement>('.quick a')].map((link) =>
       link.getAttribute('href'),
     );
@@ -259,6 +282,23 @@ describe('DashboardPage', () => {
       '/panel/eventos',
       '/panel/sedes',
     ]);
+  });
+
+  it('opens across every client instead of the first event', () => {
+    expect(desk.summary).not.toHaveBeenCalled();
+    expect(host().textContent).toContain(MESSAGES['dash.aforo.allClients']);
+    expect(host().textContent).toContain(MESSAGES['dash.context.allEvents']);
+    expect(host().textContent).toContain('Madrugón 2026');
+    expect(host().textContent).toContain('pasado');
+  });
+
+  it('shows only the events of the client named in the query', async () => {
+    fixture.componentRef.setInput('cliente', 'barby');
+    await fixture.whenStable();
+    expect(desk.summary).not.toHaveBeenCalled();
+    expect(host().textContent).toContain('Madrugón 2026');
+    expect(host().textContent).toContain('Barby');
+    expect(host().textContent).not.toContain('pasado');
   });
 
   it('never presents a finished event as active', async () => {

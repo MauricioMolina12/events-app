@@ -51,6 +51,15 @@ export class CatalogApi {
     });
   }
 
+  /** Published events of one client. An unknown slug is a 404, not an empty catalog. */
+  listClientEvents(slug: string, query: CatalogQuery = {}): Observable<Page<PublicEvent>> {
+    return this.#api.getPage<PublicEvent>(`public/clients/${encodeURIComponent(slug)}/events`, {
+      search: query.search,
+      limit: query.limit,
+      offset: query.offset,
+    });
+  }
+
   /** `slug` may also be the event id: the API accepts either one. */
   getEvent(slug: string): Observable<PublicEvent> {
     return this.#api.get<PublicEvent>(`public/events/${encodeURIComponent(slug)}`);
@@ -81,6 +90,13 @@ export class CatalogApi {
    */
   lookupHolderRegistration(credentials: HolderCredentials): Observable<PublicHolderRegistration> {
     return this.#api.post<PublicHolderRegistration>('public/registrations/lookup', credentials);
+  }
+
+  searchRegistrations(event: string, query: string): Observable<readonly PublicRegistrationReceipt[]> {
+    return this.#api.post<readonly PublicRegistrationReceipt[]>('public/registrations/search', {
+      event,
+      query,
+    });
   }
 
   /** Appends companions to an existing alta; the server enforces the per-titular cap. */

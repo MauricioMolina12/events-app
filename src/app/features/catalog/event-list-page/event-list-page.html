@@ -1,13 +1,17 @@
 <header class="flex flex-col gap-2 sm:gap-3">
-  <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ 'catalog.hero.title' | t }}</h1>
+  <a class="text-sm font-medium text-(--text-2)" routerLink="/eventos">{{ 'catalog.clients.back' | t }}</a>
+  <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">
+    {{ clientName() || ('catalog.hero.title' | t) }}
+  </h1>
   <p class="max-w-2xl text-sm leading-relaxed text-[var(--text-2)] sm:text-base">{{ 'catalog.hero.subtitle' | t }}</p>
 </header>
 
 <app-quick-actions
-  class="mt-5 block"
+  class="section-block mt-5 block"
   [registerLink]="['/inscripcion']"
   [registerState]="{ choose: true }"
   [companionLink]="['/acompanantes']"
+  [lookupLink]="['/clientes', clienteSlug(), 'buscar']"
 />
 
 <form class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end" (submit)="submitSearch($event)">

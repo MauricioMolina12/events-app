@@ -10,6 +10,7 @@ describe('panelSectionTitle', () => {
     expect(panelSectionTitle('/panel/eventos/abc/editar')).toBe('events.form.edit');
     expect(panelSectionTitle('/panel/sedes')).toBe('nav.panel.establishments');
     expect(panelSectionTitle('/panel/configuracion')).toBe('nav.panel.settings');
+    expect(panelSectionTitle('/panel/colaboradores')).toBe('collaborators.title');
   });
 });
 

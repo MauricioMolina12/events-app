@@ -25,6 +25,8 @@ import {
   StatusBadge,
   type StatusKind,
 } from '@shared/ui';
+import { DEFAULT_PRIMARY } from '@core/workspace/brand-color';
+import { WorkspaceService } from '@core/workspace/workspace.service';
 import { CatalogApi } from '../catalog.api';
 import { ReceiptStore } from '../receipt.store';
 
@@ -53,7 +55,7 @@ type CopyState = 'idle' | 'copying' | 'copied';
   ],
   templateUrl: './receipt-page.html',
   styleUrl: './receipt-page.css',
-  host: { class: 'flex h-full min-h-0 flex-1 flex-col' },
+  host: { class: 'block min-w-0 w-full' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReceiptPage {
@@ -65,6 +67,7 @@ export class ReceiptPage {
   readonly #toast = inject(ToastService);
   readonly #errors = inject(ApiErrorPresenter);
   readonly #i18n = inject(I18nService);
+  readonly #workspace = inject(WorkspaceService);
   readonly #destroyRef = inject(DestroyRef);
 
   /** Bumped by `retry()`; part of the request so a retry re-subscribes. */
@@ -124,6 +127,16 @@ export class ReceiptPage {
   protected readonly qrVisible = computed(
     () => Boolean(this.qrValue()) && this.receipt()?.status !== 'cancelled',
   );
+  protected readonly brandColor = computed(() => {
+    const stored = this.#workspace.settings()?.primaryColor;
+    if (stored) {
+      return stored;
+    }
+    if (typeof document === 'undefined') {
+      return DEFAULT_PRIMARY;
+    }
+    return getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || DEFAULT_PRIMARY;
+  });
   protected readonly document = computed(() => {
     const receipt = this.receipt();
     return receipt ? formatDocument(receipt.documentNumber, receipt.documentType) : '';
@@ -288,6 +301,8 @@ export class ReceiptPage {
           folio: receipt.id,
           issued: `${t('register.receipt.issuedLabel')}: ${this.issuedAt()}`,
           footer: t('register.receipt.ticketFooter'),
+          primaryColor: this.context()?.ticketDesign?.accentColor ?? this.brandColor(),
+          design: this.context()?.ticketDesign ?? undefined,
         },
         `codigo-acceso-${receipt.id.slice(0, 8)}.pdf`,
       );

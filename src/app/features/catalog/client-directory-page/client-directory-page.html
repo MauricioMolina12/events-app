@@ -1,0 +1,51 @@
+<header class="flex flex-col gap-2">
+  <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ 'catalog.clients.title' | t }}</h1>
+  <p class="max-w-2xl text-sm leading-relaxed text-(--text-2) sm:text-base">
+    {{ 'catalog.clients.subtitle' | t }}
+  </p>
+</header>
+
+@switch (state().status) {
+  @case ('loading') {
+    <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+      <app-skeleton class="h-28 w-full" />
+      <app-skeleton class="h-28 w-full" />
+    </div>
+  }
+  @case ('error') {
+    <div class="card card--pad mt-6 flex flex-col items-start gap-3" role="alert">
+      <p>{{ errorMessage() }}</p>
+      <button type="button" class="text-sm font-semibold text-(--primary)" (click)="retry()">
+        {{ 'app.retry' | t }}
+      </button>
+    </div>
+  }
+  @default {
+    @if (visible().length === 0) {
+      <div class="mt-6">
+        <app-empty-state
+          titleKey="catalog.clients.empty.title"
+          bodyKey="catalog.clients.empty.body"
+          iconName="users"
+        />
+      </div>
+    } @else {
+      <ul class="mt-6 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
+        @for (client of visible(); track client.id) {
+          <li>
+            <a class="client-card" [routerLink]="['/clientes', client.slug, 'eventos']">
+              <span class="client-card__mark" aria-hidden="true">{{ initials(client.displayName) }}</span>
+              <span class="min-w-0">
+                <span class="client-card__name">{{ client.displayName }}</span>
+                <span class="client-card__hint">
+                  <app-icon name="arrow-right" [size]="14" />
+                  {{ 'catalog.clients.open' | t }}
+                </span>
+              </span>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  }
+}

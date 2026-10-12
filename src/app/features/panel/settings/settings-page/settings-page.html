@@ -14,6 +14,7 @@
     <div class="callout callout--danger" role="alert">
       <p>{{ 'settings.loadFailed' | t }}</p>
       <button type="button" appButton variant="secondary" size="sm" (click)="workspace.refresh()">
+        <app-icon name="refresh" [size]="16" />
         {{ 'app.retry' | t }}
       </button>
     </div>
@@ -61,14 +62,16 @@
               >
                 <input id="settings-name" class="field" type="text" formControlName="name" appField maxlength="80" autocomplete="organization" />
               </app-form-field>
-              <app-form-field
-                controlId="settings-description"
-                labelKey="settings.general.description"
-                [optional]="true"
-                [hintText]="descriptionHint()"
-              >
-                <textarea id="settings-description" class="field settings-area" formControlName="description" appField maxlength="280" rows="3"></textarea>
-              </app-form-field>
+              @if (isAdmin()) {
+                <app-form-field
+                  controlId="settings-description"
+                  labelKey="settings.general.description"
+                  [optional]="true"
+                  [hintText]="descriptionHint()"
+                >
+                  <textarea id="settings-description" class="field settings-area" formControlName="description" appField maxlength="280" rows="3"></textarea>
+                </app-form-field>
+              }
             </div>
           }
           @case ('identity') {
@@ -109,7 +112,9 @@
                   <app-brand-mark [initials]="workspace.initials()" />
                   <span class="preview__name">{{ previewName() }}</span>
                 </div>
-                <button type="button" class="preview__button">{{ 'settings.save' | t }}</button>
+                <button type="button" class="preview__button" tabindex="-1" aria-hidden="true">
+                  {{ 'settings.identity.previewAction' | t }}
+                </button>
               </aside>
             </div>
           }
@@ -149,14 +154,19 @@
 
       @if (canEdit() && tab() !== 'appearance') {
         <div class="settings-actions">
-          <button type="button" appButton variant="ghost" [disabled]="restoring() || saving()" (click)="restore()">
-            {{ 'settings.restore' | t }}
-          </button>
+          @if (isAdmin()) {
+            <button type="button" appButton variant="ghost" [disabled]="restoring() || saving()" (click)="restore()">
+              <app-icon name="refresh" [size]="16" />
+              {{ 'settings.restore' | t }}
+            </button>
+          }
           <div class="settings-actions__end">
             <button type="button" appButton variant="secondary" [disabled]="!dirty() || saving()" (click)="cancel()">
+              <app-icon name="x" [size]="16" />
               {{ 'settings.cancel' | t }}
             </button>
             <button type="submit" appButton variant="primary" [loading]="saving()" [disabled]="!dirty() || form.invalid || saving()">
+              <app-icon name="check" [size]="16" />
               {{ 'settings.save' | t }}
             </button>
           </div>

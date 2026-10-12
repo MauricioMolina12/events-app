@@ -1,0 +1,39 @@
+<app-menu #menu>
+  <button
+    type="button"
+    appMenuTrigger
+    appButton
+    variant="ghost"
+    size="sm"
+    [icon]="compact()"
+    [attr.aria-label]="'events.invite' | t"
+  >
+    <app-icon name="share" [size]="16" />
+    @if (!compact()) {
+      <span>{{ 'events.invite' | t }}</span>
+    }
+  </button>
+  <ng-template appMenuContent>
+    <div class="menu" role="menu" [attr.aria-label]="'events.invite' | t">
+      <a
+        class="menu__item"
+        role="menuitem"
+        [href]="whatsappHref()"
+        target="_blank"
+        rel="noopener"
+        (click)="menu.close()"
+      >
+        <app-icon name="phone" [size]="16" />
+        {{ 'events.invite.whatsapp' | t }}
+      </a>
+      <a class="menu__item" role="menuitem" [href]="mailtoHref()" (click)="menu.close()">
+        <app-icon name="mail" [size]="16" />
+        {{ 'events.invite.email' | t }}
+      </a>
+      <button type="button" class="menu__item" role="menuitem" (click)="copyLink(menu)">
+        <app-icon [name]="copied() ? 'check' : 'copy'" [size]="16" />
+        {{ 'events.invite.copy' | t }}
+      </button>
+    </div>
+  </ng-template>
+</app-menu>

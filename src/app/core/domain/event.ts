@@ -18,6 +18,22 @@ import type { EstablishmentSummary, PublicEstablishment } from './establishment'
 
 export type EventStatus = 'draft' | 'published' | 'closed' | 'archived';
 
+export type RegistrationScope = 'per_venue' | 'all_venues';
+
+export interface TicketDesign {
+  readonly bgColor?: string;
+  readonly textColor?: string;
+  readonly accentColor?: string;
+  readonly titleWeight?: number;
+  readonly titleSize?: number;
+  readonly titleX?: number;
+  readonly titleY?: number;
+  readonly qrX?: number;
+  readonly qrY?: number;
+  readonly qrSize?: number;
+  readonly fieldWeight?: number;
+}
+
 export type ParticipationStatus = 'open' | 'closed' | 'cancelled';
 
 /** `GET /events` and `GET /events/{idOrSlug}` — panel only. */
@@ -36,7 +52,15 @@ export interface Event {
   /** Cupo general: techo de personas entre todas las sedes (titulares + acompañantes). */
   readonly capacity: number;
   readonly status: EventStatus;
+  readonly registrationScope?: RegistrationScope;
+  readonly ticketDesign?: TicketDesign | null;
   readonly createdBy: string | null;
+  /** Cliente dueño del evento. `null` si el evento es de la plataforma. */
+  readonly client: {
+    readonly id: string;
+    readonly slug: string;
+    readonly displayName: string;
+  } | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -100,6 +124,8 @@ export interface PublicEvent {
   readonly endsAt: string | null;
   readonly registrationOpensAt: string | null;
   readonly registrationClosesAt: string | null;
+  readonly registrationScope?: RegistrationScope;
+  readonly ticketDesign?: TicketDesign | null;
   /** Published sedes; the list endpoint inlines them, so both pages share a shape. */
   readonly participations: readonly PublicParticipation[];
 }

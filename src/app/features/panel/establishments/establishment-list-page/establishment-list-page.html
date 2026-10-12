@@ -25,7 +25,10 @@
           [placeholder]="'establishments.search.placeholder' | t"
           class="field min-w-0 flex-1"
         />
-        <button type="submit" appButton variant="secondary">{{ 'app.search' | t }}</button>
+        <button type="submit" appButton variant="secondary">
+          <app-icon name="search" [size]="16" />
+          {{ 'app.search' | t }}
+        </button>
       </div>
     </form>
 
@@ -55,6 +58,7 @@
       >
         <p class="text-sm text-(--danger-700)">{{ errorMessage() }}</p>
         <button type="button" appButton variant="secondary" (click)="retry()">
+          <app-icon name="refresh" [size]="16" />
           {{ 'app.retry' | t }}
         </button>
       </div>
@@ -68,9 +72,10 @@
             iconName="map-pin"
           >
             @if (canCreate()) {
-              <a routerLink="/panel/sedes/nueva" appButton variant="primary">{{
-                'establishments.new' | t
-              }}</a>
+              <a routerLink="/panel/sedes/nueva" appButton variant="primary">
+                <app-icon name="plus" [size]="16" />
+                {{ 'establishments.new' | t }}
+              </a>
             }
           </app-empty-state>
         } @else {
@@ -99,7 +104,10 @@
               </thead>
               <tbody class="divide-y divide-(--border)">
                 @for (establishment of loadedPage.items; track establishment.id) {
-                  <tr class="hover:bg-(--surface-1)">
+                  <tr
+                    class="cursor-pointer hover:bg-(--surface-1)"
+                    [routerLink]="canEdit() ? ['/panel/sedes', establishment.id, 'editar'] : null"
+                  >
                     <td class="max-w-64 px-3 py-4 font-semibold">{{ establishment.name }}</td>
                     <td class="px-3 py-4 font-mono text-xs text-(--text-2)">
                       {{ establishment.code }}
@@ -115,9 +123,10 @@
                           appButton
                           variant="ghost"
                           size="sm"
+                          icon
+                          [attr.aria-label]="'events.action.edit' | t"
                         >
-                          {{ 'events.action.edit' | t }}
-                          <app-icon name="chevronRight" [size]="17" />
+                          <app-icon name="pencil" [size]="16" />
                         </a>
                       </td>
                     }
@@ -143,9 +152,10 @@
                     appButton
                     variant="ghost"
                     size="sm"
+                    icon
+                    [attr.aria-label]="'events.action.edit' | t"
                   >
-                    {{ 'events.action.edit' | t }}
-                    <app-icon name="chevronRight" [size]="16" />
+                    <app-icon name="pencil" [size]="16" />
                   </a>
                 }
               </li>

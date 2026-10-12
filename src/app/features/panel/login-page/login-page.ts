@@ -1,27 +1,32 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { SessionStore } from '@core/auth';
+import { ActivatedRoute, Router } from '@angular/router';
+import { AuthIntent, SessionStore, stripLegacyReturnUrl } from '@core/auth';
 import { TranslatePipe } from '@core/i18n';
 import { ApiErrorPresenter } from '@core/ui';
-import { WorkspaceService } from '@core/workspace/workspace.service';
-import { ButtonDirective, ThemeToggle } from '@shared/ui';
+import { BrandMark, ButtonDirective, Icon } from '@shared/ui';
 
 @Component({
   selector: 'app-panel-login-page',
-  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, ButtonDirective, ThemeToggle],
+  imports: [ReactiveFormsModule, TranslatePipe, BrandMark, ButtonDirective, Icon],
   templateUrl: './login-page.html',
+  styleUrl: '../auth-screen.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PanelLoginPage {
   readonly #session = inject(SessionStore);
   readonly #router = inject(Router);
   readonly #route = inject(ActivatedRoute);
+  readonly #intent = inject(AuthIntent);
   readonly #errors = inject(ApiErrorPresenter);
-  protected readonly workspace = inject(WorkspaceService);
+
+  constructor() {
+    stripLegacyReturnUrl(this.#router, this.#route);
+  }
 
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly showPassword = signal(false);
   protected readonly form = new FormGroup({
     email: new FormControl('', {
       nonNullable: true,
@@ -40,15 +45,20 @@ export class PanelLoginPage {
     this.errorMessage.set(null);
     try {
       await this.#session.login(this.form.getRawValue());
-      const returnUrl = this.#route.snapshot.queryParamMap.get('returnUrl');
-      const destination = returnUrl === '/panel' || returnUrl?.startsWith('/panel/')
-        ? returnUrl
-        : '/panel';
-      await this.#router.navigateByUrl(destination);
+      await this.#continue();
     } catch (error: unknown) {
       this.errorMessage.set(this.#errors.message(error));
     } finally {
       this.submitting.set(false);
     }
+  }
+
+  async #continue(): Promise<void> {
+    const destination = this.#intent.peek();
+    const landed = await this.#router.navigateByUrl(destination, { replaceUrl: true });
+    if (!landed && destination !== '/panel') {
+      await this.#router.navigateByUrl('/panel', { replaceUrl: true });
+    }
+    this.#intent.clear();
   }
 }

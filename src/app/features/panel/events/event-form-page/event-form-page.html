@@ -1,9 +1,15 @@
-<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+<div class="flex w-full flex-col gap-6">
   <app-page-header
     [titleKey]="editing() ? 'events.form.edit' : 'events.form.create'"
     subtitleKey="events.subtitle"
   >
-    <a routerLink="/panel/eventos" appButton variant="secondary">{{ 'app.cancel' | t }}</a>
+    @if (event(); as current) {
+      <app-event-invite [name]="current.name" [slug]="current.slug" />
+    }
+    <a routerLink="/panel/eventos" appButton variant="secondary">
+      <app-icon name="x" [size]="16" />
+      {{ 'app.cancel' | t }}
+    </a>
   </app-page-header>
 
   @if (editing() && state().status === 'loading') {
@@ -19,6 +25,7 @@
     >
       <p class="text-sm text-(--danger-700)">{{ errorMessage() }}</p>
       <button type="button" appButton variant="secondary" (click)="retry()">
+        <app-icon name="refresh" [size]="16" />
         {{ 'app.retry' | t }}
       </button>
     </div>
@@ -48,6 +55,22 @@
         <h2 id="event-details-title" class="text-lg font-semibold sm:col-span-2">
           {{ 'events.form.details' | t }}
         </h2>
+
+        @if (!editing()) {
+          <div class="sm:col-span-2">
+            <p class="mb-1.5 text-sm font-medium">{{ 'events.form.owner' | t }}</p>
+            <app-select
+              formControlName="ownerId"
+              [options]="ownerChoices()"
+              [placeholder]="'events.form.ownerHint' | t"
+              [ariaLabel]="'events.form.owner' | t"
+            />
+            <p class="mt-1.5 text-xs text-(--text-3)">{{ 'events.form.ownerHint' | t }}</p>
+            @if (submitted() && form.controls.ownerId.hasError('required')) {
+              <p class="mt-1.5 text-xs text-(--danger-700)">{{ 'validation.required' | t }}</p>
+            }
+          </div>
+        }
 
         <div>
           <label for="event-name" class="mb-1.5 block text-sm font-medium">{{
@@ -230,8 +253,104 @@
         }
       </section>
 
+      <section class="section-block flex flex-col gap-4" aria-labelledby="event-scope-title">
+        <div>
+          <h2 id="event-scope-title" class="text-lg font-semibold">{{ 'event.scope.title' | t }}</h2>
+          <p class="mt-1 text-sm text-(--text-2)">{{ 'event.scope.hint' | t }}</p>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <label class="choice-card" [attr.data-selected]="form.controls.registrationScope.value === 'per_venue' ? 'true' : null">
+            <input class="choice-card__input" type="radio" formControlName="registrationScope" value="per_venue" />
+            <span class="text-sm font-semibold">{{ 'event.scope.perVenue' | t }}</span>
+          </label>
+          <label class="choice-card" [attr.data-selected]="form.controls.registrationScope.value === 'all_venues' ? 'true' : null">
+            <input class="choice-card__input" type="radio" formControlName="registrationScope" value="all_venues" />
+            <span class="text-sm font-semibold">{{ 'event.scope.allVenues' | t }}</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="section-block flex flex-col gap-4" aria-labelledby="ticket-design-title">
+        <div>
+          <h2 id="ticket-design-title" class="text-lg font-semibold">{{ 'ticket.design.title' | t }}</h2>
+          <p class="mt-1 text-sm text-(--text-2)">{{ 'ticket.design.hint' | t }}</p>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-3">
+          <label class="flex flex-col gap-1.5 text-sm font-medium">
+            {{ 'ticket.design.bg' | t }}
+            <input class="field h-11" type="color" formControlName="ticketBg" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-medium">
+            {{ 'ticket.design.color' | t }}
+            <input class="field h-11" type="color" formControlName="ticketAccent" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-medium">
+            {{ 'ticket.design.text' | t }}
+            <input class="field h-11" type="color" formControlName="ticketText" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-medium">
+            {{ 'ticket.design.weight' | t }}
+            <input class="field" type="number" min="400" max="900" step="100" formControlName="ticketTitleWeight" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-medium">
+            {{ 'ticket.design.titleSize' | t }}
+            <input class="field" type="number" min="12" max="48" formControlName="ticketTitleSize" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-medium">
+            {{ 'ticket.design.fieldWeight' | t }}
+            <input class="field" type="number" min="400" max="800" step="100" formControlName="ticketFieldWeight" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-medium">
+            {{ 'ticket.design.titleX' | t }}
+            <input class="field" type="range" min="0" max="100" formControlName="ticketTitleX" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-medium">
+            {{ 'ticket.design.titleY' | t }}
+            <input class="field" type="range" min="0" max="100" formControlName="ticketTitleY" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-medium">
+            {{ 'ticket.design.qrSize' | t }}
+            <input class="field" type="range" min="80" max="240" formControlName="ticketQrSize" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-medium">
+            {{ 'ticket.design.qrX' | t }}
+            <input class="field" type="range" min="0" max="100" formControlName="ticketQrX" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-medium">
+            {{ 'ticket.design.qrY' | t }}
+            <input class="field" type="range" min="0" max="100" formControlName="ticketQrY" />
+          </label>
+        </div>
+        <div
+          class="ticket-preview"
+          [style.--ticket-bg]="form.controls.ticketBg.value"
+          [style.--ticket-accent]="form.controls.ticketAccent.value"
+          [style.--ticket-ink]="form.controls.ticketText.value"
+        >
+          <p
+            class="ticket-preview__title"
+            [style.font-weight]="form.controls.ticketTitleWeight.value"
+            [style.font-size.px]="form.controls.ticketTitleSize.value"
+            [style.left.%]="form.controls.ticketTitleX.value"
+            [style.top.%]="form.controls.ticketTitleY.value"
+          >
+            {{ form.controls.name.value || ('ticket.design.preview' | t) }}
+          </p>
+          <span
+            class="ticket-preview__qr"
+            [style.width.px]="form.controls.ticketQrSize.value / 2"
+            [style.height.px]="form.controls.ticketQrSize.value / 2"
+            [style.left.%]="form.controls.ticketQrX.value"
+            [style.top.%]="form.controls.ticketQrY.value"
+          ></span>
+        </div>
+      </section>
+
       <div class="flex flex-wrap items-center justify-end gap-3">
-        <a routerLink="/panel/eventos" appButton variant="secondary">{{ 'app.cancel' | t }}</a>
+        <a routerLink="/panel/eventos" appButton variant="secondary">
+      <app-icon name="x" [size]="16" />
+      {{ 'app.cancel' | t }}
+    </a>
         <button
           type="submit"
           appButton
@@ -239,6 +358,7 @@
           [loading]="saving()"
           [disabled]="saving()"
         >
+          <app-icon name="check" [size]="16" />
           {{ (editing() ? 'app.save' : 'events.form.create') | t }}
         </button>
       </div>

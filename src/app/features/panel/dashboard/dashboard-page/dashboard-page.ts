@@ -19,6 +19,7 @@ import { errorState, loadedState, loadingState, type AsyncState } from '@core/ut
 import {
   ButtonDirective,
   EmptyState,
+  EventInvite,
   Icon,
   PageHeader,
   Select,
@@ -50,6 +51,7 @@ const POLL_MS = 20_000;
 const STALE_MS = 10_000;
 const ACTIVITY_SIZE = 8;
 const EVENTS_SHOWN = 6;
+const ACTIVE_PHASES = new Set(['upcoming', 'registration_open', 'registration_closed', 'in_progress']);
 
 type KpiId = 'events' | 'titulares' | 'people' | 'checkedIn' | 'pending' | 'attendance';
 type KpiTone = 'primary' | 'info' | 'success' | 'warning' | 'accent' | 'neutral';
@@ -98,6 +100,7 @@ const percent = (rate: number): string =>
     TranslatePipe,
     ButtonDirective,
     EmptyState,
+    EventInvite,
     Icon,
     PageHeader,
     Select,
@@ -114,6 +117,8 @@ const percent = (rate: number): string =>
 export class DashboardPage {
   readonly evento = input<string | undefined>(undefined);
   readonly sede = input<string | undefined>(undefined);
+  /** Admin only. Empty means every client. */
+  readonly cliente = input<string | undefined>(undefined);
 
   readonly #router = inject(Router);
   readonly #api = inject(DashboardApi);
@@ -126,6 +131,7 @@ export class DashboardPage {
   protected readonly phaseTone = phaseTone;
   protected readonly isLivePhase = isLivePhase;
   protected readonly kpiPlaceholders = [1, 2, 3, 4, 5, 6];
+  protected readonly countFormat = count;
 
   protected readonly overview = signal<AsyncState<DashboardOverview>>(loadingState());
   protected readonly summary = signal<AsyncState<DeskSummary>>(loadingState());
@@ -142,9 +148,42 @@ export class DashboardPage {
   protected readonly activityItems = computed(() => valueOf(this.activity()) ?? []);
 
   protected readonly events = computed(() => this.overviewValue()?.items ?? []);
-  protected readonly selectedEvent = computed<OverviewEvent | null>(() => {
+  /** Slug from `?cliente=`. Operators ignore it: they only see their own events. */
+  protected readonly clientSlug = computed(() =>
+    this.isAdmin() ? (this.cliente()?.trim() ?? '') : '',
+  );
+  protected readonly clients = computed(() => {
+    const seen = new Map<string, NonNullable<OverviewEvent['client']>>();
+    for (const event of this.events()) {
+      if (event.client) {
+        seen.set(event.client.slug, event.client);
+      }
+    }
+    return [...seen.values()];
+  });
+  protected readonly selectedClient = computed(
+    () => this.clients().find((client) => client.slug === this.clientSlug()) ?? null,
+  );
+  /** Events of the client in the URL, or every event when no client is chosen. */
+  protected readonly scopedEvents = computed(() => {
+    const slug = this.clientSlug();
     const items = this.events();
-    return items.find((event) => event.id === this.evento()) ?? items[0] ?? null;
+    return slug ? items.filter((event) => event.client?.slug === slug) : items;
+  });
+  /**
+   * An admin with no event in the URL sees the current scope (every client, or the
+   * one named in `?cliente=`). A named event is never replaced by the first one.
+   */
+  protected readonly selectedEvent = computed<OverviewEvent | null>(() => {
+    const items = this.scopedEvents();
+    const requested = this.evento();
+    if (requested) {
+      return items.find((event) => event.id === requested) ?? null;
+    }
+    if (this.isAdmin()) {
+      return null;
+    }
+    return items[0] ?? null;
   });
   /** A sede from the URL only counts if it belongs to the selected event. */
   protected readonly sedeId = computed(() => {
@@ -158,7 +197,38 @@ export class DashboardPage {
       this.selectedEvent()?.sedes.find((sede) => sede.participationId === this.sedeId())?.name ??
       null,
   );
-  protected readonly shownEvents = computed(() => this.events().slice(0, EVENTS_SHOWN));
+  protected readonly shownEvents = computed(() => this.scopedEvents().slice(0, EVENTS_SHOWN));
+  protected readonly aforoQuery = signal('');
+  protected readonly aforoPhase = signal('');
+  protected readonly aforoPhaseChoices = computed<readonly SelectChoice[]>(() => {
+    const phases = [
+      'in_progress',
+      'registration_open',
+      'registration_closed',
+      'upcoming',
+      'finished',
+      'draft',
+      'archived',
+    ] as const;
+    return [
+      { value: '', label: this.#i18n.t('dash.aforo.allPhases') },
+      ...phases.map((phase) => ({ value: phase, label: this.#i18n.t(phaseLabel(phase)) })),
+    ];
+  });
+  protected readonly aforoRows = computed(() => {
+    const term = this.aforoQuery().trim().toLocaleLowerCase('es');
+    const phase = this.aforoPhase();
+    return this.scopedEvents().filter((event) => {
+      if (phase && event.phase !== phase) {
+        return false;
+      }
+      if (!term) {
+        return true;
+      }
+      const haystack = `${event.name} ${event.client?.displayName ?? ''}`.toLocaleLowerCase('es');
+      return haystack.includes(term);
+    });
+  });
 
   protected readonly kpis = computed<readonly Kpi[]>(() => {
     const overview = this.overviewValue();
@@ -266,12 +336,50 @@ export class DashboardPage {
 
   /* ── Filters ─────────────────────────────────────────────────────────────── */
 
-  protected readonly eventChoices = computed<readonly SelectChoice[]>(() =>
-    this.events().map((event) => ({ value: event.id, label: event.name })),
-  );
+  protected readonly eventChoices = computed<readonly SelectChoice[]>(() => {
+    const clientChosen = this.selectedClient() !== null;
+    const events = this.scopedEvents().map((event) => ({
+      value: event.id,
+      label:
+        this.isAdmin() && !clientChosen && event.client
+          ? `${event.name} · ${event.client.displayName}`
+          : event.name,
+    }));
+    return this.isAdmin()
+      ? [{ value: '', label: this.#i18n.t('dash.context.allEvents') }, ...events]
+      : events;
+  });
+
+  protected readonly clientChoices = computed<readonly SelectChoice[]>(() => [
+    { value: '', label: this.#i18n.t('dash.aforo.allClients') },
+    ...this.clients().map((client) => ({ value: client.slug, label: client.displayName })),
+  ]);
+
+  protected readonly scopeStats = computed(() => {
+    const items = this.scopedEvents();
+    return {
+      events: items.length,
+      active: items.filter((event) => ACTIVE_PHASES.has(event.phase)).length,
+      people: items.reduce((total, event) => total + event.people, 0),
+      entered: items.reduce((total, event) => total + event.checkedIn, 0),
+    };
+  });
+
+  protected selectClient(slug: string): void {
+    void this.#router.navigate(['/panel'], {
+      queryParams: { cliente: slug || null, evento: null, sede: null },
+    });
+  }
 
   protected selectEvent(id: string): void {
-    void this.#router.navigate(['/panel'], { queryParams: { evento: id, sede: null } });
+    const event = this.events().find((item) => item.id === id);
+    void this.#router.navigate(['/panel'], {
+      queryParams: {
+        cliente: id ? (event?.client?.slug ?? this.clientSlug() ?? null) : this.clientSlug() || null,
+        evento: id || null,
+        sede: null,
+      },
+    });
   }
 
   protected selectSede(participationId: string | null): void {
@@ -305,6 +413,18 @@ export class DashboardPage {
 
   protected percent(rate: number): string {
     return percent(rate * 100);
+  }
+
+  protected onAforoQuery(event: Event): void {
+    this.aforoQuery.set((event.target as HTMLInputElement).value);
+  }
+
+  protected occupancyText(value: number): string {
+    return `${value.toLocaleString('es-CO', { maximumFractionDigits: 1 })}%`;
+  }
+
+  protected levelKey(level: OverviewEvent['occupancyLevel']): MessageKey {
+    return `participations.level.${level}` as MessageKey;
   }
 
   protected sedeNames(event: OverviewEvent): string {

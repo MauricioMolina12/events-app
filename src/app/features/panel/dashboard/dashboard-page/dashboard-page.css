@@ -1,7 +1,14 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
 /* Layout follows the content width (container queries), not the viewport: the panel
    sidebar takes 16rem on desktop. Colours are theme tokens only. */
 .dash {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   flex-direction: column;
   gap: var(--space-6);
   container-type: inline-size;
@@ -77,6 +84,17 @@
   min-width: 0;
 }
 
+.context__invite {
+  margin-top: var(--space-3);
+}
+
+.aforo-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .context__eyebrow {
   margin: 0 0 var(--space-1);
   font-size: 0.6875rem;
@@ -99,6 +117,35 @@
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--text-1);
+}
+
+.scope {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.scope__field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.scope__label {
+  font-size: 0.6875rem;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+@container (min-width: 40rem) {
+  .scope {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    align-items: end;
+  }
 }
 
 .event-select {
@@ -416,7 +463,7 @@
 }
 
 .kpi__value {
-  margin: var(--space-1) 0 0;
+  margin: 1.2rem 0;
   min-height: 1em;
   font-size: 1.75rem;
   font-weight: var(--weight-semibold);

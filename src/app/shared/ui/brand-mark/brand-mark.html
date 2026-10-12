@@ -2,10 +2,20 @@
   <img
     class="brand-mark"
     [class.brand-mark--wide]="wide()"
+    [class.brand-mark--light]="!!darkSrc()"
     [src]="src()"
     alt=""
     (error)="onError()"
   />
+  @if (darkSrc(); as dark) {
+    <img
+      class="brand-mark brand-mark--dark"
+      [class.brand-mark--wide]="wide()"
+      [src]="dark"
+      alt=""
+      (error)="onError()"
+    />
+  }
 } @else {
   <span class="brand-mark brand-mark--fallback" aria-hidden="true">{{ initials() }}</span>
 }

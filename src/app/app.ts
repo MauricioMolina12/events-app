@@ -12,6 +12,7 @@ import { ToastHost } from '@shared/ui/toast-host/toast-host';
   selector: 'app-root',
   imports: [RouterOutlet, ToastHost, OnlineBanner],
   templateUrl: './app.html',
+  host: { style: 'display: block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {

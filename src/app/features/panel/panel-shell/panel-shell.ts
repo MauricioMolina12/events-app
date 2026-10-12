@@ -26,6 +26,7 @@ export interface PanelNavigationItem {
   readonly icon: IconName;
   readonly route?: string;
   readonly exact?: boolean;
+  readonly module?: string;
 }
 
 export function panelSectionTitle(url: string): MessageKey {
@@ -56,6 +57,15 @@ export function panelSectionTitle(url: string): MessageKey {
   }
   if (path.startsWith('/panel/configuracion')) {
     return 'nav.panel.settings';
+  }
+  if (path.startsWith('/panel/cupos')) {
+    return 'participations.title';
+  }
+  if (path.startsWith('/panel/colaboradores')) {
+    return 'collaborators.title';
+  }
+  if (path.startsWith('/panel/usuarios')) {
+    return 'users.title';
   }
   if (path.startsWith('/panel/forbidden')) {
     return 'app.forbidden.title';
@@ -129,24 +139,28 @@ export class PanelShell {
       icon: 'monitor',
       route: '/panel',
       exact: true,
+      module: 'dashboard',
     },
     {
       label: 'nav.panel.registrations',
       shortLabel: 'nav.tab.desk',
       icon: 'inbox',
       route: '/panel/mesa',
+      module: 'mesa',
     },
     {
       label: 'nav.panel.checkIn',
       shortLabel: 'nav.tab.checkIn',
       icon: 'scan',
       route: '/panel/ingreso',
+      module: 'ingreso',
     },
     {
       label: 'nav.panel.events',
       shortLabel: 'nav.tab.events',
       icon: 'calendar',
       route: '/panel/eventos',
+      module: 'eventos',
     },
   ];
 
@@ -156,18 +170,38 @@ export class PanelShell {
       shortLabel: 'nav.panel.establishments',
       icon: 'map-pin',
       route: '/panel/sedes',
+      module: 'sedes',
     },
     {
       label: 'nav.panel.settings',
       shortLabel: 'nav.panel.settings',
       icon: 'settings',
       route: '/panel/configuracion',
+      module: 'configuracion',
+    },
+    {
+      label: 'nav.panel.participations',
+      shortLabel: 'nav.panel.participations',
+      icon: 'ticket',
+      route: '/panel/cupos',
+      module: 'cupos',
+    },
+    {
+      label: 'nav.panel.collaborators',
+      shortLabel: 'nav.panel.collaborators',
+      icon: 'users',
+      route: '/panel/colaboradores',
+      module: 'colaboradores',
     },
   ];
 
   protected readonly adminModules: readonly PanelNavigationItem[] = [
-    { label: 'nav.panel.participations', shortLabel: 'nav.panel.participations', icon: 'ticket' },
-    { label: 'nav.panel.users', shortLabel: 'nav.panel.users', icon: 'users' },
+    {
+      label: 'nav.panel.users',
+      shortLabel: 'nav.panel.users',
+      icon: 'users',
+      route: '/panel/usuarios',
+    },
   ];
 
   protected readonly tabs: readonly PanelNavigationItem[] = [
@@ -193,6 +227,10 @@ export class PanelShell {
     if (this.moreOpen()) {
       this.moreOpen.set(false);
     }
+  }
+
+  protected visible(item: PanelNavigationItem): boolean {
+    return !item.module || this.#session.hasModule(item.module);
   }
 
   protected tabActive(item: PanelNavigationItem): boolean {

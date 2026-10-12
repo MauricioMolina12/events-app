@@ -221,6 +221,41 @@
   margin: 0;
 }
 
+.section-block {
+  padding-top: var(--space-6);
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.ticket-preview {
+  position: relative;
+  min-height: 16rem;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(160deg, var(--ticket-accent, #c81f68), var(--ticket-bg, #111827));
+}
+
+.ticket-preview__title {
+  position: absolute;
+  max-width: 80%;
+  color: #fff;
+  line-height: 1.1;
+}
+
+.ticket-preview__qr {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 0 0 4px color-mix(in srgb, #fff 20%, transparent);
+}
+
+.section-block:first-child {
+  padding-top: 0;
+  margin-top: 0;
+  border-top: 0;
+}
+
 .callout {
   display: flex;
   flex-direction: column;
@@ -913,6 +948,7 @@ textarea.field {
   font: inherit;
   font-size: var(--text-sm);
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 

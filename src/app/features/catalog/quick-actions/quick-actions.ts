@@ -18,6 +18,7 @@ export class QuickActions {
   /** Navigation state for the alta link; the catalogue uses it to ask the gate for its picker. */
   readonly registerState = input<Record<string, unknown> | undefined>(undefined);
   readonly companionLink = input.required<readonly string[]>();
+  readonly lookupLink = input<readonly string[] | undefined>(undefined);
   /** `false` hides the alta card when no sede of the event can take one. */
   readonly canRegister = input(true);
 }

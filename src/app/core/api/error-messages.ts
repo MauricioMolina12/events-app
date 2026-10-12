@@ -36,6 +36,7 @@ export const ERROR_MESSAGE_KEYS = {
   QR_REVOKED: 'errors.qrRevoked',
   QR_MALFORMED: 'errors.qrMalformed',
   TURN_ASSIGNMENT_CONFLICT: 'errors.turnAssignmentConflict',
+  CHECK_IN_HOLDER_ABSENT: 'errors.checkInHolderAbsent',
   DUPLICATE_DOCUMENT: 'errors.duplicateDocument',
   DUPLICATE_REGISTRATION: 'errors.duplicateRegistration',
   REGISTRATION_ALREADY_CANCELLED: 'errors.registrationAlreadyCancelled',

@@ -81,9 +81,7 @@ describe('SessionStore', () => {
     TestBed.inject(SessionEvents).notifyUnauthorized(unauthorized('SESSION_EXPIRED'));
 
     expect(store.status()).toBe('anonymous');
-    expect(navigate).toHaveBeenCalledWith(['/panel/login'], {
-      queryParams: { returnUrl: expect.any(String) },
-    });
+    expect(navigate).toHaveBeenCalledWith(['/panel/login'], { replaceUrl: true });
   });
 
   it('stores the operator session returned by signup', async () => {

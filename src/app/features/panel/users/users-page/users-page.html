@@ -1,0 +1,131 @@
+<div class="flex flex-col gap-6">
+  <app-page-header titleKey="users.title" subtitleKey="users.subtitle">
+    <button type="button" appButton variant="primary" (click)="creating.set(!creating())">
+      <app-icon name="plus" [size]="18" />
+      {{ 'users.new' | t }}
+    </button>
+  </app-page-header>
+
+  @if (creating()) {
+    <form class="card card--pad flex flex-col gap-4" [formGroup]="form" (ngSubmit)="create()" novalidate>
+      @if (saveError()) {
+        <p class="callout callout--danger" role="alert">{{ saveError() }}</p>
+      }
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label for="user-name" class="mb-1.5 block text-sm font-medium">{{
+            'users.form.fullName' | t
+          }}</label>
+          <input id="user-name" formControlName="fullName" class="field" maxlength="160" required />
+        </div>
+        <div>
+          <label for="user-email" class="mb-1.5 block text-sm font-medium">{{
+            'users.form.email' | t
+          }}</label>
+          <input id="user-email" type="email" formControlName="email" class="field" required />
+        </div>
+        <div class="sm:col-span-2">
+          <label for="user-password" class="mb-1.5 block text-sm font-medium">{{
+            'users.form.password' | t
+          }}</label>
+          <input
+            id="user-password"
+            type="password"
+            formControlName="password"
+            class="field"
+            minlength="12"
+            autocomplete="new-password"
+            required
+          />
+          <p class="mt-1.5 text-xs text-(--text-3)">{{ 'users.form.passwordHint' | t }}</p>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" appButton variant="primary" [disabled]="saving()">
+          <app-icon name="user-plus" [size]="16" />
+          {{ 'users.form.create' | t }}
+        </button>
+        <button type="button" appButton variant="secondary" (click)="creating.set(false)">
+          <app-icon name="x" [size]="16" />
+          {{ 'app.cancel' | t }}
+        </button>
+      </div>
+    </form>
+  }
+
+  <form class="toolbar" (submit)="$event.preventDefault()">
+    <div class="min-w-0 flex-1">
+      <label for="user-search" class="mb-1.5 block text-sm font-medium">{{
+        'users.search.label' | t
+      }}</label>
+      <input
+        id="user-search"
+        type="search"
+        class="field"
+        [value]="term()"
+        (input)="term.set($any($event.target).value)"
+        [placeholder]="'users.search.placeholder' | t"
+      />
+    </div>
+  </form>
+
+  @switch (state().status) {
+    @case ('loading') {
+      <div class="flex flex-col gap-3" aria-busy="true">
+        @for (row of [1, 2, 3]; track row) {
+          <app-skeleton class="h-12 w-full" />
+        }
+      </div>
+    }
+    @case ('error') {
+      <div class="callout callout--danger" role="alert">
+        <p class="text-sm">{{ errorMessage() }}</p>
+        <button type="button" appButton variant="secondary" (click)="retry()">
+          <app-icon name="refresh" [size]="16" />
+          {{ 'app.retry' | t }}
+        </button>
+      </div>
+    }
+    @default {
+      @if (users().length === 0) {
+        <app-empty-state titleKey="users.empty.title" bodyKey="users.empty.body" iconName="users" />
+      } @else {
+        <div class="table-shell table-shell--responsive">
+          <table class="data-table">
+            <thead class="bg-(--surface-1) text-xs uppercase text-(--text-3)">
+              <tr>
+                <th scope="col" class="px-3 py-3 font-semibold">{{ 'users.column.name' | t }}</th>
+                <th scope="col" class="px-3 py-3 font-semibold">{{ 'users.column.email' | t }}</th>
+                <th scope="col" class="px-3 py-3 font-semibold">{{ 'users.column.role' | t }}</th>
+                <th scope="col" class="px-3 py-3 font-semibold">{{ 'users.column.status' | t }}</th>
+                <th scope="col" class="px-3 py-3 font-semibold">{{ 'events.actions' | t }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (user of users(); track user.id) {
+                <tr>
+                  <td class="px-3 py-3 font-medium" [attr.data-label]="'users.column.name' | t">
+                    {{ user.fullName }}
+                  </td>
+                  <td class="px-3 py-3" [attr.data-label]="'users.column.email' | t">{{ user.email }}</td>
+                  <td class="px-3 py-3" [attr.data-label]="'users.column.role' | t">{{ roleLabel(user) }}</td>
+                  <td class="px-3 py-3" [attr.data-label]="'users.column.status' | t">
+                    <app-status-badge [kind]="user.status === 'active' ? 'user.active' : 'user.disabled'" />
+                  </td>
+                  <td class="px-3 py-3">
+                    <button type="button" appButton variant="ghost" size="sm" (click)="toggleStatus(user)">
+                      <app-icon [name]="user.status === 'active' ? 'x' : 'check'" [size]="16" />
+                      {{
+                        (user.status === 'active' ? 'users.disable.action' : 'users.enable.action') | t
+                      }}
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  }
+</div>

@@ -3,6 +3,9 @@ import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 import { AuthApi } from './auth-api';
+import { AuthIntent, loginNavigationExtras } from './auth-intent';
+import { safePanelPath } from './safe-panel-path';
+import { bumpSessionEpoch, currentSessionEpoch } from './session-epoch';
 import type { AuthSession, AuthUser, LoginRequest, SignupRequest, UserRole } from './models';
 import { SessionEvents } from './session-events';
 import { logger } from '@core/utils/logger';
@@ -20,6 +23,7 @@ export class SessionStore {
   readonly #api = inject(AuthApi);
   readonly #router = inject(Router);
   readonly #events = inject(SessionEvents);
+  readonly #intent = inject(AuthIntent);
 
   readonly #user = signal<AuthUser | null>(null);
   readonly #session = signal<AuthSession | null>(null);
@@ -35,6 +39,12 @@ export class SessionStore {
   );
   readonly role = computed<UserRole | null>(() => this.#user()?.role ?? null);
   readonly isAdmin = computed(() => this.role() === 'admin');
+  readonly modules = computed(() => this.#user()?.modules);
+
+  hasModule(module: string): boolean {
+    const modules = this.#user()?.modules;
+    return !modules || modules.length === 0 || modules.includes(module);
+  }
   readonly sessionExpiresAt = computed(() => this.#session()?.expiresAt ?? null);
 
   constructor() {
@@ -56,12 +66,14 @@ export class SessionStore {
   }
 
   async login(request: LoginRequest): Promise<AuthUser> {
+    bumpSessionEpoch();
     const payload = await firstValueFrom(this.#api.login(request));
     this.#setSession(payload);
     return payload.user;
   }
 
   async signup(request: SignupRequest): Promise<AuthUser> {
+    bumpSessionEpoch();
     const payload = await firstValueFrom(this.#api.signup(request));
     this.#setSession(payload);
     return payload.user;
@@ -96,10 +108,17 @@ export class SessionStore {
   }
 
   async #hydrate(): Promise<void> {
+    const epoch = currentSessionEpoch();
     try {
       const payload = await firstValueFrom(this.#api.me());
+      if (epoch !== currentSessionEpoch()) {
+        return;
+      }
       this.#setSession(payload);
     } catch {
+      if (epoch !== currentSessionEpoch()) {
+        return;
+      }
       this.clear();
     } finally {
       this.#loadPromise = null;
@@ -114,16 +133,17 @@ export class SessionStore {
     if (!hadSession || this.#redirectInFlight) {
       return;
     }
-    const currentUrl = this.#router.url;
-    if (currentUrl.startsWith('/panel/login')) {
+    const currentUrl = this.#router.url.split('?')[0] ?? this.#router.url;
+    if (currentUrl === '/panel/login' || currentUrl === '/panel/signup') {
       return;
     }
     this.#redirectInFlight = true;
     logger.info('Session ended, redirecting to login', { code });
-    void this.#router
-      .navigate(['/panel/login'], { queryParams: { returnUrl: currentUrl } })
-      .finally(() => {
-        this.#redirectInFlight = false;
-      });
+    if (safePanelPath(this.#router.url)) {
+      this.#intent.remember(this.#router.url);
+    }
+    void this.#router.navigate(['/panel/login'], loginNavigationExtras(this.#router.url)).finally(() => {
+      this.#redirectInFlight = false;
+    });
   }
 }

@@ -35,12 +35,12 @@
   }
 
   @case ('loaded') {
-    <article class="receipt receipt--fit mx-auto w-full max-w-[75rem]">
+    <article class="receipt mx-auto w-full min-w-0">
       <a
         appButton
         variant="ghost"
         size="sm"
-        class="hidden w-fit shrink-0 no-underline lg:inline-flex"
+        class="mb-3 hidden w-fit shrink-0 no-underline lg:inline-flex"
         [routerLink]="backLink()"
       >
         <app-icon name="arrow-left" [size]="16" />
@@ -48,7 +48,7 @@
       </a>
 
       <div class="receipt-layout">
-        <header class="receipt-hero order-1 flex min-w-0 items-start gap-3">
+        <header class="receipt-hero flex min-w-0 items-start gap-3">
           <span
             class="success-pop grid size-10 shrink-0 place-items-center rounded-full bg-[var(--success-subtle)] text-[var(--success)]"
             aria-hidden="true"
@@ -68,7 +68,7 @@
           </div>
         </header>
 
-        <aside class="receipt-qr order-2 min-w-0">
+        <aside class="receipt-qr min-w-0">
           <section
             class="receipt-qr-card card flex flex-col items-center gap-3 px-5 py-4"
             [attr.aria-label]="'register.receipt.title' | t"
@@ -78,14 +78,18 @@
               <div
                 class="size-[11.25rem] shrink-0 rounded-[var(--radius-lg)] bg-white p-2.5 shadow-[var(--shadow-1)] xl:size-[12.5rem]"
               >
-                <app-qr-code [value]="qrValue()" [label]="'register.receipt.qr' | t" />
+                <app-qr-code
+                  [value]="qrValue()"
+                  [label]="'register.receipt.qr' | t"
+                  [color]="brandColor()"
+                />
               </div>
             }
             <p class="max-w-[16rem] text-center text-xs leading-snug text-[var(--text-2)]">
               {{ 'register.receipt.qrUse' | t }}
             </p>
             <div
-              class="mt-auto flex w-full flex-col items-center gap-2 border-t border-[var(--border)] pt-3"
+              class="flex w-full flex-col items-center gap-2 border-t border-[var(--border)] pt-3"
             >
               <div class="w-full text-center">
                 <p class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]">
@@ -127,10 +131,24 @@
               }
             </div>
           </section>
+
+          <section class="receipt-how" aria-labelledby="receipt-how">
+            <h2 id="receipt-how" class="receipt-how__title">
+              {{ 'register.receipt.howTitle' | t }}
+            </h2>
+            <ol class="receipt-how-steps">
+              @for (step of howSteps; track step; let i = $index) {
+                <li>
+                  <span class="receipt-how__index">{{ i + 1 }}</span>
+                  <p>{{ step | t }}</p>
+                </li>
+              }
+            </ol>
+          </section>
         </aside>
 
         <section
-          class="receipt-summary order-3 flex min-w-0 flex-col gap-2"
+          class="receipt-summary flex min-w-0 flex-col gap-2"
           aria-labelledby="receipt-summary"
         >
           <h2 id="receipt-summary" class="text-base font-semibold">
@@ -206,7 +224,7 @@
         </section>
 
         <section
-          class="receipt-save order-4 flex min-w-0 flex-col gap-2"
+          class="receipt-save flex min-w-0 flex-col gap-2"
           aria-labelledby="receipt-save"
         >
           <h2 id="receipt-save" class="text-base font-semibold">
@@ -250,22 +268,6 @@
           }
         </section>
 
-        <section class="receipt-how order-5 min-w-0" aria-labelledby="receipt-how">
-          <h2 id="receipt-how" class="mb-2 text-base font-semibold">
-            {{ 'register.receipt.howTitle' | t }}
-          </h2>
-          <ol class="receipt-how-steps">
-            @for (step of howSteps; track step; let i = $index) {
-              <li>
-                <span
-                  class="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--primary-subtle)] text-[0.7rem] font-bold text-[var(--primary)]"
-                  >{{ i + 1 }}</span
-                >
-                <p>{{ step | t }}</p>
-              </li>
-            }
-          </ol>
-        </section>
       </div>
 
     </article>

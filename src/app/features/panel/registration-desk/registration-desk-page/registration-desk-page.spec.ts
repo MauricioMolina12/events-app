@@ -36,6 +36,7 @@ function event(id: string, status: Event['status'], name = id): Event {
     capacity: 0,
     status,
     createdBy: null,
+    client: null,
     createdAt: '2026-10-01T00:00:00.000Z',
     updatedAt: '2026-10-01T00:00:00.000Z',
   };
@@ -94,13 +95,27 @@ function page(items: DeskRow[]): Page<DeskRow> {
 
 describe('RegistrationDeskPage', () => {
   let fixture: ComponentFixture<RegistrationDeskPage>;
-  let api: { summary: ReturnType<typeof vi.fn>; registrations: ReturnType<typeof vi.fn> };
+  let api: {
+    summary: ReturnType<typeof vi.fn>;
+    registrations: ReturnType<typeof vi.fn>;
+    companions: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     api = {
       summary: vi.fn(() => of(summary())),
       registrations: vi.fn(() => of(page([row('a1b2c3d4-0000', true), row('e5f6a7b8-0000', false)]))),
+      companions: vi.fn(() =>
+        of([
+          {
+            id: 'comp-1',
+            fullName: 'Lucía Pérez',
+            documentType: 'CC' as const,
+            documentNumber: '1099888777',
+          },
+        ]),
+      ),
     };
     const events: Page<Event> = {
       items: [event('evt-old', 'closed'), event('evt-live', 'published', 'Madrugón 2026')],
@@ -142,6 +157,26 @@ describe('RegistrationDeskPage', () => {
     expect(rows[0]?.textContent).toContain('A1B2C3D4');
     expect(rows[1]?.textContent).toContain(MESSAGES['desk.status.pending']);
     expect(rows[1]?.textContent).not.toContain(MESSAGES['desk.status.checkedIn']);
+  });
+
+  it('expands a row and shows that inscription companions', async () => {
+    host().querySelector<HTMLElement>('.desk-row')!.click();
+    await fixture.whenStable();
+
+    expect(api.companions).toHaveBeenCalledWith('a1b2c3d4-0000');
+    expect(text()).toContain(MESSAGES['desk.companions.title']);
+    expect(text()).toContain('1 persona');
+    expect(text()).toContain('Lucía Pérez');
+  });
+
+  it('does not open an empty companions panel when the inscription has none', async () => {
+    const rows = host().querySelectorAll<HTMLElement>('.desk-row');
+    rows[1]!.click();
+    await fixture.whenStable();
+
+    expect(api.companions).not.toHaveBeenCalled();
+    expect(host().querySelector('.companions')).toBeNull();
+    expect(text()).not.toContain(MESSAGES['desk.companions.empty']);
   });
 
   it('filters by sede and check-in status through the URL', async () => {

@@ -1,5 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
-import type { PublicRegistrationReceipt } from '@core/domain';
+import type { PublicRegistrationReceipt, TicketDesign } from '@core/domain';
 import { storage } from '@core/utils/local-storage';
 
 /**
@@ -21,6 +21,7 @@ export interface ReceiptContext {
   /** Contact data for the "send the receipt" actions; the server never returns it. */
   readonly email: string | null;
   readonly phone: string | null;
+  readonly ticketDesign?: TicketDesign | null;
 }
 
 export interface StoredReceipt {

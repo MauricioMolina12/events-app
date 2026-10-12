@@ -8,6 +8,7 @@ export interface AuthUser {
   readonly fullName: string;
   readonly role: UserRole;
   readonly status: UserStatus;
+  readonly modules?: readonly string[];
 }
 
 /** Server-issued session metadata. `expiresAt` is ISO-8601 UTC. */

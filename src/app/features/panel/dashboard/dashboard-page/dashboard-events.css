@@ -2,7 +2,7 @@
    stylesheet stays within the per-file size budget. */
 .event-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
   margin: 0;
   padding: 0;
@@ -10,10 +10,17 @@
 }
 
 .event-card {
-  display: flex;
-  height: 100%;
-  flex-direction: column;
-  gap: var(--space-2);
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name phase'
+    'date date'
+    'sedes sedes'
+    'metrics metrics'
+    'actions actions';
+  align-items: start;
+  gap: var(--space-2) var(--space-3);
   padding: var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -35,20 +42,19 @@
     var(--shadow-1);
 }
 
-.event-card__top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
 .event-card__name {
+  grid-area: name;
   margin: 0;
   min-width: 0;
   font-size: var(--text-base);
   font-weight: var(--weight-semibold);
   line-height: 1.3;
   color: var(--text-1);
+}
+
+.event-card__phase {
+  grid-area: phase;
+  justify-self: end;
 }
 
 .event-card__meta {
@@ -61,19 +67,36 @@
   color: var(--text-2);
 }
 
+.event-card__meta--date {
+  grid-area: date;
+}
+
+.event-card__meta--sedes {
+  grid-area: sedes;
+}
+
 .event-card__meta app-icon {
   flex-shrink: 0;
   margin-top: 0.05rem;
   color: var(--text-3);
 }
 
+.event-card__metrics {
+  grid-area: metrics;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
 .event-card__stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
-  margin: var(--space-2) 0 0;
-  padding: var(--space-3) 0 0;
-  border-top: 1px solid var(--border);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
 }
 
 .event-card__stats dt {
@@ -106,12 +129,12 @@
 }
 
 .event-card__actions {
+  grid-area: actions;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  margin-top: auto;
-  padding-top: var(--space-2);
+  padding-top: var(--space-1);
 }
 
 .event-card__current {
@@ -149,47 +172,171 @@
 }
 
 @container (min-width: 48rem) {
-  .event-grid--single {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .event-grid--single .event-card {
-    display: grid;
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto;
+  .event-card {
+    grid-template-columns: minmax(14rem, 1.1fr) minmax(0, 1.8fr) auto;
     grid-template-areas:
-      'top stats actions'
-      'date stats actions'
-      'sedes bar actions';
+      'name metrics phase'
+      'date metrics actions'
+      'sedes metrics actions';
     align-items: center;
     column-gap: var(--space-6);
+    row-gap: var(--space-1);
   }
 
-  .event-grid--single .event-card__top {
-    grid-area: top;
+  .event-card__phase {
+    align-self: start;
   }
 
-  .event-grid--single .event-card__meta:nth-of-type(1) {
-    grid-area: date;
-  }
-
-  .event-grid--single .event-card__meta:nth-of-type(2) {
-    grid-area: sedes;
-  }
-
-  .event-grid--single .event-card__stats {
-    grid-area: stats;
+  .event-card__metrics {
     margin: 0;
     padding: 0;
     border-top: 0;
   }
 
-  .event-grid--single .event-card__bar {
-    grid-area: bar;
+  .event-card__stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: start;
   }
 
-  .event-grid--single .event-card__actions {
-    grid-area: actions;
-    margin: 0;
+  .event-card__actions {
+    justify-content: flex-end;
     padding: 0;
   }
 }
+
+.aforo-filters {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-3);
+}
+
+.aforo-search {
+  min-width: 0;
+}
+
+.aforo-search .field {
+  width: 100%;
+  min-width: 0;
+}
+
+.aforo-list {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aforo-row {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  max-width: 100%;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+}
+
+.aforo-row__id,
+.aforo-row__stats,
+.aforo-row__meter {
+  min-width: 0;
+}
+
+.aforo-row__name {
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+
+.aforo-row__meta {
+  margin: 0.15rem 0 0.35rem;
+  color: var(--text-3);
+  font-size: 0.8125rem;
+}
+
+.aforo-row__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}
+
+.aforo-row__stats dt {
+  overflow-wrap: anywhere;
+  color: var(--text-3);
+  font-size: 0.75rem;
+}
+
+.aforo-row__stats dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.aforo-row__meter {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.aforo-row__bar {
+  overflow: hidden;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--surface-3, var(--border));
+}
+
+.aforo-row__bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+
+.aforo-row[data-level='high'] .aforo-row__bar > span {
+  background: var(--warning);
+}
+
+.aforo-row[data-level='critical'] .aforo-row__bar > span,
+.aforo-row[data-level='full'] .aforo-row__bar > span {
+  background: var(--danger);
+}
+
+.aforo-row__level {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-2);
+  font-size: 0.8125rem;
+}
+
+/* The sidebar already consumes part of the viewport, so these breakpoints follow
+   the dashboard width, not the window. */
+@container (min-width: 36rem) {
+  .aforo-filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 14rem);
+  }
+
+  .aforo-row__stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 52rem) {
+  .aforo-filters:has(> :nth-child(3)) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 13rem) minmax(0, 13rem);
+  }
+
+  .aforo-row {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.7fr) auto;
+    align-items: center;
+  }
+
+  .aforo-row__stats {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+

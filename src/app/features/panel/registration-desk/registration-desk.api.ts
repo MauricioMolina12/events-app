@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import type { Observable } from 'rxjs';
+import { map, type Observable } from 'rxjs';
 import { ApiClient, type Page } from '@core/api';
 import type { DocumentType } from '@core/domain';
 
@@ -53,6 +53,13 @@ export interface DeskRow {
   };
 }
 
+export interface DeskCompanion {
+  readonly id: string;
+  readonly fullName: string;
+  readonly documentType: DocumentType | null;
+  readonly documentNumber: string | null;
+}
+
 export interface DeskQuery {
   readonly eventId: string;
   readonly participationId?: string;
@@ -83,5 +90,14 @@ export class RegistrationDeskApi {
       limit: query.limit,
       offset: query.offset,
     });
+  }
+
+  /** Companions of one inscription. The desk list only carries the count. */
+  companions(registrationId: string): Observable<readonly DeskCompanion[]> {
+    return this.#api
+      .get<{ companions: readonly DeskCompanion[] }>(
+        `registrations/${encodeURIComponent(registrationId)}`,
+      )
+      .pipe(map((detail) => detail.companions));
   }
 }

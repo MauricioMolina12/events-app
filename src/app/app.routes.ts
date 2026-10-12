@@ -22,7 +22,15 @@ export const appRoutes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'eventos' },
       {
         path: 'eventos',
-        title: 'Eventos · Barby Toys & Cupidos',
+        title: 'Clientes · Eventos',
+        loadComponent: () =>
+          import('@features/catalog/client-directory-page/client-directory-page').then(
+            (m) => m.ClientDirectoryPage,
+          ),
+      },
+      {
+        path: 'clientes/:clienteSlug/eventos',
+        title: 'Eventos',
         loadComponent: () =>
           import('@features/catalog/event-list-page/event-list-page').then((m) => m.EventListPage),
       },
@@ -40,6 +48,30 @@ export const appRoutes: Routes = [
         loadComponent: () =>
           import('@features/catalog/registration-page/registration-page').then(
             (m) => m.RegistrationPage,
+          ),
+      },
+      {
+        path: 'clientes/:clienteSlug/buscar',
+        title: 'Buscar inscripción · Star Grow Studio',
+        loadComponent: () =>
+          import('@features/catalog/find-registration-page/find-registration-page').then(
+            (m) => m.FindRegistrationPage,
+          ),
+      },
+      {
+        path: 'buscar',
+        title: 'Buscar inscripción · Star Grow Studio',
+        loadComponent: () =>
+          import('@features/catalog/find-registration-page/find-registration-page').then(
+            (m) => m.FindRegistrationPage,
+          ),
+      },
+      {
+        path: 'eventos/:slug/buscar',
+        title: 'Buscar inscripción · Star Grow Studio',
+        loadComponent: () =>
+          import('@features/catalog/find-registration-page/find-registration-page').then(
+            (m) => m.FindRegistrationPage,
           ),
       },
       {

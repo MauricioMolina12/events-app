@@ -77,7 +77,9 @@ export class EstablishmentListPage {
   readonly #i18n = inject(I18nService);
   readonly #session = inject(SessionStore);
   protected readonly canCreate = computed(() => this.#session.isAuthenticated());
-  protected readonly canEdit = this.#session.isAdmin;
+  protected readonly canEdit = computed(
+    () => this.#session.isAdmin() || this.#session.role() === 'operator',
+  );
   readonly #attempt = signal(0);
   readonly #request = computed(() => ({
     query: {

@@ -1,0 +1,98 @@
+<div class="flex flex-col gap-6">
+  <app-page-header titleKey="collaborators.title" subtitleKey="collaborators.subtitle" />
+
+  @if (saveError()) {
+    <p class="callout callout--danger" role="alert">{{ saveError() }}</p>
+  }
+
+  @switch (state().status) {
+    @case ('loading') {
+      <app-skeleton class="h-40 w-full" />
+    }
+    @case ('error') {
+      <p class="callout callout--danger" role="alert">{{ errorMessage() }}</p>
+    }
+  }
+
+  <section class="section-block card card--pad flex flex-col gap-4">
+    <h2 class="text-lg font-semibold">{{ 'collaborators.newGroup' | t }}</h2>
+    <form class="flex flex-col gap-3" [formGroup]="groupForm" (ngSubmit)="createGroup()">
+      <label class="flex flex-col gap-1.5 text-sm font-medium">
+        {{ 'collaborators.groups' | t }}
+        <input class="field" type="text" formControlName="name" maxlength="80" />
+      </label>
+      <fieldset class="flex flex-col gap-2">
+        <legend class="text-sm font-medium">{{ 'collaborators.modules' | t }}</legend>
+        <div class="flex flex-wrap gap-2">
+          @for (module of modules; track module) {
+            <label class="choice-card" [attr.data-selected]="moduleOn(module) ? 'true' : null">
+              <input class="choice-card__input" type="checkbox" [checked]="moduleOn(module)" (change)="toggleModule(module)" />
+              <span>{{ moduleLabel(module) | t }}</span>
+            </label>
+          }
+        </div>
+      </fieldset>
+      <button type="submit" appButton variant="primary" [loading]="saving()">
+        {{ 'collaborators.newGroup' | t }}
+      </button>
+    </form>
+  </section>
+
+  <section class="section-block card card--pad flex flex-col gap-4">
+    <h2 class="text-lg font-semibold">{{ 'collaborators.newMember' | t }}</h2>
+    <form class="grid gap-3 sm:grid-cols-2" [formGroup]="memberForm" (ngSubmit)="addMember()">
+      <label class="flex flex-col gap-1.5 text-sm font-medium sm:col-span-2">
+        {{ 'collaborators.groups' | t }}
+        <select class="field" formControlName="groupId">
+          <option value="">{{ 'collaborators.chooseGroup' | t }}</option>
+          @for (group of groups(); track group.id) {
+            <option [value]="group.id">{{ group.name }}</option>
+          }
+        </select>
+      </label>
+      <label class="flex flex-col gap-1.5 text-sm font-medium">
+        {{ 'users.form.fullName' | t }}
+        <input class="field" type="text" formControlName="fullName" />
+      </label>
+      <label class="flex flex-col gap-1.5 text-sm font-medium">
+        {{ 'users.form.email' | t }}
+        <input class="field" type="email" formControlName="email" />
+      </label>
+      <label class="flex flex-col gap-1.5 text-sm font-medium sm:col-span-2">
+        {{ 'users.form.password' | t }}
+        <input class="field" type="password" formControlName="password" />
+      </label>
+      <button type="submit" appButton variant="primary" [loading]="saving()">
+        {{ 'collaborators.newMember' | t }}
+      </button>
+    </form>
+  </section>
+
+  <section class="section-block flex flex-col gap-3">
+    <h2 class="text-lg font-semibold">{{ 'collaborators.groups' | t }}</h2>
+    @if (groups().length === 0) {
+      <app-empty-state titleKey="collaborators.empty" iconName="users" />
+    } @else {
+      <ul class="grid gap-3 sm:grid-cols-2">
+        @for (group of groups(); track group.id) {
+          <li class="card card--pad flex flex-col gap-3">
+            <h3 class="font-semibold">{{ group.name }}</h3>
+            <p class="text-sm text-(--text-2)">
+              @for (module of group.modules; track module) {
+                <span class="chip">{{ moduleLabel(module) | t }}</span>
+              }
+            </p>
+            <ul class="flex flex-col gap-1 text-sm">
+              @for (member of group.members; track member.id) {
+                <li>
+                  <span class="font-medium">{{ member.fullName }}</span>
+                  <span class="text-(--text-3)"> · {{ member.email }}</span>
+                </li>
+              }
+            </ul>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+</div>

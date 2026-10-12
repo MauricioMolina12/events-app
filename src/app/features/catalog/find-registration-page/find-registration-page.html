@@ -1,0 +1,56 @@
+<div class="flex flex-col gap-6">
+  <a class="inline-flex w-fit items-center gap-1 text-sm font-medium no-underline hover:underline" routerLink="/eventos">
+    <span aria-hidden="true">←</span>
+    <span>{{ 'event.back' | t }}</span>
+  </a>
+
+  <app-page-header titleKey="find.title" subtitleKey="find.subtitle" />
+
+  <form class="card card--pad flex flex-col gap-3" (submit)="$event.preventDefault(); search()">
+    @if (!slug() && eventChoices().length > 0) {
+      <div>
+        <p class="label">{{ 'find.event' | t }}</p>
+        <app-select
+          [options]="eventChoices()"
+          [value]="selectedSlug()"
+          [ariaLabel]="'find.event' | t"
+          (valueChange)="selectedSlug.set($event)"
+        />
+      </div>
+    }
+    <label class="label" for="find-query">{{ 'find.title' | t }}</label>
+    <div class="flex flex-col gap-2 sm:flex-row">
+      <input
+        id="find-query"
+        class="field"
+        type="search"
+        [value]="query()"
+        (input)="query.set($any($event.target).value)"
+        [placeholder]="'checkIn.search.placeholder' | t"
+      />
+      <button type="submit" appButton variant="primary" [disabled]="searching() || !eventSlug()">
+        {{ (searching() ? 'companions.lookup.searching' : 'find.submit') | t }}
+      </button>
+    </div>
+  </form>
+
+  @if (errorMessage()) {
+    <p class="callout callout--danger" role="alert">{{ errorMessage() }}</p>
+  } @else if (!searching() && results().length === 0 && query().trim().length >= 2) {
+    <app-empty-state titleKey="find.empty" iconName="search" />
+  } @else if (results().length > 0) {
+    <ul class="flex flex-col gap-3">
+      @for (hit of results(); track hit.id) {
+        <li class="card card--pad card--interactive">
+          <a class="flex items-center justify-between gap-3 no-underline" [routerLink]="['/inscripcion', hit.id]">
+            <span>
+              <span class="block font-semibold">{{ hit.fullName }}</span>
+              <span class="block font-mono text-xs text-(--text-3)">{{ hit.documentNumber }}</span>
+            </span>
+            <span class="text-sm font-medium text-(--primary)">{{ 'find.open' | t }}</span>
+          </a>
+        </li>
+      }
+    </ul>
+  }
+</div>

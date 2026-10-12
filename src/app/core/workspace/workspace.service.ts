@@ -4,6 +4,7 @@ import { TitleStrategy, type RouterStateSnapshot } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '@env/environment';
 import { SessionStore } from '@core/auth';
+import { ClientsApi } from '@core/clients/clients.api';
 import { MESSAGES } from '@core/i18n/messages';
 import { ThemeService, type ThemePreference } from '@core/ui/theme.service';
 import { brandInitials, contrastText, shadeHex } from './brand-color';
@@ -63,6 +64,7 @@ export class BrandState {
 @Injectable({ providedIn: 'root' })
 export class WorkspaceService {
   readonly #api = inject(WorkspaceApi);
+  readonly #clients = inject(ClientsApi);
   readonly #session = inject(SessionStore);
   readonly #theme = inject(ThemeService);
   readonly #brand = inject(BrandState);
@@ -76,11 +78,20 @@ export class WorkspaceService {
   readonly markUrl = this.#brand.markUrl;
   readonly nameCustomized = this.#brand.nameCustomized;
   readonly preferenceStatus = this.#brand.preferenceStatus;
+  /** Public catalog of the signed-in client. Admins and anonymous visitors stay on the directory. */
+  readonly catalogPath = computed(() => {
+    const slug = this.#clientSlug();
+    return this.#session.role() === 'operator' && slug ? `/clientes/${slug}/eventos` : '/eventos';
+  });
 
   #generation = 0;
+  readonly #clientSlug = signal<string | null>(null);
   #prefsGeneration = 0;
   #prefsReady = false;
   #lastTheme: ThemePreference | null = null;
+  /** The operator brand stays in memory. The device cache keeps the platform brand. */
+  #persistBrand = true;
+  #showingClient = false;
 
   constructor() {
     applyCachedColor();
@@ -92,13 +103,29 @@ export class WorkspaceService {
     });
     effect(() => {
       const status = this.#session.status();
+      const role = this.#session.role();
+      this.#persistBrand = role !== 'operator';
       if (status === 'authenticated') {
         void this.#syncPreferences();
+        if (role === 'operator') {
+          void this.#useOwnClient();
+        } else {
+          this.#clientSlug.set(null);
+          if (this.#showingClient) {
+            this.#showingClient = false;
+            void this.load();
+          }
+        }
       } else if (status === 'anonymous') {
+        this.#clientSlug.set(null);
         this.#prefsReady = false;
         this.#lastTheme = null;
         this.#prefsGeneration += 1;
         this.#brand.preferenceStatus.set('idle');
+        if (this.#showingClient) {
+          this.#showingClient = false;
+          void this.load();
+        }
       }
     });
     effect(() => {
@@ -138,6 +165,30 @@ export class WorkspaceService {
     await this.#persistTheme(this.#theme.preference());
   }
 
+  async #useOwnClient(): Promise<void> {
+    try {
+      const client = await firstValueFrom(this.#clients.mine());
+      if (this.#session.role() !== 'operator') {
+        return;
+      }
+      this.#showingClient = true;
+      this.#persistBrand = false;
+      this.#clientSlug.set(client.slug);
+      this.replace({
+        displayName: client.displayName,
+        description: null,
+        nameCustomized: client.nameCustomized,
+        primaryColor: client.primaryColor,
+        colorCustomized: client.colorCustomized,
+        logoUrl: null,
+        markUrl: null,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch {
+      // An operator without a client space keeps the platform brand.
+    }
+  }
+
   async #fetch(generation: number): Promise<void> {
     try {
       const settings = await firstValueFrom(this.#api.get());
@@ -162,8 +213,9 @@ export class WorkspaceService {
         return;
       }
       if (preferences.persisted) {
-        this.#lastTheme = preferences.theme;
-        this.#theme.set(preferences.theme);
+        const theme = preferences.theme === 'dark' ? 'dark' : 'light';
+        this.#lastTheme = theme;
+        this.#theme.set(theme);
       } else {
         this.#lastTheme = this.#theme.preference();
       }
@@ -208,7 +260,9 @@ export class WorkspaceService {
         `color-mix(in srgb, ${settings.primaryColor} 16%, var(--surface-1))`,
       );
     }
-    writeBrandCache(settings);
+    if (this.#persistBrand) {
+      writeBrandCache(settings);
+    }
     this.#favicon(absoluteAsset(settings.markUrl) ?? absoluteAsset(settings.logoUrl));
   }
 

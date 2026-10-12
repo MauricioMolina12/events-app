@@ -19,16 +19,23 @@ import { Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { firstValueFrom, of, switchMap } from 'rxjs';
 import { SessionStore } from '@core/auth';
-import type { Event as ManagedEvent, EventStatus } from '@core/domain';
+import type { Page } from '@core/api';
+import type {
+  AdminUser,
+  Event as ManagedEvent,
+  EventStatus,
+  RegistrationScope,
+} from '@core/domain';
 import { I18nService, TranslatePipe } from '@core/i18n';
 import { ApiErrorPresenter, ConfirmService } from '@core/ui';
 import { environment } from '@env/environment';
 import { loadingState, loadedState, toAsyncState } from '@core/utils/async-state';
 import { localInputToUtcIso, utcIsoToLocalInput } from '@core/utils/dates';
 import { slugify } from '@core/utils/ids';
-import { ButtonDirective, PageHeader, Select, Skeleton, type SelectChoice } from '@shared/ui';
+import { ButtonDirective, EventInvite, Icon, PageHeader, Select, Skeleton, type SelectChoice } from '@shared/ui';
 import { EventParticipations } from '../event-participations/event-participations';
 import { canManageEvent } from '../event-access';
+import { UsersApi } from '../../users/users.api';
 import { EventsApi, type CreateEventRequest, type UpdateEventRequest } from '../events.api';
 import { EVENT_STATUS_TRANSITIONS } from '../event-status';
 
@@ -66,6 +73,8 @@ function eventWindowsValidator(control: AbstractControl): ValidationErrors | nul
     RouterLink,
     TranslatePipe,
     ButtonDirective,
+    EventInvite,
+    Icon,
     PageHeader,
     Skeleton,
     Select,
@@ -78,6 +87,7 @@ export class EventFormPage {
   readonly id = input<string | undefined>(undefined);
 
   readonly #api = inject(EventsApi);
+  readonly #users = inject(UsersApi);
   readonly #router = inject(Router);
   readonly #session = inject(SessionStore);
   readonly #errors = inject(ApiErrorPresenter);
@@ -139,6 +149,19 @@ export class EventFormPage {
         validators: [Validators.required, Validators.min(0), Validators.max(100_000)],
       }),
       status: new FormControl<EventStatus>('draft', { nonNullable: true }),
+      ownerId: new FormControl('', { nonNullable: true }),
+      registrationScope: new FormControl<RegistrationScope>('per_venue', { nonNullable: true }),
+      ticketBg: new FormControl('#111827', { nonNullable: true }),
+      ticketAccent: new FormControl('#C81F68', { nonNullable: true }),
+      ticketText: new FormControl('#111827', { nonNullable: true }),
+      ticketTitleWeight: new FormControl(800, { nonNullable: true }),
+      ticketTitleSize: new FormControl(22, { nonNullable: true }),
+      ticketTitleX: new FormControl(8, { nonNullable: true }),
+      ticketTitleY: new FormControl(18, { nonNullable: true }),
+      ticketQrX: new FormControl(50, { nonNullable: true }),
+      ticketQrY: new FormControl(55, { nonNullable: true }),
+      ticketQrSize: new FormControl(184, { nonNullable: true }),
+      ticketFieldWeight: new FormControl(700, { nonNullable: true }),
     },
     { validators: [eventWindowsValidator] },
   );
@@ -149,6 +172,31 @@ export class EventFormPage {
   protected readonly statusChoices = computed<readonly SelectChoice[]>(() =>
     this.statusOptions().map((status) => ({ value: status, label: this.statusLabel(status) })),
   );
+  readonly operators = toSignal(
+    toObservable(this.editing).pipe(
+      switchMap((editing) =>
+        editing
+          ? of(
+              loadedState({
+                items: [],
+                meta: { total: 0, limit: 0, offset: 0 },
+              }),
+            )
+          : this.#users.list({ role: 'operator', status: 'active', limit: 100 }).pipe(toAsyncState()),
+      ),
+    ),
+    { initialValue: loadingState<Page<AdminUser>>() },
+  );
+  protected readonly ownerChoices = computed<readonly SelectChoice[]>(() => {
+    const state = this.operators();
+    if (state.status !== 'loaded') {
+      return [];
+    }
+    return state.value.items.map((user) => ({
+      value: user.id,
+      label: `${user.fullName} · ${user.email}`,
+    }));
+  });
   protected readonly archiving = computed(
     () =>
       this.event() !== null &&
@@ -184,6 +232,18 @@ export class EventFormPage {
         registrationClosesAt: utcIsoToLocalInput(event.registrationClosesAt, event.timezone),
         capacity: event.capacity,
         status: event.status,
+        registrationScope: event.registrationScope ?? 'per_venue',
+        ticketBg: event.ticketDesign?.bgColor ?? '#111827',
+        ticketAccent: event.ticketDesign?.accentColor ?? '#C81F68',
+        ticketText: event.ticketDesign?.textColor ?? '#111827',
+        ticketTitleWeight: event.ticketDesign?.titleWeight ?? 800,
+        ticketTitleSize: event.ticketDesign?.titleSize ?? 22,
+        ticketTitleX: event.ticketDesign?.titleX ?? 8,
+        ticketTitleY: event.ticketDesign?.titleY ?? 18,
+        ticketQrX: event.ticketDesign?.qrX ?? 50,
+        ticketQrY: event.ticketDesign?.qrY ?? 55,
+        ticketQrSize: event.ticketDesign?.qrSize ?? 184,
+        ticketFieldWeight: event.ticketDesign?.fieldWeight ?? 700,
       });
     });
   }
@@ -231,6 +291,20 @@ export class EventFormPage {
         registrationClosesAt:
           localInputToUtcIso(value.registrationClosesAt, value.timezone) || null,
         capacity: Number(value.capacity),
+        registrationScope: value.registrationScope,
+        ticketDesign: {
+          bgColor: value.ticketBg,
+          accentColor: value.ticketAccent,
+          textColor: value.ticketText,
+          titleWeight: Number(value.ticketTitleWeight),
+          titleSize: Number(value.ticketTitleSize),
+          titleX: Number(value.ticketTitleX),
+          titleY: Number(value.ticketTitleY),
+          qrX: Number(value.ticketQrX),
+          qrY: Number(value.ticketQrY),
+          qrSize: Number(value.ticketQrSize),
+          fieldWeight: Number(value.ticketFieldWeight),
+        },
       };
 
       if (this.id()) {
@@ -238,7 +312,11 @@ export class EventFormPage {
         await firstValueFrom(this.#api.update(this.id()!, request));
         await this.#router.navigate(['/panel/eventos']);
       } else {
-        const request: CreateEventRequest = fields;
+        if (!value.ownerId) {
+          this.form.controls.ownerId.setErrors({ required: true });
+          return;
+        }
+        const request: CreateEventRequest = { ...fields, ownerId: value.ownerId };
         const event = await firstValueFrom(this.#api.create(request));
         await this.#router.navigate(['/panel/eventos', event.id, 'editar']);
       }
@@ -248,4 +326,5 @@ export class EventFormPage {
       this.saving.set(false);
     }
   }
+
 }

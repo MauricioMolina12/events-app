@@ -7,6 +7,9 @@
           {{ refreshFailed() ? ('desk.refreshFailed' | t) : updatedLabel() }}
         </span>
       }
+      @if (selectedEvent(); as event) {
+        <app-event-invite [name]="event.name" [slug]="event.slug" />
+      }
       <button
         type="button"
         appButton
@@ -19,6 +22,12 @@
         <app-icon name="refresh" [size]="16" />
         <span>{{ 'app.refresh' | t }}</span>
       </button>
+      @if (selectedEvent(); as event) {
+        <a [routerLink]="['/eventos', event.slug, 'inscripcion']" appButton variant="secondary" size="sm">
+          <app-icon name="user-plus" [size]="16" />
+          <span>{{ 'desk.create' | t }}</span>
+        </a>
+      }
       <a routerLink="/panel/ingreso" appButton variant="primary" size="sm">
         <app-icon name="scan" [size]="16" />
         <span>{{ 'desk.openScanner' | t }}</span>
@@ -39,7 +48,10 @@
 
   @if (events().status === 'loaded' && !selectedEvent()) {
     <app-empty-state titleKey="desk.noEvents.title" bodyKey="desk.noEvents.body" iconName="calendar">
-      <a routerLink="/panel/eventos" appButton variant="primary">{{ 'nav.panel.events' | t }}</a>
+      <a routerLink="/panel/eventos" appButton variant="primary">
+        <app-icon name="calendar" [size]="16" />
+        {{ 'nav.panel.events' | t }}
+      </a>
     </app-empty-state>
   }
 
@@ -77,27 +89,13 @@
         />
       </div>
 
-      <form class="desk-filters__search" role="search" (submit)="submitSearch($event)">
-        <label for="desk-search" class="label">{{ 'desk.filter.search' | t }}</label>
-        <div class="relative">
-          <span class="desk-search-icon" aria-hidden="true"><app-icon name="search" [size]="16" /></span>
-          <input
-            id="desk-search"
-            type="search"
-            class="field pl-9"
-            autocomplete="off"
-            [value]="term()"
-            (input)="onTermInput($event)"
-            [placeholder]="'desk.filter.searchPlaceholder' | t"
-          />
-        </div>
-      </form>
     </section>
 
     @if (summaryError()) {
       <div class="callout callout--danger" role="alert">
         <p>{{ summaryError() }}</p>
         <button type="button" appButton variant="secondary" size="sm" (click)="retry()">
+          <app-icon name="refresh" [size]="16" />
           {{ 'app.retry' | t }}
         </button>
       </div>
@@ -142,10 +140,57 @@
       </p>
     }
 
-    <!-- Breakdown + history -->
+    <section class="section-block card card--pad flex flex-col gap-4" aria-labelledby="desk-create-title">
+      <div>
+        <h2 id="desk-create-title" class="desk-section-title">{{ 'desk.create.title' | t }}</h2>
+        <p class="mt-1 text-sm text-(--text-2)">{{ 'desk.create.hint' | t }}</p>
+      </div>
+      @if (createError()) {
+        <p class="callout callout--danger" role="alert">{{ createError() }}</p>
+      }
+      <form class="grid gap-3 sm:grid-cols-2" [formGroup]="createForm" (ngSubmit)="createRegistration()">
+        <div class="sm:col-span-2">
+          <p class="label">{{ 'desk.filter.sede' | t }}</p>
+          <app-select
+            formControlName="participationId"
+            [options]="venueChoices()"
+            [ariaLabel]="'desk.filter.sede' | t"
+          />
+        </div>
+        <label class="flex flex-col gap-1.5 text-sm font-medium">
+          {{ 'desk.col.holder' | t }}
+          <input class="field" type="text" formControlName="fullName" />
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm font-medium">
+          {{ 'desk.col.document' | t }}
+          <span class="flex gap-2">
+            <select class="field w-24" formControlName="documentType">
+              @for (type of documentTypes; track type) {
+                <option [value]="type">{{ type }}</option>
+              }
+            </select>
+            <input class="field flex-1" type="text" formControlName="documentNumber" />
+          </span>
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm font-medium">
+          {{ 'register.email' | t }}
+          <input class="field" type="email" formControlName="email" />
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm font-medium">
+          {{ 'register.phone' | t }}
+          <input class="field" type="tel" formControlName="phone" />
+        </label>
+        <div class="sm:col-span-2">
+          <button type="submit" appButton variant="primary" [loading]="creating()">
+            {{ 'desk.record' | t }}
+          </button>
+        </div>
+      </form>
+    </section>
+
     <div class="desk-split">
       <section class="card card--pad flex flex-col gap-4" aria-labelledby="desk-sedes-title">
-        <div class="flex items-center justify-between gap-3">
+        <div class="desk-section-head">
           <h2 id="desk-sedes-title" class="desk-section-title">{{ 'desk.sedes.title' | t }}</h2>
           @if (sedeId()) {
             <button type="button" appButton variant="ghost" size="sm" (click)="selectSede(null)">
@@ -171,7 +216,7 @@
                     <span class="sede-row__top">
                       <span class="sede-row__name">
                         <app-icon name="map-pin" [size]="15" />
-                        {{ sede.establishment.name }}
+                        <span class="sede-row__label">{{ sede.establishment.name }}</span>
                       </span>
                       <span class="sede-row__rate">{{ percent(sede.attendanceRate) }}</span>
                     </span>
@@ -191,62 +236,10 @@
           <app-skeleton class="h-14 w-full" />
         }
       </section>
-
-      <section class="card card--pad flex flex-col gap-4" aria-labelledby="desk-history-title">
-        <div class="flex items-center justify-between gap-3">
-          <h2 id="desk-history-title" class="desk-section-title">{{ 'desk.history.title' | t }}</h2>
-          @if (historyItems().length > 0) {
-            <button type="button" appButton variant="ghost" size="sm" (click)="showHistory()">
-              {{ 'desk.history.all' | t }}
-              <app-icon name="chevronRight" [size]="16" />
-            </button>
-          }
-        </div>
-
-        @switch (history().status) {
-          @case ('loading') {
-            @for (item of [1, 2, 3]; track item) {
-              <app-skeleton class="h-12 w-full" />
-            }
-          }
-          @case ('error') {
-            <p class="text-sm text-(--danger)">{{ 'desk.history.failed' | t }}</p>
-          }
-          @default {
-            @if (historyItems().length === 0) {
-              <div class="history-empty">
-                <app-icon name="log-in" [size]="20" />
-                <p>{{ 'desk.history.empty' | t }}</p>
-              </div>
-            } @else {
-              <ol class="history-list">
-                @for (row of historyItems(); track row.id) {
-                  <li class="history-item">
-                    <span class="history-item__avatar" aria-hidden="true">{{ initials(row.fullName) }}</span>
-                    <div class="min-w-0 flex-1">
-                      <p class="history-item__name">{{ row.fullName }}</p>
-                      <p class="history-item__meta">
-                        {{ row.sede.name }} · <span class="font-mono">{{ folio(row.id) }}</span>
-                        @if (row.checkIn.operator; as operator) {
-                          · {{ 'desk.history.by' | t: { name: operator.fullName } }}
-                        }
-                      </p>
-                    </div>
-                    <div class="history-item__side">
-                      <span class="turn-pill">{{ turnLabel(row) }}</span>
-                      <time class="history-item__time" [attr.datetime]="row.checkIn.at">{{ time(row.checkIn.at) }}</time>
-                    </div>
-                  </li>
-                }
-              </ol>
-            }
-          }
-        }
-      </section>
     </div>
 
     <!-- Table -->
-    <section id="desk-table" class="flex scroll-mt-6 flex-col gap-3" aria-labelledby="desk-table-title">
+    <section id="desk-table" class="section-block flex scroll-mt-6 flex-col gap-3" aria-labelledby="desk-table-title">
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 id="desk-table-title" class="desk-section-title">
@@ -261,12 +254,29 @@
             </p>
           }
         </div>
-        @if (hasFilters()) {
-          <button type="button" appButton variant="ghost" size="sm" (click)="clearFilters()">
-            <app-icon name="x" [size]="16" />
-            {{ 'ui.filter.clearAll' | t }}
-          </button>
-        }
+        <div class="flex min-w-0 flex-1 flex-col gap-2 sm:max-w-sm sm:flex-none">
+          <form class="desk-filters__search" role="search" (submit)="submitSearch($event)">
+            <label for="desk-search" class="label">{{ 'desk.filter.search' | t }}</label>
+            <div class="relative">
+              <span class="desk-search-icon" aria-hidden="true"><app-icon name="search" [size]="16" /></span>
+              <input
+                id="desk-search"
+                type="search"
+                class="field pl-9"
+                autocomplete="off"
+                [value]="term()"
+                (input)="onTermInput($event)"
+                [placeholder]="'desk.filter.searchPlaceholder' | t"
+              />
+            </div>
+          </form>
+          @if (hasFilters()) {
+            <button type="button" appButton variant="ghost" size="sm" (click)="clearFilters()">
+              <app-icon name="x" [size]="16" />
+              {{ 'ui.filter.clearAll' | t }}
+            </button>
+          }
+        </div>
       </div>
 
       @switch (table().status) {
@@ -281,6 +291,7 @@
           <div class="callout callout--danger" role="alert">
             <p>{{ tableError() }}</p>
             <button type="button" appButton variant="secondary" size="sm" (click)="retry()">
+              <app-icon name="refresh" [size]="16" />
               {{ 'app.retry' | t }}
             </button>
           </div>
@@ -296,6 +307,7 @@
                 </p>
                 @if (hasFilters()) {
                   <button type="button" appButton variant="secondary" size="sm" (click)="clearFilters()">
+                    <app-icon name="x" [size]="16" />
                     {{ 'ui.filter.clearAll' | t }}
                   </button>
                 }
@@ -336,11 +348,28 @@
                   </thead>
                   <tbody>
                     @for (row of page.items; track row.id) {
-                      <tr>
+                      <tr
+                        class="desk-row"
+                        [class.is-open]="expanded(row.id)"
+                        [class.is-expandable]="expandable(row)"
+                        [attr.tabindex]="expandable(row) ? 0 : null"
+                        [attr.aria-expanded]="expandable(row) ? expanded(row.id) : null"
+                        [attr.aria-label]="expandable(row) ? ('desk.row.expand' | t: { name: row.fullName }) : null"
+                        (click)="toggleRow(row)"
+                        (keydown.enter)="toggleRow(row)"
+                        (keydown.space)="$event.preventDefault(); toggleRow(row)"
+                      >
                         <td class="max-w-56">
-                          <p class="truncate font-semibold text-(--text-1)">{{ row.fullName }}</p>
+                          <p class="desk-person">
+                            @if (expandable(row)) {
+                              <span class="desk-chevron" [class.is-open]="expanded(row.id)" aria-hidden="true">
+                                <app-icon name="chevronRight" [size]="14" />
+                              </span>
+                            }
+                            <span class="truncate font-semibold text-(--text-1)">{{ row.fullName }}</span>
+                          </p>
                           @if (companionsNote(row.companionsCount); as note) {
-                            <p class="desk-sub">{{ note }}</p>
+                            <p class="desk-sub" [class.desk-sub--indented]="expandable(row)">{{ note }}</p>
                           }
                         </td>
                         <td>
@@ -366,6 +395,49 @@
                         </td>
                         <td class="col-registered whitespace-nowrap text-(--text-3)">{{ dateTime(row.registeredAt) }}</td>
                       </tr>
+                      @if (expanded(row.id)) {
+                        <tr class="desk-detail">
+                          <td colspan="6">
+                            <div
+                              class="companions-reveal"
+                              animate.enter="companions-enter"
+                              animate.leave="companions-leave"
+                              (click)="$event.stopPropagation()"
+                            >
+                              <div class="companions">
+                                <div class="companions__head">
+                                  <p class="companions__title">{{ 'desk.companions.title' | t }}</p>
+                                  <span class="companions__count">{{
+                                    companionPeople(
+                                      companionState(row.id)?.status === 'loaded'
+                                        ? companionList(row.id).length
+                                        : row.companionsCount
+                                    )
+                                  }}</span>
+                                </div>
+                                @if (companionState(row.id)?.status === 'error') {
+                                  <p class="companions__empty">{{ 'desk.companions.failed' | t }}</p>
+                                } @else if (companionState(row.id)?.status === 'loaded') {
+                                  @if (companionList(row.id).length === 0) {
+                                    <p class="companions__empty">{{ 'desk.companions.empty' | t }}</p>
+                                  } @else {
+                                    <ul class="companions__list">
+                                      @for (companion of companionList(row.id); track companion.id) {
+                                        <li>
+                                          <span class="companions__name">{{ companion.fullName }}</span>
+                                          <span class="companions__doc">{{ companionDocument(companion) }}</span>
+                                        </li>
+                                      }
+                                    </ul>
+                                  }
+                                } @else {
+                                  <p class="companions__empty">{{ 'app.loading' | t }}</p>
+                                }
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      }
                     }
                   </tbody>
                 </table>
@@ -374,12 +446,28 @@
               <!-- Mobile -->
               <ul class="desk-cards">
                 @for (row of page.items; track row.id) {
-                  <li class="card desk-card">
+                  <li
+                    class="card desk-card"
+                    [class.is-open]="expanded(row.id)"
+                    [class.is-expandable]="expandable(row)"
+                    [attr.tabindex]="expandable(row) ? 0 : null"
+                    [attr.aria-expanded]="expandable(row) ? expanded(row.id) : null"
+                    (click)="toggleRow(row)"
+                    (keydown.enter)="toggleRow(row)"
+                    (keydown.space)="$event.preventDefault(); toggleRow(row)"
+                  >
                     <div class="flex items-start justify-between gap-3">
                       <div class="min-w-0">
-                        <p class="truncate font-semibold">{{ row.fullName }}</p>
+                        <p class="desk-person">
+                          @if (expandable(row)) {
+                            <span class="desk-chevron" [class.is-open]="expanded(row.id)" aria-hidden="true">
+                              <app-icon name="chevronRight" [size]="14" />
+                            </span>
+                          }
+                          <span class="truncate font-semibold">{{ row.fullName }}</span>
+                        </p>
                         @if (companionsNote(row.companionsCount); as note) {
-                          <p class="desk-sub">{{ note }}</p>
+                          <p class="desk-sub" [class.desk-sub--indented]="expandable(row)">{{ note }}</p>
                         }
                         <p class="mt-0.5 font-mono text-xs text-(--text-3)">{{ document(row) }} · {{ folio(row.id) }}</p>
                       </div>
@@ -403,6 +491,45 @@
                         <dd>{{ dateTime(row.checkIn.at) }}</dd>
                       </div>
                     </dl>
+                    @if (expanded(row.id)) {
+                      <div
+                        class="companions-reveal"
+                        animate.enter="companions-enter"
+                        animate.leave="companions-leave"
+                        (click)="$event.stopPropagation()"
+                      >
+                        <div class="companions">
+                          <div class="companions__head">
+                            <p class="companions__title">{{ 'desk.companions.title' | t }}</p>
+                            <span class="companions__count">{{
+                              companionPeople(
+                                companionState(row.id)?.status === 'loaded'
+                                  ? companionList(row.id).length
+                                  : row.companionsCount
+                              )
+                            }}</span>
+                          </div>
+                          @if (companionState(row.id)?.status === 'error') {
+                            <p class="companions__empty">{{ 'desk.companions.failed' | t }}</p>
+                          } @else if (companionState(row.id)?.status === 'loaded') {
+                            @if (companionList(row.id).length === 0) {
+                              <p class="companions__empty">{{ 'desk.companions.empty' | t }}</p>
+                            } @else {
+                              <ul class="companions__list">
+                                @for (companion of companionList(row.id); track companion.id) {
+                                  <li>
+                                    <span class="companions__name">{{ companion.fullName }}</span>
+                                    <span class="companions__doc">{{ companionDocument(companion) }}</span>
+                                  </li>
+                                }
+                              </ul>
+                            }
+                          } @else {
+                            <p class="companions__empty">{{ 'app.loading' | t }}</p>
+                          }
+                        </div>
+                      </div>
+                    }
                   </li>
                 }
               </ul>

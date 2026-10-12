@@ -1,11 +1,6 @@
 import { inject } from '@angular/core';
-import {
-  ActivatedRouteSnapshot,
-  Router,
-  RouterStateSnapshot,
-  type CanActivateFn,
-  type CanMatchFn,
-} from '@angular/router';
+import { Router, type CanActivateFn, type CanMatchFn } from '@angular/router';
+import { AuthIntent, redirectToLogin } from './auth-intent';
 import { SessionStore } from './session-store';
 import type { UserRole } from './models';
 
@@ -20,28 +15,27 @@ async function ensureSessionLoaded(store: SessionStore): Promise<void> {
   }
 }
 
-export const authGuard: CanActivateFn = async (
-  _route: ActivatedRouteSnapshot,
-  state: RouterStateSnapshot,
-) => {
+export const authGuard: CanActivateFn = async (_route, state) => {
   const store = inject(SessionStore);
   const router = inject(Router);
+  const intent = inject(AuthIntent);
   await ensureSessionLoaded(store);
 
   if (store.isAuthenticated()) {
     return true;
   }
-  return router.createUrlTree(['/panel/login'], { queryParams: { returnUrl: state.url } });
+  return redirectToLogin(router, intent, state.url);
 };
 
 export function roleGuard(...roles: readonly UserRole[]): CanActivateFn {
   return async (_route, state) => {
     const store = inject(SessionStore);
     const router = inject(Router);
+    const intent = inject(AuthIntent);
     await ensureSessionLoaded(store);
 
     if (!store.isAuthenticated()) {
-      return router.createUrlTree(['/panel/login'], { queryParams: { returnUrl: state.url } });
+      return redirectToLogin(router, intent, state.url);
     }
     if (store.hasRole(...roles)) {
       return true;
@@ -50,9 +44,19 @@ export function roleGuard(...roles: readonly UserRole[]): CanActivateFn {
   };
 }
 
-/** Keeps authenticated users away from the login screen. */
+/**
+ * Keeps a signed-in reader off the login and signup screens.
+ * They continue to the pending panel path, or to the panel home.
+ */
 export const publicOnlyGuard: CanMatchFn = async () => {
   const store = inject(SessionStore);
+  const router = inject(Router);
+  const intent = inject(AuthIntent);
   await ensureSessionLoaded(store);
-  return !store.isAuthenticated();
+  if (!store.isAuthenticated()) {
+    return true;
+  }
+  const destination = intent.peek();
+  intent.clear();
+  return router.parseUrl(destination);
 };

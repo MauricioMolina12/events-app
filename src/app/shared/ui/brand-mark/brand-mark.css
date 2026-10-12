@@ -1,7 +1,7 @@
 .brand-mark {
   display: block;
-  width: 2rem;
-  height: 2rem;
+  width: var(--brand-mark-size, 2rem);
+  height: var(--brand-mark-size, 2rem);
   flex-shrink: 0;
   object-fit: contain;
   border-radius: var(--radius-md);
@@ -11,6 +11,33 @@
 .brand-mark--wide {
   width: auto;
   max-width: 7.5rem;
+}
+
+img.brand-mark {
+  background: transparent;
+  border-radius: 0;
+}
+
+.brand-mark--dark {
+  display: none;
+}
+
+:host-context([data-theme='dark']) .brand-mark--light {
+  display: none;
+}
+
+:host-context([data-theme='dark']) .brand-mark--dark {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  :host-context(html:not([data-theme='light'])) .brand-mark--light {
+    display: none;
+  }
+
+  :host-context(html:not([data-theme='light'])) .brand-mark--dark {
+    display: block;
+  }
 }
 
 .brand-mark--fallback {

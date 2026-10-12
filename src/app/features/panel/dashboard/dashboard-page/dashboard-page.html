@@ -1,555 +1,716 @@
 <div class="dash">
   <app-page-header titleKey="dash.title" subtitleKey="dash.subtitle">
     @if (updatedLabel()) {
-      <span class="live" [class.is-stale]="refreshFailed()" aria-live="polite">
-        <span class="live__dot" aria-hidden="true"></span>
-        {{ refreshFailed() ? ('dash.refreshFailed' | t) : updatedLabel() }}
-      </span>
+    <span class="live" [class.is-stale]="refreshFailed()" aria-live="polite">
+      <span class="live__dot" aria-hidden="true"></span>
+      {{ refreshFailed() ? ('dash.refreshFailed' | t) : updatedLabel() }}
+    </span>
     }
-    <button
-      type="button"
-      appButton
-      variant="secondary"
-      size="sm"
-      [loading]="refreshing()"
-      [disabled]="refreshing() || overview().status === 'loading'"
-      (click)="refresh()"
-    >
+    <button type="button" appButton variant="secondary" size="sm" [loading]="refreshing()"
+      [disabled]="refreshing() || overview().status === 'loading'" (click)="refresh()">
       <app-icon name="refresh" [size]="16" />
       <span>{{ 'app.refresh' | t }}</span>
     </button>
   </app-page-header>
 
   @switch (overview().status) {
-    @case ('loading') {
-      <div class="flex flex-col gap-4" aria-busy="true" [attr.aria-label]="'app.loading' | t">
-        <app-skeleton class="h-28 w-full rounded-[var(--radius-lg)]" />
-        <div class="kpi-grid">
-          @for (item of kpiPlaceholders; track item) {
-            <app-skeleton class="kpi-skeleton" [class.kpi-skeleton--lead]="item <= 3" />
-          }
-        </div>
-      </div>
-    }
-    @case ('error') {
-      <div class="callout callout--danger" role="alert">
-        <p>{{ overviewError() }}</p>
-        <button type="button" appButton variant="secondary" size="sm" (click)="retry()">
-          {{ 'app.retry' | t }}
-        </button>
-      </div>
-    }
+  @case ('loading') {
+  <div class="flex flex-col gap-4" aria-busy="true" [attr.aria-label]="'app.loading' | t">
+    <app-skeleton class="h-28 w-full rounded-[var(--radius-lg)]" />
+    <div class="kpi-grid">
+      @for (item of kpiPlaceholders; track item) {
+      <app-skeleton class="kpi-skeleton" [class.kpi-skeleton--lead]="item <= 3" />
+      }
+    </div>
+  </div>
+  }
+  @case ('error') {
+  <div class="callout callout--danger" role="alert">
+    <p>{{ overviewError() }}</p>
+    <button type="button" appButton variant="secondary" size="sm" (click)="retry()">
+      <app-icon name="refresh" [size]="16" />
+      {{ 'app.retry' | t }}
+    </button>
+  </div>
+  }
   }
 
-  @if (overview().status === 'loaded' && !selectedEvent()) {
-    <app-empty-state
-      titleKey="dash.noEvents.title"
-      bodyKey="dash.noEvents.body"
-      iconName="calendar"
-    >
-      <a routerLink="/panel/eventos/nuevo" appButton variant="primary">
-        <app-icon name="plus" [size]="16" />
-        {{ 'dash.noEvents.create' | t }}
-      </a>
-    </app-empty-state>
+  @if (overview().status === 'loaded' && events().length === 0) {
+  <app-empty-state titleKey="dash.noEvents.title" bodyKey="dash.noEvents.body" iconName="calendar">
+    <a routerLink="/panel/eventos/nuevo" appButton variant="primary">
+      <app-icon name="plus" [size]="16" />
+      {{ 'dash.noEvents.create' | t }}
+    </a>
+  </app-empty-state>
+  }
+
+  @if (isAdmin() && overview().status === 'loaded' && events().length > 0) {
+  <section class="scope card" [attr.aria-label]="'dash.context.scope' | t">
+    @if (clients().length > 0) {
+    <label class="scope__field">
+      <span class="scope__label">{{ 'dash.context.client' | t }}</span>
+      <app-select [options]="clientChoices()" [value]="clientSlug()" [ariaLabel]="'dash.context.client' | t"
+        (valueChange)="selectClient($event)" />
+    </label>
+    }
+    <label class="scope__field">
+      <span class="scope__label">{{ 'dash.context.eyebrow' | t }}</span>
+      <app-select [options]="eventChoices()" [value]="selectedEvent()?.id ?? ''"
+        [searchable]="scopedEvents().length >= 8" [ariaLabel]="'dash.context.select' | t"
+        (valueChange)="selectEvent($event)" />
+    </label>
+  </section>
   }
 
   @if (selectedEvent(); as event) {
-    <!-- Selected event -->
-    <section class="context card" [attr.aria-label]="'dash.context.label' | t">
-      <div class="context__main">
-        <p class="context__eyebrow">{{ 'dash.context.eyebrow' | t }}</p>
-        <div class="context__title">
-          @if (events().length > 1) {
-            <app-select
-              appearance="title"
-              [options]="eventChoices()"
-              [value]="event.id"
-              [searchable]="events().length >= 8"
-              [ariaLabel]="'dash.context.select' | t"
-              (valueChange)="selectEvent($event)"
-            />
-          } @else {
-            <h2 class="context__name">{{ event.name }}</h2>
-          }
-          <span
-            [class]="'phase phase--' + phaseTone(event.phase)"
-            [class.is-live]="isLivePhase(event.phase)"
-          >
-            <span class="phase__dot" aria-hidden="true"></span>
-            {{ phaseLabel(event.phase) | t }}
-          </span>
-        </div>
-        <p class="context__meta">
-          <span>
-            <app-icon name="calendar" [size]="14" />
-            {{ dateRange(event) || ('dash.context.noDates' | t) }}
-          </span>
-          <span>
-            <app-icon name="map-pin" [size]="14" />
-            {{ sedeNames(event) || ('dash.context.noSedes' | t) }}
-          </span>
-        </p>
+  <!-- Selected event -->
+  <section class="section-block context card" [attr.aria-label]="'dash.context.label' | t">
+    <div class="context__main">
+      <p class="context__eyebrow">{{ 'dash.context.eyebrow' | t }}</p>
+      <div class="context__title">
+        @if (!isAdmin() && events().length > 1) {
+        <app-select appearance="title" [options]="eventChoices()" [value]="event.id" [searchable]="events().length >= 8"
+          [ariaLabel]="'dash.context.select' | t" (valueChange)="selectEvent($event)" />
+        } @else {
+        <h2 class="context__name">{{ event.name }}</h2>
+        }
+        <span [class]="'phase phase--' + phaseTone(event.phase)" [class.is-live]="isLivePhase(event.phase)">
+          <span class="phase__dot" aria-hidden="true"></span>
+          {{ phaseLabel(event.phase) | t }}
+        </span>
       </div>
+      <p class="context__meta">
+        <span>
+          <app-icon name="calendar" [size]="14" />
+          {{ dateRange(event) || ('dash.context.noDates' | t) }}
+        </span>
+        <span>
+          <app-icon name="map-pin" [size]="14" />
+          {{ sedeNames(event) || ('dash.context.noSedes' | t) }}
+        </span>
+      </p>
+      <div class="context__invite">
+        <app-event-invite [name]="event.name" [slug]="event.slug" />
+      </div>
+    </div>
 
-      @if (event.sedes.length > 1) {
-        <div class="context__filter">
-          <span class="context__filter-label" id="dash-sede-label">{{
-            'dash.context.sede' | t
-          }}</span>
-          <div class="segmented" role="group" aria-labelledby="dash-sede-label">
-            <button
-              type="button"
-              class="segmented__item"
-              [class.is-active]="!sedeId()"
-              [attr.aria-pressed]="!sedeId()"
-              (click)="selectSede(null)"
-            >
-              {{ 'dash.context.allSedes' | t }}
-            </button>
-            @for (sede of event.sedes; track sede.participationId) {
-              <button
-                type="button"
-                class="segmented__item"
-                [class.is-active]="sedeId() === sede.participationId"
-                [attr.aria-pressed]="sedeId() === sede.participationId"
-                (click)="selectSede(sede.participationId)"
-              >
-                {{ sede.name }}
-              </button>
-            }
-          </div>
-        </div>
-      }
-
-      @if (attention().length > 0) {
-        <ul class="attention" [attr.aria-label]="'dash.attention.title' | t">
-          @for (item of attention(); track item.message) {
-            <li [class]="'attention__item attention__item--' + item.tone">
-              <app-icon [name]="item.tone === 'warning' ? 'alert-triangle' : 'info'" [size]="15" />
-              <span class="attention__text">{{ item.message }}</span>
-              @if (item.link; as link) {
-                <a [routerLink]="link.route" [queryParams]="link.query" class="attention__link">
-                  {{ link.label | t }}
-                  <app-icon name="arrow-right" [size]="13" />
-                </a>
-              }
-            </li>
-          }
-        </ul>
-      }
-    </section>
-
-    @if (summaryError()) {
-      <div class="callout callout--danger" role="alert">
-        <p>{{ summaryError() }}</p>
-        <button type="button" appButton variant="secondary" size="sm" (click)="retry()">
-          {{ 'app.retry' | t }}
+    @if (event.sedes.length > 1) {
+    <div class="context__filter">
+      <span class="context__filter-label" id="dash-sede-label">{{
+        'dash.context.sede' | t
+        }}</span>
+      <div class="segmented" role="group" aria-labelledby="dash-sede-label">
+        <button type="button" class="segmented__item" [class.is-active]="!sedeId()" [attr.aria-pressed]="!sedeId()"
+          (click)="selectSede(null)">
+          {{ 'dash.context.allSedes' | t }}
         </button>
+        @for (sede of event.sedes; track sede.participationId) {
+        <button type="button" class="segmented__item" [class.is-active]="sedeId() === sede.participationId"
+          [attr.aria-pressed]="sedeId() === sede.participationId" (click)="selectSede(sede.participationId)">
+          {{ sede.name }}
+        </button>
+        }
       </div>
+    </div>
     }
 
-    <!-- KPIs -->
-    <section aria-labelledby="dash-kpis-title" class="flex flex-col gap-3">
-      <div class="section-head">
-        <h2 id="dash-kpis-title" class="section-title">{{ 'dash.kpis.title' | t }}</h2>
-        <p class="section-caption">
-          {{ event.name }} · {{ sedeName() ?? ('dash.context.allSedes' | t) }}
-        </p>
-      </div>
-      <div class="kpi-grid" [attr.aria-busy]="summary().status === 'loading'">
-        @if (summary().status === 'loading') {
-          @for (item of kpiPlaceholders; track item) {
-            <app-skeleton class="kpi-skeleton" [class.kpi-skeleton--lead]="item <= 3" />
-          }
-        } @else {
-          @for (kpi of kpis(); track kpi.id; let index = $index) {
-            <article
-              [class]="'kpi kpi--' + kpi.tone"
-              [class.kpi--lead]="index < 3"
-              [attr.data-kpi]="kpi.id"
-            >
-              <header class="kpi__head">
-                <span class="kpi__icon" aria-hidden="true"
-                  ><app-icon [name]="kpi.icon" [size]="18"
-                /></span>
-                <h3 class="kpi__label">{{ kpi.label | t }}</h3>
-                @if (kpi.global) {
-                  <span class="kpi__scope">{{ 'dash.kpi.global' | t }}</span>
-                }
-              </header>
-              @if (kpi.value !== null) {
-                <p class="kpi__value" [appCountUp]="kpi.value" [countUpFormat]="kpi.format"></p>
-              } @else {
-                <p class="kpi__value kpi__value--empty">—</p>
-              }
-              @if (kpi.progress !== undefined) {
-                <div
-                  class="kpi__bar"
-                  role="progressbar"
-                  aria-valuemin="0"
-                  aria-valuemax="100"
-                  [attr.aria-valuenow]="kpi.progress"
-                  [attr.aria-label]="kpi.label | t"
-                >
-                  <span [style.width.%]="kpi.progress"></span>
-                </div>
-              }
-              <div class="kpi__foot">
-                <p class="kpi__note">{{ kpi.note }}</p>
-                @if (kpi.trend) {
-                  <span class="kpi__trend">
-                    <app-icon name="trending-up" [size]="13" />
-                    {{ kpi.trend }}
-                  </span>
-                }
-              </div>
-            </article>
-          }
-        }
-      </div>
-    </section>
-
-    <!-- Quick access -->
-    <section aria-labelledby="dash-quick-title" class="flex flex-col gap-3">
-      <h2 id="dash-quick-title" class="section-title">{{ 'dash.quick.title' | t }}</h2>
-      <div class="quick">
-        <a routerLink="/panel/mesa" [queryParams]="deskQuery()" class="quick__hero">
-          <span class="quick__hero-icon" aria-hidden="true"
-            ><app-icon name="inbox" [size]="22"
-          /></span>
-          <span class="quick__hero-body">
-            <span class="quick__hero-title">{{ 'nav.panel.registrations' | t }}</span>
-            <span class="quick__hero-text">{{ 'dash.quick.deskBody' | t }}</span>
-          </span>
-          <app-icon name="arrow-right" [size]="20" />
+    @if (attention().length > 0) {
+    <ul class="attention" [attr.aria-label]="'dash.attention.title' | t">
+      @for (item of attention(); track item.message) {
+      <li [class]="'attention__item attention__item--' + item.tone">
+        <app-icon [name]="item.tone === 'warning' ? 'alert-triangle' : 'info'" [size]="15" />
+        <span class="attention__text">{{ item.message }}</span>
+        @if (item.link; as link) {
+        <a [routerLink]="link.route" [queryParams]="link.query" class="attention__link">
+          {{ link.label | t }}
+          <app-icon name="arrow-right" [size]="13" />
         </a>
-        <a routerLink="/panel/ingreso" class="quick__tile">
-          <span class="quick__icon" aria-hidden="true"><app-icon name="scan" [size]="18" /></span>
-          <span class="quick__title">{{ 'dash.quick.scanner' | t }}</span>
-          <span class="quick__text">{{ 'dash.quick.scannerBody' | t }}</span>
-        </a>
-        <a
-          routerLink="/panel/mesa"
-          [queryParams]="deskQuery({ orden: 'registeredAt', dir: 'desc' })"
-          class="quick__tile"
-        >
-          <span class="quick__icon" aria-hidden="true"><app-icon name="ticket" [size]="18" /></span>
-          <span class="quick__title">{{ 'dash.quick.registrations' | t }}</span>
-          <span class="quick__text">{{ 'dash.quick.registrationsBody' | t }}</span>
-        </a>
-        <a routerLink="/panel/eventos" class="quick__tile">
-          <span class="quick__icon" aria-hidden="true"
-            ><app-icon name="calendar" [size]="18"
-          /></span>
-          <span class="quick__title">{{ 'nav.panel.events' | t }}</span>
-          <span class="quick__text">{{ 'dash.quick.eventsBody' | t }}</span>
-        </a>
-        <a routerLink="/panel/sedes" class="quick__tile">
-          <span class="quick__icon" aria-hidden="true"
-            ><app-icon name="map-pin" [size]="18"
-          /></span>
-          <span class="quick__title">{{ 'nav.panel.establishments' | t }}</span>
-          <span class="quick__text">{{ 'dash.quick.sedesBody' | t }}</span>
-        </a>
-      </div>
-    </section>
-
-    <!-- Analysis -->
-    <div class="analysis">
-      <section class="card panel panel--timeline" aria-labelledby="dash-timeline-title">
-        <header class="panel__head">
-          <span class="panel__icon" aria-hidden="true"
-            ><app-icon name="trending-up" [size]="16"
-          /></span>
-          <div class="min-w-0">
-            <h2 id="dash-timeline-title" class="panel__title">{{ 'dash.timeline.title' | t }}</h2>
-            <p class="panel__subtitle">{{ 'dash.timeline.subtitle' | t }}</p>
-          </div>
-        </header>
-        @switch (timeline().status) {
-          @case ('loading') {
-            <app-skeleton class="h-60 w-full" />
-          }
-          @case ('error') {
-            <p class="panel__error">{{ 'dash.timeline.failed' | t }}</p>
-          }
-          @default {
-            @if (timelineValue(); as series) {
-              @if (series.buckets.length === 0) {
-                <div class="panel__empty">
-                  <app-icon name="bar-chart" [size]="22" />
-                  <p>{{ 'dash.timeline.empty' | t }}</p>
-                </div>
-              } @else {
-                <app-timeline-chart [timeline]="series" />
-                @if (series.buckets.length === 1) {
-                  <p class="panel__foot">
-                    <app-icon name="info" [size]="13" />
-                    {{ 'dash.timeline.singleBucket' | t }}
-                  </p>
-                }
-              }
-            }
-          }
         }
-      </section>
+      </li>
+      }
+    </ul>
+    }
+  </section>
 
-      <section class="card panel panel--donut" aria-labelledby="dash-checkin-title">
-        <header class="panel__head">
-          <span class="panel__icon" aria-hidden="true"
-            ><app-icon name="pie-chart" [size]="16"
-          /></span>
-          <div class="min-w-0">
-            <h2 id="dash-checkin-title" class="panel__title">{{ 'dash.checkIn.title' | t }}</h2>
-            <p class="panel__subtitle">{{ 'dash.checkIn.subtitle' | t }}</p>
-          </div>
-        </header>
-        @if (summaryValue(); as summary) {
-          @if (summary.totals.titulares === 0) {
-            <div class="panel__empty">
-              <app-icon name="log-in" [size]="22" />
-              <p>{{ 'dash.checkIn.empty' | t }}</p>
-            </div>
-          } @else {
-            <app-check-in-donut
-              [checkedIn]="summary.totals.checkedIn"
-              [pending]="summary.totals.pending"
-            />
-          }
-        } @else if (summary().status === 'loading') {
-          <app-skeleton class="mx-auto size-44 rounded-full" />
-        }
-      </section>
-
-      <section class="card panel panel--sedes" aria-labelledby="dash-sedes-title">
-        <header class="panel__head">
-          <span class="panel__icon" aria-hidden="true"
-            ><app-icon name="map-pin" [size]="16"
-          /></span>
-          <div class="min-w-0">
-            <h2 id="dash-sedes-title" class="panel__title">{{ 'dash.sedes.title' | t }}</h2>
-            <p class="panel__subtitle">{{ 'dash.sedes.subtitle' | t }}</p>
-          </div>
-        </header>
-        @if (summaryValue(); as summary) {
-          @if (summary.sedes.length === 0) {
-            <div class="panel__empty">
-              <app-icon name="map-pin" [size]="22" />
-              <p>{{ 'dash.sedes.empty' | t }}</p>
-            </div>
-          } @else {
-            <app-sede-bars
-              [sedes]="summary.sedes"
-              [selectedId]="sedeId() ?? null"
-              (selectSede)="selectSede($event)"
-            />
-            <p class="panel__foot">
-              <app-icon name="info" [size]="13" />
-              {{ 'dash.sedes.note' | t }}
-            </p>
-          }
-        } @else if (summary().status === 'loading') {
-          <app-skeleton class="h-16 w-full" />
-          <app-skeleton class="mt-2 h-16 w-full" />
-        }
-      </section>
-
-      <section class="card panel panel--activity" aria-labelledby="dash-activity-title">
-        <header class="panel__head">
-          <span class="panel__icon" aria-hidden="true"
-            ><app-icon name="activity" [size]="16"
-          /></span>
-          <div class="min-w-0 flex-1">
-            <h2 id="dash-activity-title" class="panel__title">{{ 'dash.activity.title' | t }}</h2>
-            <p class="panel__subtitle">{{ sedeName() ?? event.name }}</p>
-          </div>
-          <a
-            routerLink="/panel/mesa"
-            [queryParams]="deskQuery({ ingreso: 'checked_in', orden: 'checkedInAt', dir: 'desc' })"
-            class="panel__link"
-          >
-            {{ 'dash.activity.history' | t }}
-          </a>
-        </header>
-        @switch (activity().status) {
-          @case ('loading') {
-            @for (item of [1, 2, 3, 4]; track item) {
-              <app-skeleton class="mb-2 h-11 w-full" />
-            }
-          }
-          @case ('error') {
-            <p class="panel__error">{{ 'dash.activity.failed' | t }}</p>
-          }
-          @default {
-            @if (activityItems().length === 0) {
-              <div class="panel__empty">
-                <app-icon name="activity" [size]="22" />
-                <p>{{ 'dash.activity.empty' | t }}</p>
-              </div>
-            } @else {
-              <ol class="feed">
-                @for (item of activityItems(); track item.type + item.at) {
-                  <li [class]="'feed__item feed__item--' + item.type">
-                    <span class="feed__icon" aria-hidden="true"
-                      ><app-icon [name]="activityIcon(item)" [size]="15"
-                    /></span>
-                    <div class="feed__body">
-                      @switch (item.type) {
-                        @case ('registration') {
-                          <p class="feed__title">
-                            {{
-                              'dash.activity.registered' | t: { name: item.registration.fullName }
-                            }}
-                          </p>
-                          <p class="feed__meta">
-                            {{ item.registration.sede }} ·
-                            {{ 'dash.activity.people' | t: { count: item.registration.people } }} ·
-                            <span class="font-mono">{{ folio(item.registration.id) }}</span>
-                          </p>
-                        }
-                        @case ('check_in') {
-                          <p class="feed__title">
-                            {{
-                              'dash.activity.checkedIn' | t: { name: item.registration.fullName }
-                            }}
-                          </p>
-                          <p class="feed__meta">
-                            {{ item.registration.sede }} ·
-                            {{ 'dash.activity.turn' | t: { turn: turnLabel(item.turn) } }}
-                            @if (item.operator) {
-                              · {{ 'desk.history.by' | t: { name: item.operator } }}
-                            }
-                          </p>
-                        }
-                        @case ('event_created') {
-                          <p class="feed__title">
-                            {{ 'dash.activity.eventCreated' | t: { name: item.event.name } }}
-                          </p>
-                          @if (item.actor) {
-                            <p class="feed__meta">
-                              {{ 'desk.history.by' | t: { name: item.actor } }}
-                            </p>
-                          }
-                        }
-                        @case ('event_updated') {
-                          <p class="feed__title">
-                            {{ 'dash.activity.eventUpdated' | t: { name: item.event.name } }}
-                          </p>
-                        }
-                      }
-                    </div>
-                    <time class="feed__time" [attr.datetime]="item.at">{{ when(item.at) }}</time>
-                  </li>
-                }
-              </ol>
-            }
-          }
-        }
-      </section>
-    </div>
+  @if (summaryError()) {
+  <div class="callout callout--danger" role="alert">
+    <p>{{ summaryError() }}</p>
+    <button type="button" appButton variant="secondary" size="sm" (click)="retry()">
+      <app-icon name="refresh" [size]="16" />
+      {{ 'app.retry' | t }}
+    </button>
+  </div>
   }
 
-  <!-- Events (whole platform) -->
-  @if (overviewValue(); as overview) {
-    @if (overview.items.length > 0) {
-      <section aria-labelledby="dash-events-title" class="flex flex-col gap-3">
-        <div class="section-head section-head--split">
-          <div>
-            <h2 id="dash-events-title" class="section-title">{{ 'dash.events.title' | t }}</h2>
-            <p class="section-caption">
+  <!-- KPIs -->
+  <section aria-labelledby="dash-kpis-title" class="flex flex-col gap-3">
+    <div class="section-head">
+      <h2 id="dash-kpis-title" class="section-title">{{ 'dash.kpis.title' | t }}</h2>
+      <p class="section-caption">
+        {{ event.name }} · {{ sedeName() ?? ('dash.context.allSedes' | t) }}
+      </p>
+    </div>
+    <div class="kpi-grid" [attr.aria-busy]="summary().status === 'loading'">
+      @if (summary().status === 'loading') {
+      @for (item of kpiPlaceholders; track item) {
+      <app-skeleton class="kpi-skeleton" [class.kpi-skeleton--lead]="item <= 3" />
+      }
+      } @else {
+      @for (kpi of kpis(); track kpi.id; let index = $index) {
+      <article [class]="'kpi kpi--' + kpi.tone" [class.kpi--lead]="index < 3" [attr.data-kpi]="kpi.id">
+        <header class="kpi__head">
+          <span class="kpi__icon" aria-hidden="true"><app-icon [name]="kpi.icon" [size]="18" /></span>
+          <h3 class="kpi__label">{{ kpi.label | t }}</h3>
+          @if (kpi.global) {
+          <span class="kpi__scope">{{ 'dash.kpi.global' | t }}</span>
+          }
+        </header>
+        @if (kpi.value !== null) {
+        <p class="kpi__value" [appCountUp]="kpi.value" [countUpFormat]="kpi.format"></p>
+        } @else {
+        <p class="kpi__value kpi__value--empty">—</p>
+        }
+        @if (kpi.progress !== undefined) {
+        <div class="kpi__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+          [attr.aria-valuenow]="kpi.progress" [attr.aria-label]="kpi.label | t">
+          <span [style.width.%]="kpi.progress"></span>
+        </div>
+        }
+        <div class="kpi__foot">
+          <p class="kpi__note">{{ kpi.note }}</p>
+          @if (kpi.trend) {
+          <span class="kpi__trend">
+            <app-icon name="trending-up" [size]="13" />
+            {{ kpi.trend }}
+          </span>
+          }
+        </div>
+      </article>
+      }
+      }
+    </div>
+  </section>
+
+  <!-- Quick access -->
+  <section aria-labelledby="dash-quick-title" class="flex flex-col gap-3">
+    <h2 id="dash-quick-title" class="section-title">{{ 'dash.quick.title' | t }}</h2>
+    <div class="quick">
+      <a routerLink="/panel/mesa" [queryParams]="deskQuery()" class="quick__hero">
+        <span class="quick__hero-icon" aria-hidden="true"><app-icon name="inbox" [size]="22" /></span>
+        <span class="quick__hero-body">
+          <span class="quick__hero-title">{{ 'nav.panel.registrations' | t }}</span>
+          <span class="quick__hero-text">{{ 'dash.quick.deskBody' | t }}</span>
+        </span>
+        <app-icon name="arrow-right" [size]="20" />
+      </a>
+      <a routerLink="/panel/ingreso" class="quick__tile">
+        <span class="quick__icon" aria-hidden="true"><app-icon name="scan" [size]="18" /></span>
+        <span class="quick__title">{{ 'dash.quick.scanner' | t }}</span>
+        <span class="quick__text">{{ 'dash.quick.scannerBody' | t }}</span>
+      </a>
+      <a routerLink="/panel/mesa" [queryParams]="deskQuery({ orden: 'registeredAt', dir: 'desc' })" class="quick__tile">
+        <span class="quick__icon" aria-hidden="true"><app-icon name="ticket" [size]="18" /></span>
+        <span class="quick__title">{{ 'dash.quick.registrations' | t }}</span>
+        <span class="quick__text">{{ 'dash.quick.registrationsBody' | t }}</span>
+      </a>
+      <a routerLink="/panel/eventos" class="quick__tile">
+        <span class="quick__icon" aria-hidden="true"><app-icon name="calendar" [size]="18" /></span>
+        <span class="quick__title">{{ 'nav.panel.events' | t }}</span>
+        <span class="quick__text">{{ 'dash.quick.eventsBody' | t }}</span>
+      </a>
+      <a routerLink="/panel/sedes" class="quick__tile">
+        <span class="quick__icon" aria-hidden="true"><app-icon name="map-pin" [size]="18" /></span>
+        <span class="quick__title">{{ 'nav.panel.establishments' | t }}</span>
+        <span class="quick__text">{{ 'dash.quick.sedesBody' | t }}</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- Analysis -->
+  <div class="analysis">
+    <section class="card panel panel--timeline" aria-labelledby="dash-timeline-title">
+      <header class="panel__head">
+        <span class="panel__icon" aria-hidden="true"><app-icon name="trending-up" [size]="16" /></span>
+        <div class="min-w-0">
+          <h2 id="dash-timeline-title" class="panel__title">{{ 'dash.timeline.title' | t }}</h2>
+          <p class="panel__subtitle">{{ 'dash.timeline.subtitle' | t }}</p>
+        </div>
+      </header>
+      @switch (timeline().status) {
+      @case ('loading') {
+      <app-skeleton class="h-60 w-full" />
+      }
+      @case ('error') {
+      <p class="panel__error">{{ 'dash.timeline.failed' | t }}</p>
+      }
+      @default {
+      @if (timelineValue(); as series) {
+      @if (series.buckets.length === 0) {
+      <div class="panel__empty">
+        <app-icon name="bar-chart" [size]="22" />
+        <p>{{ 'dash.timeline.empty' | t }}</p>
+      </div>
+      } @else {
+      <app-timeline-chart [timeline]="series" />
+      @if (series.buckets.length === 1) {
+      <p class="panel__foot">
+        <app-icon name="info" [size]="13" />
+        {{ 'dash.timeline.singleBucket' | t }}
+      </p>
+      }
+      }
+      }
+      }
+      }
+    </section>
+
+    <section class="card panel panel--donut" aria-labelledby="dash-checkin-title">
+      <header class="panel__head">
+        <span class="panel__icon" aria-hidden="true"><app-icon name="pie-chart" [size]="16" /></span>
+        <div class="min-w-0">
+          <h2 id="dash-checkin-title" class="panel__title">{{ 'dash.checkIn.title' | t }}</h2>
+          <p class="panel__subtitle">{{ 'dash.checkIn.subtitle' | t }}</p>
+        </div>
+      </header>
+      @if (summaryValue(); as summary) {
+      @if (summary.totals.titulares === 0) {
+      <div class="panel__empty">
+        <app-icon name="log-in" [size]="22" />
+        <p>{{ 'dash.checkIn.empty' | t }}</p>
+      </div>
+      } @else {
+      <app-check-in-donut [checkedIn]="summary.totals.checkedIn" [pending]="summary.totals.pending" />
+      }
+      } @else if (summary().status === 'loading') {
+      <app-skeleton class="mx-auto size-44 rounded-full" />
+      }
+    </section>
+
+    <section class="card panel panel--sedes" aria-labelledby="dash-sedes-title">
+      <header class="panel__head">
+        <span class="panel__icon" aria-hidden="true"><app-icon name="map-pin" [size]="16" /></span>
+        <div class="min-w-0">
+          <h2 id="dash-sedes-title" class="panel__title">{{ 'dash.sedes.title' | t }}</h2>
+          <p class="panel__subtitle">{{ 'dash.sedes.subtitle' | t }}</p>
+        </div>
+      </header>
+      @if (summaryValue(); as summary) {
+      @if (summary.sedes.length === 0) {
+      <div class="panel__empty">
+        <app-icon name="map-pin" [size]="22" />
+        <p>{{ 'dash.sedes.empty' | t }}</p>
+      </div>
+      } @else {
+      <app-sede-bars [sedes]="summary.sedes" [selectedId]="sedeId() ?? null" (selectSede)="selectSede($event)" />
+      <p class="panel__foot">
+        <app-icon name="info" [size]="13" />
+        {{ 'dash.sedes.note' | t }}
+      </p>
+      }
+      } @else if (summary().status === 'loading') {
+      <app-skeleton class="h-16 w-full" />
+      <app-skeleton class="mt-2 h-16 w-full" />
+      }
+    </section>
+
+    <section class="card panel panel--activity" aria-labelledby="dash-activity-title">
+      <header class="panel__head">
+        <span class="panel__icon" aria-hidden="true"><app-icon name="activity" [size]="16" /></span>
+        <div class="min-w-0 flex-1">
+          <h2 id="dash-activity-title" class="panel__title">{{ 'dash.activity.title' | t }}</h2>
+          <p class="panel__subtitle">{{ sedeName() ?? event.name }}</p>
+        </div>
+        <a
+          routerLink="/panel/mesa"
+          fragment="desk-table"
+          [queryParams]="deskQuery({ ingreso: 'checked_in', orden: 'checkedInAt', dir: 'desc' })"
+          class="panel__link"
+        >
+          {{ 'dash.activity.history' | t }}
+        </a>
+      </header>
+      @switch (activity().status) {
+      @case ('loading') {
+      @for (item of [1, 2, 3, 4]; track item) {
+      <app-skeleton class="mb-2 h-11 w-full" />
+      }
+      }
+      @case ('error') {
+      <p class="panel__error">{{ 'dash.activity.failed' | t }}</p>
+      }
+      @default {
+      @if (activityItems().length === 0) {
+      <div class="panel__empty">
+        <app-icon name="activity" [size]="22" />
+        <p>{{ 'dash.activity.empty' | t }}</p>
+      </div>
+      } @else {
+      <ol class="feed">
+        @for (item of activityItems(); track item.type + item.at) {
+        <li [class]="'feed__item feed__item--' + item.type">
+          <span class="feed__icon" aria-hidden="true"><app-icon [name]="activityIcon(item)" [size]="15" /></span>
+          <div class="feed__body">
+            @switch (item.type) {
+            @case ('registration') {
+            <p class="feed__title">
               {{
-                'dash.events.caption'
-                  | t: { total: overview.events.total, active: overview.events.active }
+              'dash.activity.registered' | t: { name: item.registration.fullName }
               }}
             </p>
+            <p class="feed__meta">
+              {{ item.registration.sede }} ·
+              {{ 'dash.activity.people' | t: { count: item.registration.people } }} ·
+              <span class="font-mono">{{ folio(item.registration.id) }}</span>
+            </p>
+            }
+            @case ('check_in') {
+            <p class="feed__title">
+              {{
+              'dash.activity.checkedIn' | t: { name: item.registration.fullName }
+              }}
+            </p>
+            <p class="feed__meta">
+              {{ item.registration.sede }} ·
+              {{ 'dash.activity.turn' | t: { turn: turnLabel(item.turn) } }}
+              @if (item.operator) {
+              · {{ 'desk.history.by' | t: { name: item.operator } }}
+              }
+            </p>
+            }
+            @case ('event_created') {
+            <p class="feed__title">
+              {{ 'dash.activity.eventCreated' | t: { name: item.event.name } }}
+            </p>
+            @if (item.actor) {
+            <p class="feed__meta">
+              {{ 'desk.history.by' | t: { name: item.actor } }}
+            </p>
+            }
+            }
+            @case ('event_updated') {
+            <p class="feed__title">
+              {{ 'dash.activity.eventUpdated' | t: { name: item.event.name } }}
+            </p>
+            }
+            }
           </div>
-          <a routerLink="/panel/eventos" appButton variant="ghost" size="sm">
-            {{ 'dash.events.all' | t }}
-            <app-icon name="arrow-right" [size]="15" />
-          </a>
+          <time class="feed__time" [attr.datetime]="item.at">{{ when(item.at) }}</time>
+        </li>
+        }
+      </ol>
+      }
+      }
+      }
+    </section>
+  </div>
+  }
+
+  @if (overviewValue(); as overview) {
+  @if (isAdmin() && !selectedEvent() && overview.items.length > 0) {
+  @if (scopedEvents().length === 0) {
+  <p class="text-sm text-(--text-3)">{{ 'dash.aforo.emptyFilter' | t }}</p>
+  } @else {
+  <p class="section-caption">
+    @if (selectedClient(); as client) {
+    {{
+    'dash.context.clientHint'
+    | t: { events: scopeStats().events, client: client.displayName }
+    }}
+    } @else {
+    {{
+    'dash.context.allHint'
+    | t
+    : {
+    events: overview.events.total,
+    clients: overview.clients?.total ?? clients().length,
+    }
+    }}
+    }
+    · {{ 'dash.context.pickEvent' | t }}
+  </p>
+
+  <section aria-labelledby="dash-platform-title" class="flex flex-col gap-3">
+    <h2 id="dash-platform-title" class="section-title">{{ 'dash.kpis.platform' | t }}</h2>
+    <div class="kpi-grid">
+      <article class="kpi kpi--primary kpi--lead" data-kpi="events">
+        <header class="kpi__head">
+          <span class="kpi__icon" aria-hidden="true"><app-icon name="calendar" [size]="18" /></span>
+          <h3 class="kpi__label">{{ 'dash.kpi.events' | t }}</h3>
+        </header>
+        <p class="kpi__value">
+          {{
+          (clientSlug() ? scopeStats().events : overview.events.total).toLocaleString(
+          'es-CO'
+          )
+          }}
+        </p>
+        <p class="kpi__note">
+          {{
+          'dash.kpi.eventsNote'
+          | t: { active: clientSlug() ? scopeStats().active : overview.events.active }
+          }}
+        </p>
+      </article>
+      @if (!clientSlug() && overview.clients; as clients) {
+      <article class="kpi kpi--info" data-kpi="clients">
+        <header class="kpi__head">
+          <span class="kpi__icon" aria-hidden="true"><app-icon name="users" [size]="18" /></span>
+          <h3 class="kpi__label">{{ 'dash.clients.kpi' | t }}</h3>
+        </header>
+        <p class="kpi__value">{{ clients.total.toLocaleString('es-CO') }}</p>
+      </article>
+      }
+      <article class="kpi kpi--accent" data-kpi="people">
+        <header class="kpi__head">
+          <span class="kpi__icon" aria-hidden="true"><app-icon name="ticket" [size]="18" /></span>
+          <h3 class="kpi__label">{{ 'dash.kpi.people' | t }}</h3>
+        </header>
+        <p class="kpi__value">{{ scopeStats().people.toLocaleString('es-CO') }}</p>
+      </article>
+      <article class="kpi kpi--success" data-kpi="checkedIn">
+        <header class="kpi__head">
+          <span class="kpi__icon" aria-hidden="true"><app-icon name="log-in" [size]="18" /></span>
+          <h3 class="kpi__label">{{ 'dash.kpi.checkedIn' | t }}</h3>
+        </header>
+        <p class="kpi__value">{{ scopeStats().entered.toLocaleString('es-CO') }}</p>
+      </article>
+    </div>
+  </section>
+  }
+  }
+
+  @if (overview.clients; as clients) {
+  @if (selectedEvent()) {
+  <section aria-labelledby="dash-clients-title" class="flex flex-col gap-3">
+    <article class="kpi kpi--primary kpi--lead" data-kpi="clients">
+      <header class="kpi__head">
+        <span class="kpi__icon" aria-hidden="true"><app-icon name="users" [size]="18" /></span>
+        <h2 id="dash-clients-title" class="kpi__label">{{ 'dash.clients.kpi' | t }}</h2>
+      </header>
+      <p class="kpi__value" [appCountUp]="clients.total" [countUpFormat]="countFormat"></p>
+    </article>
+  </section>
+  }
+  }
+
+  <!-- <section aria-labelledby="dash-aforo-title" class="flex flex-col gap-3">
+      <div class="section-head">
+        <h2 id="dash-aforo-title" class="section-title">{{ 'dash.aforo.title' | t }}</h2>
+        <p class="section-caption">{{ 'dash.aforo.caption' | t }}</p>
+      </div>
+      @if (overview.items.length === 0) {
+        <p class="text-sm text-(--text-3)">{{ 'dash.aforo.empty' | t }}</p>
+      } @else {
+        <div class="aforo-filters">
+          <label class="aforo-search">
+            <span class="sr-only">{{ 'dash.aforo.search' | t }}</span>
+            <input
+              class="field"
+              type="search"
+              [value]="aforoQuery()"
+              [placeholder]="'dash.aforo.search' | t"
+              (input)="onAforoQuery($event)"
+            />
+          </label>
+          <app-select
+            [options]="aforoPhaseChoices()"
+            [value]="aforoPhase()"
+            [ariaLabel]="'dash.aforo.allPhases' | t"
+            (valueChange)="aforoPhase.set($event)"
+          />
         </div>
-        <ul class="event-grid" [class.event-grid--single]="shownEvents().length === 1">
-          @for (item of shownEvents(); track item.id) {
-            <li>
-              <article class="event-card" [class.is-selected]="item.id === selectedEvent()?.id">
-                <div class="event-card__top">
-                  <h3 class="event-card__name">{{ item.name }}</h3>
-                  <span
-                    [class]="'phase phase--' + phaseTone(item.phase)"
-                    [class.is-live]="isLivePhase(item.phase)"
-                  >
-                    <span class="phase__dot" aria-hidden="true"></span>
+        @if (aforoRows().length === 0) {
+          <p class="text-sm text-(--text-3)">{{ 'dash.aforo.emptyFilter' | t }}</p>
+        } @else {
+          <ul class="aforo-list">
+            @for (item of aforoRows(); track item.id) {
+              <li class="aforo-row" [attr.data-level]="item.occupancyLevel">
+                <div class="aforo-row__id">
+                  <h3 class="aforo-row__name">{{ item.name }}</h3>
+                  <p class="aforo-row__meta">
+                    <span class="sr-only">{{ 'dash.aforo.client' | t }}: </span>
+                    {{ item.client?.displayName ?? ('dash.aforo.platform' | t) }}
+                    · {{ dateRange(item) || ('dash.context.noDates' | t) }}
+                  </p>
+                  <span [class]="'phase phase--' + phaseTone(item.phase)">
                     {{ phaseLabel(item.phase) | t }}
                   </span>
                 </div>
-                <p class="event-card__meta">
-                  <app-icon name="calendar" [size]="13" />
-                  {{ dateRange(item) || ('dash.context.noDates' | t) }}
-                </p>
-                <p class="event-card__meta">
-                  <app-icon name="map-pin" [size]="13" />
-                  {{ sedeNames(item) || ('dash.context.noSedes' | t) }}
-                </p>
-                <dl class="event-card__stats">
+                <dl class="aforo-row__stats">
                   <div>
-                    <dt>{{ 'dash.events.titulares' | t }}</dt>
-                    <dd>{{ item.titulares.toLocaleString('es-CO') }}</dd>
+                    <dt>{{ 'dash.aforo.capacity' | t }}</dt>
+                    <dd>{{ item.capacity.toLocaleString('es-CO') }}</dd>
                   </div>
                   <div>
-                    <dt>{{ 'dash.events.checkedIn' | t }}</dt>
+                    <dt>{{ 'dash.aforo.registered' | t }}</dt>
+                    <dd>{{ item.people.toLocaleString('es-CO') }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ 'dash.aforo.companions' | t }}</dt>
+                    <dd>{{ item.companions.toLocaleString('es-CO') }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ 'dash.aforo.available' | t }}</dt>
+                    <dd>{{ item.available.toLocaleString('es-CO') }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ 'dash.aforo.entered' | t }}</dt>
                     <dd>{{ item.checkedIn.toLocaleString('es-CO') }}</dd>
                   </div>
-                  <div>
-                    <dt>{{ 'dash.events.attendance' | t }}</dt>
-                    <dd>{{ item.titulares > 0 ? percent(item.attendanceRate) : '—' }}</dd>
-                  </div>
                 </dl>
-                <span class="event-card__bar" aria-hidden="true">
-                  <span [style.width.%]="item.attendanceRate * 100"></span>
-                </span>
-                <div class="event-card__actions">
-                  @if (item.id === selectedEvent()?.id) {
-                    <span class="event-card__current">
-                      <app-icon name="check" [size]="14" />
-                      {{ 'dash.events.current' | t }}
-                    </span>
-                  } @else {
-                    <button
-                      type="button"
+                <div class="aforo-row__meter">
+                  <div
+                    class="aforo-row__bar"
+                    role="progressbar"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    [attr.aria-valuenow]="item.occupancy"
+                    [attr.aria-label]="levelKey(item.occupancyLevel) | t"
+                  >
+                    <span [style.width.%]="item.occupancy"></span>
+                  </div>
+                  <p class="aforo-row__level">
+                    {{ item.occupancyLevel === 'unassigned' ? '—' : occupancyText(item.occupancy) }}
+                    · {{ levelKey(item.occupancyLevel) | t }}
+                  </p>
+                  <div class="aforo-row__actions">
+                    <app-event-invite compact [name]="item.name" [slug]="item.slug" />
+                    <a
+                      routerLink="/panel/cupos"
+                      [queryParams]="{ evento: item.id }"
                       appButton
                       variant="secondary"
                       size="sm"
-                      (click)="selectEvent(item.id)"
                     >
-                      {{ 'dash.events.view' | t }}
-                    </button>
-                  }
-                  <a
-                    routerLink="/panel/mesa"
-                    [queryParams]="{ evento: item.id }"
-                    appButton
-                    variant="ghost"
-                    size="sm"
-                  >
-                    {{ 'dash.events.desk' | t }}
-                  </a>
-                  @if (isAdmin()) {
-                    <a
-                      [routerLink]="['/panel/eventos', item.id, 'editar']"
-                      class="event-card__edit"
-                      [attr.aria-label]="'dash.events.edit' | t: { name: item.name }"
-                      [attr.title]="'dash.events.edit' | t: { name: item.name }"
-                    >
-                      <app-icon name="pencil" [size]="15" />
+                      <app-icon name="map-pin" [size]="16" />
+                      {{ 'dash.aforo.venues' | t }}
                     </a>
-                  }
+                  </div>
                 </div>
-              </article>
-            </li>
+              </li>
+            }
+          </ul>
+        }
+      }
+    </section> -->
+
+  @if (scopedEvents().length > 0) {
+  <section aria-labelledby="dash-events-title" class="flex flex-col gap-3">
+    <div class="section-head section-head--split">
+      <div>
+        <h2 id="dash-events-title" class="section-title">{{ 'dash.events.title' | t }}</h2>
+        <p class="section-caption">
+          {{
+          'dash.events.caption'
+          | t
+          : {
+          total: clientSlug() ? scopeStats().events : overview.events.total,
+          active: clientSlug() ? scopeStats().active : overview.events.active,
           }
-        </ul>
-      </section>
-    }
+          }}
+        </p>
+      </div>
+      <a routerLink="/panel/eventos" appButton variant="ghost" size="sm">
+        <app-icon name="calendar" [size]="16" />
+        {{ 'dash.events.all' | t }}
+        <app-icon name="arrow-right" [size]="15" />
+      </a>
+    </div>
+    <ul class="event-grid">
+      @for (item of shownEvents(); track item.id) {
+        <li>
+          <article
+            class="event-card"
+            [class.is-selected]="item.id === selectedEvent()?.id"
+            role="link"
+            tabindex="0"
+            (click)="selectEvent(item.id)"
+            (keydown.enter)="selectEvent(item.id)"
+          >
+            <h3 class="event-card__name">{{ item.name }}</h3>
+            <p class="event-card__meta event-card__meta--date">
+              <app-icon name="calendar" [size]="13" />
+              {{ dateRange(item) || ('dash.context.noDates' | t) }}
+            </p>
+            <p class="event-card__meta event-card__meta--sedes">
+              <app-icon name="map-pin" [size]="13" />
+              {{ sedeNames(item) || ('dash.context.noSedes' | t) }}
+            </p>
+            <div class="event-card__metrics">
+              <dl class="event-card__stats">
+                <div>
+                  <dt>{{ 'dash.events.capacity' | t }}</dt>
+                  <dd>{{ item.capacity.toLocaleString('es-CO') }}</dd>
+                </div>
+                <div>
+                  <dt>{{ 'dash.events.titulares' | t }}</dt>
+                  <dd>{{ item.titulares.toLocaleString('es-CO') }}</dd>
+                </div>
+                <div>
+                  <dt>{{ 'dash.events.checkedIn' | t }}</dt>
+                  <dd>{{ item.checkedIn.toLocaleString('es-CO') }}</dd>
+                </div>
+                <div>
+                  <dt>{{ 'dash.events.attendance' | t }}</dt>
+                  <dd>{{ item.titulares > 0 ? percent(item.attendanceRate) : '—' }}</dd>
+                </div>
+              </dl>
+              <span class="event-card__bar" aria-hidden="true">
+                <span [style.width.%]="item.attendanceRate * 100"></span>
+              </span>
+            </div>
+            <span
+              [class]="'phase event-card__phase phase--' + phaseTone(item.phase)"
+              [class.is-live]="isLivePhase(item.phase)"
+            >
+              <span class="phase__dot" aria-hidden="true"></span>
+              {{ phaseLabel(item.phase) | t }}
+            </span>
+            <div class="event-card__actions" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+              <!-- @if (item.id === selectedEvent()?.id) {
+                <span class="event-card__current">
+                  <app-icon name="check" [size]="14" />
+                  {{ 'dash.events.current' | t }}
+                </span>
+              } @else {
+                <button
+                  type="button"
+                  appButton
+                  variant="secondary"
+                  size="sm"
+                  (click)="selectEvent(item.id)"
+                >
+                  <app-icon name="arrow-right" [size]="16" />
+                  {{ 'dash.events.view' | t }}
+                </button>
+              } -->
+              <app-event-invite [name]="item.name" [slug]="item.slug" />
+              <a
+                routerLink="/panel/mesa"
+                [queryParams]="{ evento: item.id }"
+                appButton
+                variant="ghost"
+                size="sm"
+              >
+                <app-icon name="ticket" [size]="16" />
+                {{ 'dash.events.desk' | t }}
+              </a>
+              @if (isAdmin()) {
+                <a
+                  [routerLink]="['/panel/eventos', item.id, 'editar']"
+                  class="event-card__edit"
+                  [attr.aria-label]="'dash.events.edit' | t: { name: item.name }"
+                  [attr.title]="'dash.events.edit' | t: { name: item.name }"
+                >
+                  <app-icon name="pencil" [size]="15" />
+                </a>
+              }
+            </div>
+          </article>
+        </li>
+      }
+    </ul>
+  </section>
+  }
   }
 </div>
