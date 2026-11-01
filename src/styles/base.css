@@ -11,6 +11,7 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  max-width: 100%;
 }
 
 /* The panel is its own screen. The document must not scroll behind it. */
@@ -23,6 +24,8 @@ html:has(app-panel-shell) body {
 body {
   margin: 0;
   min-height: 100dvh;
+  max-width: 100%;
+  overflow-wrap: break-word;
   background: var(--page);
   color: var(--text-1);
   font-family: var(--font-sans);
@@ -55,9 +58,27 @@ a:where(:not(.btn, .nav-item)):hover {
 }
 
 img,
-svg {
+svg,
+video,
+canvas {
   max-width: 100%;
   display: block;
+}
+
+/*
+ * A wide child (table, toolbar, long word) must shrink inside the page and scroll
+ * in its own shell. This does not hide overflow; it stops the child from stretching
+ * the document.
+ */
+main,
+.panel-content {
+  max-width: 100%;
+}
+
+main > *,
+.panel-content > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* Keyboard focus only — never ring a mouse click. */

@@ -1,0 +1,63 @@
+<div class="combobox" (keydown)="onKey($event)">
+  <span class="combobox__icon" aria-hidden="true"><app-icon name="search" [size]="16" /></span>
+  <input
+    class="field combobox__input"
+    type="text"
+    role="combobox"
+    autocomplete="off"
+    spellcheck="false"
+    [id]="inputId() || null"
+    [placeholder]="placeholder()"
+    [attr.aria-label]="ariaLabel() || null"
+    [attr.aria-expanded]="open()"
+    [attr.aria-controls]="listId"
+    [attr.aria-activedescendant]="activeId()"
+    [attr.aria-autocomplete]="'list'"
+    [attr.aria-invalid]="invalid() ? 'true' : null"
+    [value]="text()"
+    (focus)="onFocus($event)"
+    (input)="onInput($event)"
+    (blur)="onBlur()"
+  />
+  @if (text()) {
+    <button
+      type="button"
+      class="combobox__clear"
+      [attr.aria-label]="'ui.combobox.clear' | t"
+      (mousedown)="$event.preventDefault()"
+      (click)="clear()"
+    >
+      <app-icon name="x" [size]="14" />
+    </button>
+  }
+  @if (open()) {
+    <ul class="combobox__list" role="listbox" [id]="listId">
+      @if (!text().trim()) {
+        <li class="combobox__status">{{ 'ui.combobox.hint' | t }}</li>
+      } @else if (results().length === 0) {
+        <li class="combobox__status">{{ 'ui.combobox.empty' | t }}</li>
+      } @else {
+        @for (option of results(); track option.value; let index = $index) {
+          <li>
+            <button
+              type="button"
+              role="option"
+              class="combobox__option"
+              [id]="optionId(index)"
+              [class.is-active]="index === active()"
+              [attr.aria-selected]="index === active()"
+              (mousedown)="$event.preventDefault()"
+              (mouseenter)="active.set(index)"
+              (click)="choose(option)"
+            >
+              <span>{{ option.label }}</span>
+              @if (option.hint) {
+                <span class="combobox__meta">{{ option.hint }}</span>
+              }
+            </button>
+          </li>
+        }
+      }
+    </ul>
+  }
+</div>

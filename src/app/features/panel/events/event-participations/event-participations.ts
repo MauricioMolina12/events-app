@@ -1,11 +1,26 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  afterRenderEffect,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import {
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+  type AbstractControl,
+} from '@angular/forms';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { firstValueFrom, forkJoin, map, switchMap } from 'rxjs';
 import type { Establishment, Participation } from '@core/domain';
 import { RouterLink } from '@angular/router';
 import { I18nService, TranslatePipe, type MessageKey } from '@core/i18n';
-import { ApiErrorPresenter } from '@core/ui';
+import { ApiErrorPresenter, ConfirmService } from '@core/ui';
 import { loadingState, toAsyncState } from '@core/utils/async-state';
 import { venueCode } from '@core/utils/ids';
 import {
@@ -20,6 +35,7 @@ import {
 } from '@shared/ui';
 import { EstablishmentsApi } from '../../establishments/establishments.api';
 import { EventConfigurationApi } from '../event-configuration.api';
+import { seatCount, venueQuotaOverflow } from './participation-capacity';
 import {
   formatCount,
   formatPercent,
@@ -38,12 +54,15 @@ interface EventParticipationData {
   readonly participations: readonly Participation[];
 }
 
-const MAX_CAPACITY = 100_000;
+function seatValidator(control: AbstractControl): { seat: true } | null {
+  return seatCount(control.value) === null ? { seat: true } : null;
+}
 
 @Component({
   selector: 'app-event-participations',
   imports: [
     ReactiveFormsModule,
+    NgTemplateOutlet,
     RouterLink,
     TranslatePipe,
     ButtonDirective,
@@ -66,6 +85,7 @@ export class EventParticipations {
   readonly #api = inject(EventConfigurationApi);
   readonly #establishments = inject(EstablishmentsApi);
   readonly #errors = inject(ApiErrorPresenter);
+  readonly #confirm = inject(ConfirmService);
   readonly #i18n = inject(I18nService);
   readonly #attempt = signal(0);
   readonly #request = computed(() => ({ eventId: this.eventId(), attempt: this.#attempt() }));
@@ -109,15 +129,28 @@ export class EventParticipations {
     }),
     titularCapacity: new FormControl(0, {
       nonNullable: true,
-      validators: [Validators.required, Validators.min(0), Validators.max(MAX_CAPACITY)],
+      validators: [Validators.required, seatValidator],
     }),
     companionCapacity: new FormControl(0, {
       nonNullable: true,
-      validators: [Validators.required, Validators.min(0), Validators.max(MAX_CAPACITY)],
+      validators: [Validators.required, seatValidator],
     }),
   });
 
+  readonly #submitted = signal(false);
+  readonly #formStatus = toSignal(this.form.statusChanges, { initialValue: this.form.status });
+  readonly #formValue = toSignal(this.form.valueChanges, {
+    initialValue: this.form.getRawValue(),
+  });
+
   protected readonly isEditing = computed(() => this.editingId() !== null);
+  protected readonly editingVenue = computed(
+    () => this.snapshots().find((venue) => venue.id === this.editingId()) ?? null,
+  );
+  protected readonly editingVenueVisible = computed(() => {
+    const id = this.editingId();
+    return id !== null && this.visibleVenues().some((venue) => venue.id === id);
+  });
   protected readonly errorMessage = computed(() => {
     const state = this.state();
     return state.status === 'error' ? this.#errors.message(state.error) : '';
@@ -141,6 +174,60 @@ export class EventParticipations {
       label: item.city ? `${item.name} · ${item.city}` : item.name,
     })),
   ]);
+  /** Seats already given to other venues. The one being edited is not counted twice. */
+  protected readonly allocatedExceptEditing = computed(() => {
+    const editingId = this.editingId();
+    return (
+      this.data()
+        ?.participations.filter((item) => item.status !== 'cancelled' && item.id !== editingId)
+        .reduce((total, item) => total + item.titularCapacity + item.companionCapacity, 0) ?? 0
+    );
+  });
+
+  protected readonly remainingSeats = computed(() =>
+    Math.max(0, this.eventCapacity() - this.allocatedExceptEditing()),
+  );
+
+  protected readonly venueMissing = computed(() => {
+    this.#formStatus();
+    return (
+      this.#submitted() && !this.creatingVenue() && this.form.controls.establishmentId.invalid
+    );
+  });
+
+  protected readonly venueNameMissing = computed(() => {
+    this.#formStatus();
+    return this.#submitted() && this.creatingVenue() && this.form.controls.venueName.invalid;
+  });
+
+  protected readonly titularInvalid = computed(() => {
+    this.#formStatus();
+    return this.#submitted() && this.form.controls.titularCapacity.invalid;
+  });
+
+  protected readonly companionInvalid = computed(() => {
+    this.#formStatus();
+    return this.#submitted() && this.form.controls.companionCapacity.invalid;
+  });
+
+  protected readonly quotaOverflow = computed(() => {
+    this.#formValue();
+    if (!this.#submitted()) {
+      return null;
+    }
+    const titular = seatCount(this.form.controls.titularCapacity.value);
+    const companion = seatCount(this.form.controls.companionCapacity.value);
+    if (titular === null || companion === null) {
+      return null;
+    }
+    return venueQuotaOverflow({
+      eventCapacity: this.eventCapacity(),
+      alreadyAllocated: this.allocatedExceptEditing(),
+      titularCapacity: titular,
+      companionCapacity: companion,
+    });
+  });
+
   protected readonly allocatedSeats = computed(() => {
     const data = this.data();
     if (data === null) {
@@ -162,8 +249,7 @@ export class EventParticipations {
     this.activeSnapshots()
       .slice()
       .sort(
-        (left, right) =>
-          right.percent - left.percent || left.name.localeCompare(right.name, 'es'),
+        (left, right) => right.percent - left.percent || left.name.localeCompare(right.name, 'es'),
       ),
   );
   protected readonly visibleVenues = computed(() => {
@@ -181,26 +267,33 @@ export class EventParticipations {
     () => this.snapshots().find((venue) => venue.id === this.selectedId()) ?? null,
   );
 
+  #pendingScroll = false;
+  #draftBaseline: { titular: number; companion: number } | null = null;
+
   constructor() {
     this.form.controls.venueName.valueChanges.pipe(takeUntilDestroyed()).subscribe((name) => {
       this.form.controls.venueCode.setValue(venueCode(name), { emitEvent: false });
     });
+
+    afterRenderEffect(() => {
+      const open = this.formOpen();
+      this.editingId();
+      if (!this.#pendingScroll || !open) {
+        return;
+      }
+      const form = document.getElementById('participation-form');
+      if (!form) {
+        return;
+      }
+      this.#pendingScroll = false;
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      form.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+      form.querySelector<HTMLElement>('#titular-capacity')?.focus({ preventScroll: true });
+    });
   }
 
   protected addEstablishment(): void {
-    this.editingId.set(null);
-    this.actionError.set('');
-    this.form.reset({
-      establishmentId: '',
-      venueName: '',
-      venueCode: '',
-      venueCity: '',
-      venueAddress: '',
-      titularCapacity: 0,
-      companionCapacity: 0,
-    });
-    this.#setCreatingVenue(this.availableEstablishments().length === 0);
-    this.formOpen.set(true);
+    void this.#openCreate();
   }
 
   protected useExistingVenue(): void {
@@ -212,29 +305,11 @@ export class EventParticipations {
   }
 
   protected editCapacity(participation: Participation): void {
-    this.editingId.set(participation.id);
-    this.actionError.set('');
-    this.form.reset({
-      establishmentId: participation.establishmentId,
-      venueName: '',
-      venueCode: '',
-      venueCity: '',
-      venueAddress: '',
-      titularCapacity: participation.titularCapacity,
-      companionCapacity: participation.companionCapacity,
-    });
-    this.#setCreatingVenue(false);
-    this.formOpen.set(true);
-    queueMicrotask(() => {
-      document.getElementById('participation-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+    void this.#openEdit(participation);
   }
 
   protected cancelForm(): void {
-    this.formOpen.set(false);
-    this.editingId.set(null);
-    this.creatingVenue.set(false);
-    this.actionError.set('');
+    void this.#requestClose();
   }
 
   protected retry(): void {
@@ -258,9 +333,13 @@ export class EventParticipations {
   }
 
   protected editVenue(id: string): void {
+    if (this.editingId() === id && this.formOpen()) {
+      void this.#requestClose();
+      return;
+    }
     const participation = this.data()?.participations.find((item) => item.id === id);
     if (participation) {
-      this.editCapacity(participation);
+      void this.#openEdit(participation);
     }
   }
 
@@ -293,28 +372,45 @@ export class EventParticipations {
   }
 
   protected async save(): Promise<void> {
-    if (this.form.invalid || this.saving()) {
+    this.#submitted.set(true);
+    const value = this.form.getRawValue();
+    const titular = seatCount(value.titularCapacity);
+    const companion = seatCount(value.companionCapacity);
+    const overflow =
+      titular !== null && companion !== null
+        ? venueQuotaOverflow({
+            eventCapacity: this.eventCapacity(),
+            alreadyAllocated: this.allocatedExceptEditing(),
+            titularCapacity: titular,
+            companionCapacity: companion,
+          })
+        : null;
+    if (this.saving()) {
+      return;
+    }
+    if (titular === null || companion === null || this.form.invalid || overflow) {
       this.form.markAllAsTouched();
+      if (!overflow) {
+        this.actionError.set('');
+      }
+      if (overflow) {
+        this.actionError.set(
+          this.#i18n.t('participations.validation.overflow', {
+            titular: overflow.titularCapacity,
+            companion: overflow.companionCapacity,
+            requested: overflow.requested,
+            remaining: overflow.remaining,
+          }),
+        );
+      }
+      this.#showFormError();
       return;
     }
 
     this.saving.set(true);
     this.actionError.set('');
     try {
-      const value = this.form.getRawValue();
       const editingId = this.editingId();
-      const allocatedWithoutCurrent =
-        this.data()
-          ?.participations.filter((item) => item.status !== 'cancelled' && item.id !== editingId)
-          .reduce((total, item) => total + item.titularCapacity + item.companionCapacity, 0) ?? 0;
-      if (
-        allocatedWithoutCurrent + value.titularCapacity + value.companionCapacity >
-        this.eventCapacity()
-      ) {
-        this.actionError.set(this.#i18n.t('participations.capacity.overflow'));
-        return;
-      }
-
       let establishmentId = value.establishmentId;
       if (!editingId && this.creatingVenue()) {
         const created = await firstValueFrom(
@@ -331,8 +427,8 @@ export class EventParticipations {
       if (editingId) {
         await firstValueFrom(
           this.#api.updateCapacities(editingId, {
-            titularCapacity: value.titularCapacity,
-            companionCapacity: value.companionCapacity,
+            titularCapacity: titular,
+            companionCapacity: companion,
           }),
         );
       } else {
@@ -340,18 +436,112 @@ export class EventParticipations {
           this.#api.createParticipation({
             eventId: this.eventId(),
             establishmentId,
-            titularCapacity: value.titularCapacity,
-            companionCapacity: value.companionCapacity,
+            titularCapacity: titular,
+            companionCapacity: companion,
           }),
         );
       }
-      this.cancelForm();
+      this.#closeForm();
       this.#attempt.update((attempt) => attempt + 1);
     } catch (error: unknown) {
       this.actionError.set(this.#errors.message(error));
+      this.#showFormError();
     } finally {
       this.saving.set(false);
     }
+  }
+
+  async #openCreate(): Promise<void> {
+    if (!(await this.#confirmDiscard())) {
+      return;
+    }
+    this.editingId.set(null);
+    this.#submitted.set(false);
+    this.actionError.set('');
+    this.form.reset({
+      establishmentId: '',
+      venueName: '',
+      venueCode: '',
+      venueCity: '',
+      venueAddress: '',
+      titularCapacity: 0,
+      companionCapacity: 0,
+    });
+    this.#draftBaseline = { titular: 0, companion: 0 };
+    this.#setCreatingVenue(this.availableEstablishments().length === 0);
+    this.#submitted.set(false);
+    this.formOpen.set(true);
+    this.#pendingScroll = true;
+  }
+
+  async #openEdit(participation: Participation): Promise<void> {
+    if (this.editingId() !== participation.id && !(await this.#confirmDiscard())) {
+      return;
+    }
+    this.editingId.set(participation.id);
+    this.actionError.set('');
+    this.form.reset({
+      establishmentId: participation.establishmentId,
+      venueName: '',
+      venueCode: '',
+      venueCity: '',
+      venueAddress: '',
+      titularCapacity: participation.titularCapacity,
+      companionCapacity: participation.companionCapacity,
+    });
+    this.#draftBaseline = {
+      titular: participation.titularCapacity,
+      companion: participation.companionCapacity,
+    };
+    this.#setCreatingVenue(false);
+    this.#submitted.set(false);
+    this.formOpen.set(true);
+    this.#pendingScroll = true;
+  }
+
+  async #requestClose(): Promise<void> {
+    if (!(await this.#confirmDiscard())) {
+      return;
+    }
+    this.#closeForm();
+  }
+
+  async #confirmDiscard(): Promise<boolean> {
+    if (!this.#draftDirty()) {
+      return true;
+    }
+    const result = await this.#confirm.open({
+      titleKey: 'participations.form.discardTitle',
+      bodyKey: 'participations.form.discardBody',
+      confirmKey: 'participations.form.discard',
+      tone: 'primary',
+    });
+    return result.confirmed;
+  }
+
+  #draftDirty(): boolean {
+    const baseline = this.#draftBaseline;
+    if (!this.formOpen() || !baseline) {
+      return false;
+    }
+    const value = this.form.getRawValue();
+    return (
+      Number(value.titularCapacity) !== baseline.titular ||
+      Number(value.companionCapacity) !== baseline.companion ||
+      value.venueName.trim() !== '' ||
+      value.venueCity.trim() !== '' ||
+      value.venueAddress.trim() !== '' ||
+      (!this.editingId() && value.establishmentId !== '')
+    );
+  }
+
+  #closeForm(): void {
+    this.formOpen.set(false);
+    this.editingId.set(null);
+    this.creatingVenue.set(false);
+    this.actionError.set('');
+    this.#draftBaseline = null;
+    this.#pendingScroll = false;
   }
 
   #setCreatingVenue(creating: boolean): void {
@@ -380,5 +570,14 @@ export class EventParticipations {
     establishmentId.updateValueAndValidity({ emitEvent: false });
     venueName.updateValueAndValidity({ emitEvent: false });
     venueCodeControl.updateValueAndValidity({ emitEvent: false });
+  }
+
+  /** Brings the message next to the button into view. The list above can hide a banner. */
+  #showFormError(): void {
+    queueMicrotask(() => {
+      const form = document.getElementById('participation-form');
+      const alert = form?.querySelector<HTMLElement>('[role="alert"]');
+      (alert ?? form)?.scrollIntoView({ block: 'nearest' });
+    });
   }
 }

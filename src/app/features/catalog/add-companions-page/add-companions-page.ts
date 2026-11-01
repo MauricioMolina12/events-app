@@ -29,7 +29,8 @@ import type {
   PublicParticipation,
 } from '@core/domain';
 import { I18nService, TranslatePipe, type MessageKey } from '@core/i18n';
-import { ApiErrorPresenter, ToastService } from '@core/ui';
+import { safeEventSlug } from '@core/navigation/return-to';
+import { ApiErrorPresenter, ConfirmService, ToastService } from '@core/ui';
 import { loadingState, toAsyncState } from '@core/utils/async-state';
 import { toZonedDateTimeDisplay } from '@core/utils/dates';
 import {
@@ -118,6 +119,8 @@ export class AddCompanionsPage {
   readonly #errors = inject(ApiErrorPresenter);
   readonly #toast = inject(ToastService);
   readonly #i18n = inject(I18nService);
+  readonly #confirm = inject(ConfirmService);
+  #finished = false;
 
   readonly #attempt = signal(0);
   readonly #request = computed(() => ({ slug: this.slug(), attempt: this.#attempt() }));
@@ -176,7 +179,9 @@ export class AddCompanionsPage {
   });
 
   /** The path names the event: the picker is replaced by its name. */
-  protected readonly fixedEvent = computed(() => (this.slug() ? (this.#events()[0] ?? null) : null));
+  protected readonly fixedEvent = computed(() =>
+    this.slug() ? (this.#events()[0] ?? null) : null,
+  );
 
   protected readonly events = this.#events;
 
@@ -189,8 +194,7 @@ export class AddCompanionsPage {
   protected readonly participation = computed<PublicParticipation | null>(() => {
     const holder = this.#holder();
     return (
-      this.holderEvent()?.participations.find((item) => item.id === holder?.participationId) ??
-      null
+      this.holderEvent()?.participations.find((item) => item.id === holder?.participationId) ?? null
     );
   });
 
@@ -215,11 +219,26 @@ export class AddCompanionsPage {
   protected readonly canAddRow = computed(() => this.#companionCount() < this.maxRows());
 
   protected readonly canSubmit = computed(
-    () =>
-      this.remaining() > 0 && this.blockedReason() === undefined && this.#companionCount() > 0,
+    () => this.remaining() > 0 && this.blockedReason() === undefined && this.#companionCount() > 0,
   );
 
   protected readonly currentStep = computed(() => (this.#holder() ? 2 : 1));
+
+  protected readonly exitLink = computed(() => {
+    const slug = safeEventSlug(this.slug() ?? this.holderEvent()?.slug ?? this.fixedEvent()?.slug);
+    return slug ? ['/eventos', slug] : ['/eventos'];
+  });
+
+  protected readonly exitLabelKey = computed<MessageKey>(() =>
+    this.exitLink().length > 1 ? 'register.back' : 'event.back',
+  );
+
+  protected readonly receiptQuery = computed(() => {
+    const slug = safeEventSlug(
+      this.holderEvent()?.slug ?? this.fixedEvent()?.slug ?? this.slug() ?? this.evento(),
+    );
+    return slug ? { evento: slug } : {};
+  });
 
   protected readonly holderDocument = computed(() => {
     const holder = this.#holder();
@@ -366,6 +385,23 @@ export class AddCompanionsPage {
     }
   }
 
+  /**
+   * The router calls this before leaving. A finished append does not ask again.
+   */
+  confirmLeave(): boolean | Promise<boolean> {
+    if (this.#finished || !this.#hasDraft()) {
+      return true;
+    }
+    return this.#confirm
+      .open({
+        titleKey: 'register.leave.title',
+        bodyKey: 'register.leave.body',
+        confirmKey: 'register.leave.confirm',
+        tone: 'danger',
+      })
+      .then((result) => result.confirmed);
+  }
+
   /** Back to step 1 keeping what was typed, in case a digit was wrong. */
   protected changeHolder(): void {
     this.#holder.set(null);
@@ -411,12 +447,20 @@ export class AddCompanionsPage {
     this.#submitError.set(null);
     this.#serverErrors.set({});
     try {
-      const updated = await firstValueFrom(
-        this.#api.addCompanions({ ...credentials, companions }),
+      const updated = await firstValueFrom(this.#api.addCompanions({ ...credentials, companions }));
+      this.#updateStoredReceipt(
+        updated,
+        companions.map((companion) => companion.fullName),
       );
-      this.#updateStoredReceipt(updated, companions.map((companion) => companion.fullName));
       this.#toast.success('companions.success');
-      await this.#router.navigate(['/inscripcion', updated.id]);
+      this.#finished = true;
+      const left = await this.#router.navigate(['/inscripcion', updated.id], {
+        queryParams: this.receiptQuery(),
+        replaceUrl: true,
+      });
+      if (!left) {
+        this.#finished = false;
+      }
     } catch (error) {
       const apiError = toApiError(error);
       this.#submitError.set(apiError);
@@ -470,6 +514,16 @@ export class AddCompanionsPage {
         ),
       },
     });
+  }
+
+  #hasDraft(): boolean {
+    const lookup = this.lookupForm.getRawValue();
+    const companionNamed = this.companions.controls.some(
+      (companion) => companion.controls.fullName.value.trim().length > 0,
+    );
+    return (
+      lookup.documentNumber.trim().length > 0 || lookup.email.trim().length > 0 || companionNamed
+    );
   }
 
   #prefill(): PrefillState {

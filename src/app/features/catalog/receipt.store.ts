@@ -1,5 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
-import type { PublicRegistrationReceipt, TicketDesign } from '@core/domain';
+import type { PublicRegistrationReceipt, RegistrationScope, TicketDesign } from '@core/domain';
 import { storage } from '@core/utils/local-storage';
 
 /**
@@ -17,6 +17,8 @@ export interface ReceiptContext {
   readonly eventStartsAt: string | null;
   readonly establishmentName: string;
   readonly establishmentCity: string | null;
+  /** Absent on receipts stored before scope was kept. The live event is preferred. */
+  readonly registrationScope?: RegistrationScope;
   readonly companionNames: readonly string[];
   /** Contact data for the "send the receipt" actions; the server never returns it. */
   readonly email: string | null;

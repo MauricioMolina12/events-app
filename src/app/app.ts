@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { NetworkStatusService } from '@core/ui/network-status.service';
 import { OnlineBanner } from '@shared/ui/online-banner/online-banner';
+import { SplashScreen } from '@shared/ui/splash/splash';
 import { ToastHost } from '@shared/ui/toast-host/toast-host';
 
 /**
@@ -10,7 +11,7 @@ import { ToastHost } from '@shared/ui/toast-host/toast-host';
  */
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, ToastHost, OnlineBanner],
+  imports: [RouterOutlet, ToastHost, OnlineBanner, SplashScreen],
   templateUrl: './app.html',
   host: { style: 'display: block' },
   changeDetection: ChangeDetectionStrategy.OnPush,

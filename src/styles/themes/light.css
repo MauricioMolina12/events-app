@@ -22,6 +22,7 @@
   --text-inverse: var(--neutral-0);
 
   --primary: var(--primary-600);
+  --primary-fill: var(--primary);
   --primary-hover: var(--primary-700);
   --primary-subtle: var(--primary-50);
   --primary-on: var(--neutral-0);

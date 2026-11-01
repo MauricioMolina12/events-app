@@ -9,7 +9,7 @@
   <header
     class="sticky top-0 z-[var(--z-nav)] w-full shrink-0 border-b border-[var(--border)] bg-[var(--surface-1)]"
   >
-    <div class="mx-auto flex w-full max-w-6xl shrink-0 items-center gap-3 px-4 py-3 sm:px-6">
+    <div class="public-frame flex shrink-0 items-center gap-3 py-3">
       <a routerLink="/eventos" class="flex min-w-0 items-center gap-2.5 no-underline">
         @if (clientSlug()) {
           <app-brand-mark [initials]="navInitials()" />
@@ -32,15 +32,15 @@
   <main
     id="contenido"
     tabindex="-1"
-    class="mx-auto flex min-w-0 w-full max-w-6xl flex-1 flex-col px-4 py-6 sm:px-6 sm:py-8"
+    class="public-frame flex min-w-0 flex-1 flex-col py-6 sm:py-8"
   >
     <router-outlet />
   </main>
 
   @if (!compactChrome()) {
-    <footer class="mt-auto border-t border-[var(--border)] bg-[var(--surface-1)] px-4 py-6">
+    <footer class="mt-auto border-t border-[var(--border)] bg-[var(--surface-1)] py-6">
       <div
-        class="mx-auto flex w-full max-w-6xl flex-col items-center gap-1 text-xs text-[var(--text-3)] sm:flex-row sm:justify-between"
+        class="public-frame flex flex-col items-center gap-1 text-xs text-[var(--text-3)] sm:flex-row sm:justify-between"
       >
         <p>© {{ year() }} {{ navName() }}</p>
         <p>{{ 'app.supportCodeHint' | t }}</p>

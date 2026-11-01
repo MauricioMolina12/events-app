@@ -149,10 +149,85 @@
               </p>
             </fieldset>
           }
+          @case ('features') {
+            <div class="prefs">
+              <header class="prefs__intro">
+                <div>
+                  <h2 class="prefs__title">{{ 'settings.tab.features' | t }}</h2>
+                  <p class="prefs__lead">{{ 'settings.features.intro' | t }}</p>
+                </div>
+                @if (canEdit()) {
+                  <button
+                    type="button"
+                    appButton
+                    variant="primary"
+                    [loading]="featuresSaving()"
+                    [disabled]="featuresSaving()"
+                    (click)="saveFeatures()"
+                  >
+                    <app-icon name="check" [size]="16" />
+                    {{ 'settings.features.save' | t }}
+                  </button>
+                }
+              </header>
+
+              @if (featuresError()) {
+                <p class="callout callout--danger" role="alert">{{ featuresError() }}</p>
+              }
+
+              @if (isAdmin()) {
+                <label class="prefs__client" for="settings-feature-client">
+                  <span class="prefs__client-copy">
+                    <span class="label">{{ 'settings.features.client' | t }}</span>
+                    <span class="hint">{{ 'settings.features.clientHint' | t }}</span>
+                  </span>
+                  <select
+                    id="settings-feature-client"
+                    class="field prefs__client-select"
+                    [value]="featureClientId()"
+                    (change)="pickFeatureClient($event)"
+                  >
+                    @for (client of featureClients(); track client.id) {
+                      <option [value]="client.id">{{ client.displayName }}</option>
+                    }
+                  </select>
+                </label>
+              }
+
+              <ul class="prefs__grid" role="list">
+                @for (item of featureItems(); track item.feature) {
+                  <li>
+                    <button
+                      type="button"
+                      class="pref-card"
+                      [class.is-on]="item.enabled"
+                      [disabled]="!canEdit() || featuresSaving()"
+                      [attr.aria-pressed]="item.enabled"
+                      (click)="toggleFeature(item.feature)"
+                    >
+                      <span class="pref-card__icon" aria-hidden="true">
+                        <app-icon [name]="item.icon" [size]="18" />
+                      </span>
+                      <span class="pref-card__body">
+                        <span class="pref-card__title">{{ item.labelKey | t }}</span>
+                        <span class="pref-card__desc">{{ item.descKey | t }}</span>
+                      </span>
+                      <span class="pref-card__switch" aria-hidden="true">
+                        <span class="pref-card__knob"></span>
+                      </span>
+                      <span class="pref-card__state">
+                        {{ (item.enabled ? 'settings.features.on' : 'settings.features.off') | t }}
+                      </span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
         }
       </div>
 
-      @if (canEdit() && tab() !== 'appearance') {
+      @if (canEdit() && tab() !== 'appearance' && tab() !== 'features') {
         <div class="settings-actions">
           @if (isAdmin()) {
             <button type="button" appButton variant="ghost" [disabled]="restoring() || saving()" (click)="restore()">

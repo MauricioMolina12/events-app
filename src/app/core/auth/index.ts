@@ -1,6 +1,7 @@
 export * from './auth-api';
 export * from './auth-intent';
 export * from './guards';
+export * from './panel-access';
 export * from './safe-panel-path';
 export * from './has-role.directive';
 export * from './models';

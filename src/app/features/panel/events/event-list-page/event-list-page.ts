@@ -80,7 +80,7 @@ export class EventListPage {
   readonly #errors = inject(ApiErrorPresenter);
   readonly #i18n = inject(I18nService);
   readonly #session = inject(SessionStore);
-  protected readonly canCreate = computed(() => this.#session.isAdmin());
+  protected readonly canCreate = computed(() => this.#session.isAuthenticated());
   protected readonly isAdmin = this.#session.isAdmin;
   readonly #attempt = signal(0);
   readonly #request = computed(() => ({

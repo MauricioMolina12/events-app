@@ -103,4 +103,14 @@ export class CatalogApi {
   addCompanions(request: AddCompanionsRequest): Observable<PublicHolderRegistration> {
     return this.#api.post<PublicHolderRegistration>('public/registrations/companions', request);
   }
+
+  places(): Observable<{
+    departments: readonly {
+      id: string;
+      name: string;
+      cities: readonly { id: string; name: string }[];
+    }[];
+  }> {
+    return this.#api.get('places');
+  }
 }

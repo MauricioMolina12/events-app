@@ -190,10 +190,18 @@ export class RegistrationDeskPage {
   protected readonly term = signal('');
   readonly #now = signal(Date.now());
 
+  protected readonly exporting = signal(false);
+  protected readonly exportError = signal('');
   protected readonly summaryValue = computed(() => {
     const state = this.summary();
     return state.status === 'loaded' ? state.value : null;
   });
+  protected readonly showContact = computed(() =>
+    this.summaryValue()?.features?.includes('desk_columns') ?? false,
+  );
+  protected readonly canExport = computed(() =>
+    this.summaryValue()?.features?.includes('desk_export') ?? false,
+  );
   protected readonly selectedSede = computed(
     () => this.summaryValue()?.sedes.find((sede) => sede.participationId === this.sedeId()) ?? null,
   );
@@ -360,6 +368,28 @@ export class RegistrationDeskPage {
     this.term.set((event.target as HTMLInputElement).value);
     clearTimeout(this.#searchTimer);
     this.#searchTimer = setTimeout(() => this.#applySearch(), SEARCH_DEBOUNCE_MS);
+  }
+
+  protected async exportSheet(): Promise<void> {
+    const query = this.#tableQuery();
+    if (query === null || this.exporting()) {
+      return;
+    }
+    this.exporting.set(true);
+    this.exportError.set('');
+    try {
+      const file = await firstValueFrom(this.#api.exportFile(query));
+      const url = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'inscripciones.xls';
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error: unknown) {
+      this.exportError.set(this.#errors.message(error) || this.#i18n.t('desk.export.failed'));
+    } finally {
+      this.exporting.set(false);
+    }
   }
 
   protected submitSearch(event: globalThis.Event): void {

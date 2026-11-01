@@ -13,7 +13,11 @@
 
     @case ('error') {
       @if (isMissing()) {
-        <app-empty-state titleKey="app.notFound.title" bodyKey="app.notFound.body" iconName="compass">
+        <app-empty-state
+          titleKey="app.notFound.title"
+          bodyKey="app.notFound.body"
+          iconName="compass"
+        >
           <a routerLink="/eventos" appButton variant="primary">{{ 'event.back' | t }}</a>
         </app-empty-state>
       } @else {
@@ -56,6 +60,7 @@
         <app-quick-actions
           class="section-block"
           [registerLink]="['/eventos', view.value.slug, 'inscripcion']"
+          [registerState]="{ returnTo: '/eventos/' + view.value.slug }"
           [companionLink]="['/eventos', view.value.slug, 'acompanantes']"
           [lookupLink]="['/eventos', view.value.slug, 'buscar']"
           [canRegister]="hasRegistrable(view.value)"
@@ -74,7 +79,11 @@
           <h2 class="text-lg font-semibold">{{ 'event.venues' | t }}</h2>
 
           @if (view.value.participations.length === 0) {
-            <app-empty-state titleKey="event.venues.empty" bodyKey="catalog.empty.body" iconName="map-pin" />
+            <app-empty-state
+              titleKey="event.venues.empty"
+              bodyKey="catalog.empty.body"
+              iconName="map-pin"
+            />
           } @else {
             <ul class="grid list-none gap-3 p-0 sm:grid-cols-2">
               @for (participation of view.value.participations; track participation.id) {
@@ -128,7 +137,8 @@
                       appButton
                       variant="primary"
                       [routerLink]="['/eventos', view.value.slug, 'inscripcion']"
-                      [state]="{ sede: participation.id }"
+                      [queryParams]="{ sede: participation.id }"
+                      [state]="{ sede: participation.id, returnTo: '/eventos/' + view.value.slug }"
                     >
                       {{ 'event.venue.register' | t }}
                     </a>

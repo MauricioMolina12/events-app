@@ -1,3 +1,10 @@
+<a
+  class="mb-4 inline-flex w-fit max-w-full items-center gap-1.5 text-sm font-medium text-[var(--text-2)] no-underline hover:text-[var(--primary)]"
+  [routerLink]="exitLink()"
+>
+  <app-icon name="arrow-left" [size]="16" />
+  <span>{{ exitLabelKey() | t }}</span>
+</a>
 @switch (state().status) {
   @case ('loading') {
     <div class="mx-auto flex w-full flex-col gap-4" aria-busy="true">
@@ -105,7 +112,9 @@
               <div
                 class="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-2)] p-3"
               >
-                <dt class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                <dt
+                  class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]"
+                >
                   {{ 'register.receipt.event' | t }}
                 </dt>
                 <dd class="mt-0.5 text-sm font-semibold">{{ event.name }}</dd>
@@ -115,7 +124,9 @@
               <div
                 class="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-2)] p-3"
               >
-                <dt class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                <dt
+                  class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]"
+                >
                   {{ 'register.sede' | t }}
                 </dt>
                 <dd class="mt-0.5 text-sm font-semibold">
@@ -174,6 +185,7 @@
                 size="sm"
                 class="no-underline"
                 [routerLink]="['/inscripcion', found.id]"
+                [queryParams]="receiptQuery()"
               >
                 {{ 'companions.viewReceipt' | t }}
               </a>
@@ -483,19 +495,17 @@
 
           @if (lookupMessage(); as message) {
             <div class="card card--pad flex items-start gap-3" role="alert">
-              <app-icon name="alert-circle" [size]="18" class="mt-0.5 shrink-0 text-[var(--danger)]" />
+              <app-icon
+                name="alert-circle"
+                [size]="18"
+                class="mt-0.5 shrink-0 text-[var(--danger)]"
+              />
               <p class="text-sm text-[var(--text-2)]">{{ message }}</p>
             </div>
           }
 
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-            <button
-              type="submit"
-              appButton
-              variant="primary"
-              size="lg"
-              [loading]="searching()"
-            >
+            <button type="submit" appButton variant="primary" size="lg" [loading]="searching()">
               @if (searching()) {
                 <span class="spinner" aria-hidden="true"></span>
                 {{ 'companions.lookup.searching' | t }}

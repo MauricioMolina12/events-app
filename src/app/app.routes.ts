@@ -1,6 +1,13 @@
 import type { Routes } from '@angular/router';
 import { PublicShell } from '@layout/public-shell/public-shell';
 
+/** Asks the screen before leaving a public form that still holds what the person typed. */
+function confirmPublicLeave(component: {
+  confirmLeave?: () => boolean | Promise<boolean>;
+}): boolean | Promise<boolean> {
+  return component.confirmLeave?.() ?? true;
+}
+
 /**
  * Route table.
  *
@@ -45,6 +52,7 @@ export const appRoutes: Routes = [
       {
         path: 'eventos/:slug/inscripcion',
         title: 'Inscripción · Barby Toys & Cupidos',
+        canDeactivate: [confirmPublicLeave],
         loadComponent: () =>
           import('@features/catalog/registration-page/registration-page').then(
             (m) => m.RegistrationPage,
@@ -77,6 +85,7 @@ export const appRoutes: Routes = [
       {
         path: 'eventos/:slug/acompanantes',
         title: 'Agregar acompañante · Barby Toys & Cupidos',
+        canDeactivate: [confirmPublicLeave],
         loadComponent: () =>
           import('@features/catalog/add-companions-page/add-companions-page').then(
             (m) => m.AddCompanionsPage,
@@ -86,6 +95,7 @@ export const appRoutes: Routes = [
         /** Same page without an event in the path: the titular picks it (`?evento=` presets it). */
         path: 'acompanantes',
         title: 'Agregar acompañante · Barby Toys & Cupidos',
+        canDeactivate: [confirmPublicLeave],
         loadComponent: () =>
           import('@features/catalog/add-companions-page/add-companions-page').then(
             (m) => m.AddCompanionsPage,

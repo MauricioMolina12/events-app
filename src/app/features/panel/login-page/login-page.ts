@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AuthIntent, SessionStore, stripLegacyReturnUrl } from '@core/auth';
+import { AuthIntent, SessionStore, landingPath, panelHome, stripLegacyReturnUrl } from '@core/auth';
 import { TranslatePipe } from '@core/i18n';
 import { ApiErrorPresenter } from '@core/ui';
+import { Splash } from '@core/ui/splash';
 import { BrandMark, ButtonDirective, Icon } from '@shared/ui';
 
 @Component({
@@ -19,6 +20,7 @@ export class PanelLoginPage {
   readonly #route = inject(ActivatedRoute);
   readonly #intent = inject(AuthIntent);
   readonly #errors = inject(ApiErrorPresenter);
+  readonly #splash = inject(Splash);
 
   constructor() {
     stripLegacyReturnUrl(this.#router, this.#route);
@@ -45,7 +47,12 @@ export class PanelLoginPage {
     this.errorMessage.set(null);
     try {
       await this.#session.login(this.form.getRawValue());
-      await this.#continue();
+      const release = this.#splash.hold('splash.entering');
+      try {
+        await this.#continue();
+      } finally {
+        release();
+      }
     } catch (error: unknown) {
       this.errorMessage.set(this.#errors.message(error));
     } finally {
@@ -54,10 +61,12 @@ export class PanelLoginPage {
   }
 
   async #continue(): Promise<void> {
-    const destination = this.#intent.peek();
+    const modules = this.#session.modules();
+    const destination = landingPath(modules, this.#intent.peek());
+    const home = panelHome(modules);
     const landed = await this.#router.navigateByUrl(destination, { replaceUrl: true });
-    if (!landed && destination !== '/panel') {
-      await this.#router.navigateByUrl('/panel', { replaceUrl: true });
+    if (!landed && destination !== home) {
+      await this.#router.navigateByUrl(home, { replaceUrl: true });
     }
     this.#intent.clear();
   }

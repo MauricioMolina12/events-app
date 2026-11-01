@@ -17,13 +17,15 @@ export interface EstablishmentListQuery {
 export interface CreateEstablishmentRequest {
   readonly code: string;
   readonly name: string;
-  readonly city: string | null;
+  readonly city?: string | null;
+  readonly cityId?: string | null;
   readonly address: string | null;
 }
 
 export interface UpdateEstablishmentRequest {
   readonly name?: string;
   readonly city?: string | null;
+  readonly cityId?: string | null;
   readonly address?: string | null;
   readonly status?: EstablishmentStatus;
 }

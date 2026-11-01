@@ -1,3 +1,23 @@
+<div class="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+  @if (returnTo(); as destination) {
+    <a
+      class="inline-flex w-fit max-w-full items-center gap-1.5 text-sm font-medium text-[var(--text-2)] no-underline hover:text-[var(--primary)]"
+      [routerLink]="destination"
+    >
+      <app-icon name="arrow-left" [size]="16" />
+      <span>{{ returnLabelKey() | t }}</span>
+    </a>
+  }
+  @if (showEventExit()) {
+    <a
+      class="inline-flex w-fit max-w-full items-center gap-1.5 text-sm font-medium text-[var(--text-2)] no-underline hover:text-[var(--primary)]"
+      [routerLink]="eventPath()"
+    >
+      <app-icon name="arrow-left" [size]="16" />
+      <span>{{ 'register.back' | t }}</span>
+    </a>
+  }
+</div>
 @if (state(); as view) {
   @switch (view.status) {
     @case ('loading') {
@@ -61,7 +81,7 @@
           </div>
 
           <ol class="stepper" [attr.aria-label]="'register.steps' | t">
-            @for (step of steps; track step.index) {
+            @for (step of steps(); track step.index) {
               <li
                 class="stepper__item"
                 [attr.data-state]="stepState(step.index)"
@@ -83,112 +103,124 @@
           </ol>
         </header>
 
-        @if (view.value.registrationScope !== 'all_venues') {
-        <section class="card card--pad flex flex-col gap-4">
-          <header class="flex flex-col gap-1">
+        @if (allVenues()) {
+          <section class="card card--pad flex flex-col gap-2">
             <h2 class="flex items-center gap-2 text-lg font-semibold">
               <app-icon name="map-pin" [size]="18" class="text-[var(--primary)]" />
-              {{ 'register.sede' | t }}
+              {{ 'register.scope.allVenuesTitle' | t }}
             </h2>
-            <p class="hint">{{ 'register.sede.hint' | t }}</p>
-          </header>
+            <p class="hint">{{ 'register.scope.allVenuesHint' | t }}</p>
+          </section>
+        }
 
-          @if (view.value.participations.length === 0) {
-            <app-empty-state
-              titleKey="event.venues.empty"
-              bodyKey="catalog.empty.body"
-              iconName="map-pin"
-            />
-          } @else {
-            <ul class="flex list-none flex-col gap-3 p-0">
-              @for (participation of view.value.participations; track participation.id) {
-                <li>
-                  <label
-                    class="choice-card"
-                    [attr.data-selected]="isSelected(participation) ? 'true' : null"
-                    [attr.data-blocked]="blockedReason(participation) ? 'true' : null"
-                  >
-                    <input
-                      class="choice-card__input"
-                      type="radio"
-                      name="sede"
-                      [value]="participation.id"
-                      [checked]="isSelected(participation)"
-                      [attr.aria-label]="
-                        participation.establishment.city
-                          ? participation.establishment.name +
-                            ', ' +
-                            participation.establishment.city
-                          : participation.establishment.name
-                      "
-                      (change)="chooseSede(participation.id)"
-                    />
+        <section id="registro-sede" class="card card--pad flex scroll-mt-24 flex-col gap-4">
+            <header class="flex flex-col gap-1">
+              <h2 class="flex items-center gap-2 text-lg font-semibold">
+                <app-icon name="map-pin" [size]="18" class="text-[var(--primary)]" />
+                {{ 'register.sede' | t }}
+              </h2>
+              <p class="hint">{{ 'register.sede.hint' | t }}</p>
+            </header>
 
-                    <span class="flex min-w-0 flex-1 flex-col gap-2">
-                      <span class="flex flex-wrap items-start justify-between gap-2">
-                        <span class="flex min-w-0 flex-col gap-0.5">
-                          <span class="text-base font-semibold">
-                            {{ participation.establishment.name }}
-                          </span>
-                          @if (participation.establishment.city) {
-                            <span
-                              class="inline-flex items-center gap-1.5 text-sm text-[var(--text-3)]"
-                            >
-                              <app-icon name="map-pin" [size]="14" class="shrink-0" />
-                              {{ participation.establishment.city }}
+            @if (view.value.participations.length === 0) {
+              <app-empty-state
+                titleKey="event.venues.empty"
+                bodyKey="catalog.empty.body"
+                iconName="map-pin"
+              />
+            } @else {
+              <ul class="flex list-none flex-col gap-3 p-0">
+                @for (participation of view.value.participations; track participation.id) {
+                  <li>
+                    <label
+                      class="choice-card"
+                      [attr.data-selected]="isSelected(participation) ? 'true' : null"
+                      [attr.data-blocked]="blockedReason(participation) ? 'true' : null"
+                    >
+                      <input
+                        class="choice-card__input"
+                        type="radio"
+                        name="sede"
+                        [value]="participation.id"
+                        [checked]="isSelected(participation)"
+                        [attr.aria-label]="
+                          participation.establishment.city
+                            ? participation.establishment.name +
+                              ', ' +
+                              participation.establishment.city
+                            : participation.establishment.name
+                        "
+                        (change)="chooseSede(participation.id)"
+                      />
+
+                      <span class="flex min-w-0 flex-1 flex-col gap-2">
+                        <span class="flex flex-wrap items-start justify-between gap-2">
+                          <span class="flex min-w-0 flex-col gap-0.5">
+                            <span class="text-base font-semibold">
+                              {{ participation.establishment.name }}
                             </span>
-                          }
+                            @if (participation.establishment.city) {
+                              <span
+                                class="inline-flex items-center gap-1.5 text-sm text-[var(--text-3)]"
+                              >
+                                <app-icon name="map-pin" [size]="14" class="shrink-0" />
+                                {{ participation.establishment.city }}
+                              </span>
+                            }
+                          </span>
+
+                          <span class="flex flex-wrap items-center gap-1.5">
+                            @if (isSelected(participation)) {
+                              <span class="chip chip--primary">
+                                <app-icon name="check" [size]="12" />
+                                {{ 'register.sede.chosen' | t }}
+                              </span>
+                            }
+                            <app-status-badge [kind]="participationKind(participation)" />
+                          </span>
                         </span>
 
                         <span class="flex flex-wrap items-center gap-1.5">
-                          @if (isSelected(participation)) {
-                            <span class="chip chip--primary">
-                              <app-icon name="check" [size]="12" />
-                              {{ 'register.sede.chosen' | t }}
+                          @if (participation.availableTitulares > 0) {
+                            <span class="chip chip--success">
+                              {{
+                                'ui.capacity.remaining'
+                                  | t: { count: participation.availableTitulares }
+                              }}
+                            </span>
+                          } @else {
+                            <span class="chip chip--danger">{{ 'ui.capacity.full' | t }}</span>
+                          }
+                          @if (participation.availableCompanions > 0) {
+                            <span class="chip">
+                              {{
+                                'event.venue.companions'
+                                  | t: { count: participation.availableCompanions }
+                              }}
                             </span>
                           }
-                          <app-status-badge [kind]="participationKind(participation)" />
                         </span>
-                      </span>
 
-                      <span class="flex flex-wrap items-center gap-1.5">
-                        @if (participation.availableTitulares > 0) {
-                          <span class="chip chip--success">
-                            {{
-                              'ui.capacity.remaining'
-                                | t: { count: participation.availableTitulares }
-                            }}
-                          </span>
-                        } @else {
-                          <span class="chip chip--danger">{{ 'ui.capacity.full' | t }}</span>
-                        }
-                        @if (participation.availableCompanions > 0) {
-                          <span class="chip">
-                            {{
-                              'event.venue.companions'
-                                | t: { count: participation.availableCompanions }
-                            }}
-                          </span>
+                        <span class="hint">
+                          {{ 'event.venue.window' | t: { window: windowLabel(participation) } }}
+                        </span>
+
+                        @if (blockedReason(participation); as reason) {
+                          <span class="error-text">{{ reason | t }}</span>
                         }
                       </span>
+                    </label>
+                  </li>
+                }
+              </ul>
+            }
 
-                      <span class="hint">
-                        {{ 'event.venue.window' | t: { window: windowLabel(participation) } }}
-                      </span>
+            @if (!selected() && view.value.participations.length > 0) {
+              <p class="hint">{{ 'register.sede.none' | t }}</p>
+            }
 
-                      @if (blockedReason(participation); as reason) {
-                        <span class="error-text">{{ reason | t }}</span>
-                      }
-                    </span>
-                  </label>
-                </li>
-              }
-            </ul>
-          }
-
-          <p class="sr-only" aria-live="polite">{{ announcement() }}</p>
-        </section>
-        }
+            <p class="sr-only" aria-live="polite">{{ announcement() }}</p>
+          </section>
 
         @if (selectedBlocked(); as reason) {
           <div class="card card--pad flex items-start gap-3" role="alert">
@@ -200,7 +232,9 @@
             <div class="flex flex-col gap-1">
               <p class="text-sm font-semibold">{{ 'register.sede.blocked' | t }}</p>
               <p class="hint">{{ reason | t }}</p>
-              <p class="hint">{{ 'register.sede.pick' | t }}</p>
+              <p class="hint">
+                {{ (allVenues() ? 'register.scope.unavailable' : 'register.sede.pick') | t }}
+              </p>
             </div>
           </div>
         } @else if (selected()) {
@@ -228,12 +262,24 @@
                       </div>
                     </div>
 
-                    @if (completion() === 100) {
-                      <span class="chip chip--success">
-                        <app-icon name="check" [size]="12" />
-                        {{ 'register.progress.done' | t }}
-                      </span>
-                    }
+                    <div class="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        appButton
+                        variant="ghost"
+                        size="sm"
+                        (click)="focusSede()"
+                      >
+                        <app-icon name="arrow-left" [size]="14" />
+                        {{ 'register.changeSede' | t }}
+                      </button>
+                      @if (completion() === 100) {
+                        <span class="chip chip--success">
+                          <app-icon name="check" [size]="12" />
+                          {{ 'register.progress.done' | t }}
+                        </span>
+                      }
+                    </div>
                   </div>
 
                   <div class="flex items-center gap-3">
@@ -352,12 +398,18 @@
                   <fieldset
                     class="sm:col-span-6 flex flex-col gap-2"
                     [attr.aria-invalid]="
-                      controlError(form.controls.requiresElectronicInvoice, 'requiresElectronicInvoice')
+                      controlError(
+                        form.controls.requiresElectronicInvoice,
+                        'requiresElectronicInvoice'
+                      )
                         ? 'true'
                         : null
                     "
                     [attr.aria-describedby]="
-                      controlError(form.controls.requiresElectronicInvoice, 'requiresElectronicInvoice')
+                      controlError(
+                        form.controls.requiresElectronicInvoice,
+                        'requiresElectronicInvoice'
+                      )
                         ? 'regInvoice-error'
                         : 'regInvoice-hint'
                     "
@@ -411,6 +463,83 @@
                       </p>
                     }
                   </fieldset>
+
+                  @if (asksDelivery()) {
+                    <fieldset class="sm:col-span-6 flex flex-col gap-3">
+                      <legend class="label">{{ 'register.delivery.title' | t }}</legend>
+                      @if (venueCityName()) {
+                        <p class="hint">
+                          {{ 'register.delivery.hint' | t: { city: venueCityName() } }}
+                        </p>
+                        <div class="grid gap-2 sm:grid-cols-2">
+                          <label
+                            class="choice-card"
+                            [attr.data-selected]="deliveryChoice() === 'venue' ? 'true' : null"
+                          >
+                            <input
+                              id="regDeliveryVenue"
+                              class="choice-card__input"
+                              type="radio"
+                              formControlName="deliveryMode"
+                              value="venue"
+                            />
+                            <span class="text-sm font-semibold">{{
+                              'register.delivery.venue' | t: { city: venueCityName() }
+                            }}</span>
+                          </label>
+                          <label
+                            class="choice-card"
+                            [attr.data-selected]="deliveryChoice() === 'other' ? 'true' : null"
+                          >
+                            <input
+                              class="choice-card__input"
+                              type="radio"
+                              formControlName="deliveryMode"
+                              value="other"
+                            />
+                            <span class="text-sm font-semibold">{{
+                              'register.delivery.other' | t
+                            }}</span>
+                          </label>
+                        </div>
+                      }
+                      @if (!venueCityId() || deliveryChoice() === 'other') {
+                        <label class="flex flex-col gap-1.5" for="regDeliveryCity">
+                          <span class="label">{{ 'register.delivery.city' | t }}</span>
+                          <app-combobox
+                            inputId="regDeliveryCity"
+                            formControlName="deliveryCityId"
+                            [options]="cityOptions()"
+                            [placeholder]="'register.delivery.cityPlaceholder' | t"
+                            [ariaLabel]="'register.delivery.city' | t"
+                            [invalid]="!!controlError(form.controls.deliveryCityId, 'deliveryCityId')"
+                          />
+                          @if (controlError(form.controls.deliveryCityId, 'deliveryCityId'); as message) {
+                            <p class="error-text" role="alert">{{ message }}</p>
+                          }
+                        </label>
+                        <label class="flex flex-col gap-1.5" for="regCarrier">
+                          <span class="label">{{ 'register.delivery.carrier' | t }}</span>
+                          <input
+                            id="regCarrier"
+                            class="field"
+                            formControlName="carrier"
+                            maxlength="80"
+                          />
+                          @if (controlError(form.controls.carrier, 'carrier'); as message) {
+                            <p class="error-text" role="alert">{{ message }}</p>
+                          }
+                        </label>
+                      }
+                      <label class="flex flex-col gap-1.5" for="regAddress">
+                        <span class="label">{{ 'register.delivery.address' | t }}</span>
+                        <input id="regAddress" class="field" formControlName="address" maxlength="180" />
+                        @if (controlError(form.controls.address, 'address'); as message) {
+                          <p class="error-text" role="alert">{{ message }}</p>
+                        }
+                      </label>
+                    </fieldset>
+                  }
                 </div>
               </section>
 
@@ -425,7 +554,14 @@
                     </span>
                     <div class="flex min-w-0 flex-col gap-0.5">
                       <h2 class="text-lg font-semibold">{{ 'register.companions' | t }}</h2>
-                      <p class="hint">{{ 'register.companions.subtitle' | t }}</p>
+                      <p class="hint">
+                        {{
+                          (allVenues()
+                            ? 'register.companions.subtitleAll'
+                            : 'register.companions.subtitle'
+                          ) | t
+                        }}
+                      </p>
                     </div>
                   </div>
 
@@ -612,7 +748,12 @@
                 {{ 'register.actions.note' | t }}
               </p>
 
-              <div class="w-full sm:w-auto">
+              <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end">
+                @if (showEventExit()) {
+                  <a appButton variant="ghost" class="no-underline" [routerLink]="eventPath()">
+                    {{ 'register.back' | t }}
+                  </a>
+                }
                 <button
                   type="submit"
                   appButton

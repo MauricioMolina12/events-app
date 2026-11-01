@@ -35,6 +35,8 @@ export interface CheckInPreview {
   readonly sede: { readonly id: string; readonly name: string; readonly city: string | null };
   readonly companions: readonly CheckInCompanion[];
   readonly turns: readonly Turn[];
+  /** `false` cuando el cliente asocia acompañantes al titular sin turno propio. */
+  readonly assignCompanionTurns?: boolean;
 }
 
 export interface CheckInResult extends CheckInPreview {

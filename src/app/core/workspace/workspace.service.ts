@@ -7,7 +7,7 @@ import { SessionStore } from '@core/auth';
 import { ClientsApi } from '@core/clients/clients.api';
 import { MESSAGES } from '@core/i18n/messages';
 import { ThemeService, type ThemePreference } from '@core/ui/theme.service';
-import { brandInitials, contrastText, shadeHex } from './brand-color';
+import { accentOnSurface, brandInitials, readableFill, readableHover } from './brand-color';
 import { WorkspaceApi, type WorkspaceSettings } from './workspace.api';
 
 const BRAND_CACHE = 'events.brand';
@@ -246,19 +246,18 @@ export class WorkspaceService {
     }
     const root = document.documentElement;
     if (!settings.colorCustomized) {
-      for (const name of ['--primary', '--primary-hover', '--primary-on', '--primary-subtle', '--focus-ring']) {
+      for (const name of [
+        '--primary',
+        '--primary-fill',
+        '--primary-hover',
+        '--primary-on',
+        '--primary-subtle',
+        '--focus-ring',
+      ]) {
         root.style.removeProperty(name);
       }
     } else {
-      const on = contrastText(settings.primaryColor);
-      root.style.setProperty('--primary', settings.primaryColor);
-      root.style.setProperty('--primary-hover', shadeHex(settings.primaryColor, 0.86));
-      root.style.setProperty('--primary-on', on);
-      root.style.setProperty('--focus-ring', settings.primaryColor);
-      root.style.setProperty(
-        '--primary-subtle',
-        `color-mix(in srgb, ${settings.primaryColor} 16%, var(--surface-1))`,
-      );
+      paintBrandColor(root, settings.primaryColor);
     }
     if (this.#persistBrand) {
       writeBrandCache(settings);
@@ -271,11 +270,11 @@ export class WorkspaceService {
     if (!link) {
       return;
     }
-    link.href = url ?? 'favicon.ico';
+    link.href = url ?? 'favicon.png';
     if (url) {
       link.removeAttribute('type');
     } else {
-      link.type = 'image/x-icon';
+      link.type = 'image/png';
     }
   }
 }
@@ -341,14 +340,20 @@ function applyCachedColor(): void {
   if (!cached?.colorCustomized || !cached.primary || typeof document === 'undefined') {
     return;
   }
-  const root = document.documentElement;
-  root.style.setProperty('--primary', cached.primary);
-  root.style.setProperty('--primary-hover', shadeHex(cached.primary, 0.86));
-  root.style.setProperty('--primary-on', cached.on ?? contrastText(cached.primary));
-  root.style.setProperty('--focus-ring', cached.primary);
+  paintBrandColor(document.documentElement, cached.primary);
+}
+
+function paintBrandColor(root: HTMLElement, color: string): void {
+  const fill = readableFill(color);
+  const accent = accentOnSurface(color);
+  root.style.setProperty('--primary', accent);
+  root.style.setProperty('--primary-fill', fill.background);
+  root.style.setProperty('--primary-hover', readableHover(fill.background, fill.on));
+  root.style.setProperty('--primary-on', fill.on);
+  root.style.setProperty('--focus-ring', accent);
   root.style.setProperty(
     '--primary-subtle',
-    `color-mix(in srgb, ${cached.primary} 16%, var(--surface-1))`,
+    `color-mix(in srgb, ${accent} 14%, var(--surface-1))`,
   );
 }
 
@@ -362,7 +367,7 @@ function writeBrandCache(settings: WorkspaceSettings): void {
       nameCustomized: settings.nameCustomized,
       colorCustomized: settings.colorCustomized,
       ...(settings.colorCustomized
-        ? { primary: settings.primaryColor, on: contrastText(settings.primaryColor) }
+        ? { primary: settings.primaryColor, on: readableFill(settings.primaryColor).on }
         : {}),
     };
     localStorage.setItem(BRAND_CACHE, JSON.stringify(cache));

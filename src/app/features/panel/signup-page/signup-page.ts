@@ -8,9 +8,10 @@ import {
   type ValidationErrors,
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { AuthIntent, SessionStore, stripLegacyReturnUrl } from '@core/auth';
+import { AuthIntent, SessionStore, landingPath, panelHome, stripLegacyReturnUrl } from '@core/auth';
 import { TranslatePipe } from '@core/i18n';
 import { ApiErrorPresenter } from '@core/ui';
+import { Splash } from '@core/ui/splash';
 import { BrandMark, ButtonDirective, Icon, ThemeToggle } from '@shared/ui';
 
 function matchingPasswords(control: AbstractControl): ValidationErrors | null {
@@ -21,7 +22,15 @@ function matchingPasswords(control: AbstractControl): ValidationErrors | null {
 
 @Component({
   selector: 'app-panel-signup-page',
-  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, BrandMark, ButtonDirective, Icon, ThemeToggle],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    TranslatePipe,
+    BrandMark,
+    ButtonDirective,
+    Icon,
+    ThemeToggle,
+  ],
   templateUrl: './signup-page.html',
   styleUrl: '../auth-screen.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,6 +41,7 @@ export class PanelSignupPage {
   readonly #route = inject(ActivatedRoute);
   readonly #intent = inject(AuthIntent);
   readonly #errors = inject(ApiErrorPresenter);
+  readonly #splash = inject(Splash);
 
   constructor() {
     stripLegacyReturnUrl(this.#router, this.#route);
@@ -78,12 +88,19 @@ export class PanelSignupPage {
         fullName: fullName.trim(),
         password,
       });
-      const destination = this.#intent.peek();
-      const landed = await this.#router.navigateByUrl(destination, { replaceUrl: true });
-      if (!landed && destination !== '/panel') {
-        await this.#router.navigateByUrl('/panel', { replaceUrl: true });
+      const release = this.#splash.hold('splash.entering');
+      try {
+        const modules = this.#session.modules();
+        const destination = landingPath(modules, this.#intent.peek());
+        const home = panelHome(modules);
+        const landed = await this.#router.navigateByUrl(destination, { replaceUrl: true });
+        if (!landed && destination !== home) {
+          await this.#router.navigateByUrl(home, { replaceUrl: true });
+        }
+        this.#intent.clear();
+      } finally {
+        release();
       }
-      this.#intent.clear();
     } catch (error: unknown) {
       this.errorMessage.set(this.#errors.message(error));
     } finally {

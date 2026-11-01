@@ -1,5 +1,5 @@
 import type { Routes } from '@angular/router';
-import { authGuard, publicOnlyGuard, roleGuard } from '@core/auth';
+import { authGuard, homeGuard, moduleGuard, publicOnlyGuard, roleGuard } from '@core/auth';
 
 export const panelRoutes: Routes = [
   {
@@ -27,7 +27,7 @@ export const panelRoutes: Routes = [
         path: '',
         pathMatch: 'full',
         title: 'Dashboard · Panel · Barby Toys & Cupidos',
-        canActivate: [roleGuard('admin', 'operator')],
+        canActivate: [roleGuard('admin', 'operator'), moduleGuard('dashboard')],
         data: { wide: true },
         loadComponent: () =>
           import('@features/panel/dashboard/dashboard-page/dashboard-page').then(
@@ -43,7 +43,7 @@ export const panelRoutes: Routes = [
       {
         path: 'mesa',
         title: 'Mesa de registro · Panel · Barby Toys & Cupidos',
-        canActivate: [roleGuard('admin', 'operator')],
+        canActivate: [roleGuard('admin', 'operator'), moduleGuard('mesa')],
         loadComponent: () =>
           import(
             '@features/panel/registration-desk/registration-desk-page/registration-desk-page'
@@ -52,7 +52,7 @@ export const panelRoutes: Routes = [
       {
         path: 'ingreso',
         title: 'Ingreso y turnos · Panel · Barby Toys & Cupidos',
-        canActivate: [roleGuard('admin', 'operator')],
+        canActivate: [roleGuard('admin', 'operator'), moduleGuard('ingreso')],
         loadComponent: () =>
           import('@features/panel/check-in/check-in-page/check-in-page').then(
             (m) => m.CheckInPage,
@@ -63,6 +63,7 @@ export const panelRoutes: Routes = [
         path: 'eventos',
         pathMatch: 'full',
         title: 'Eventos · Panel · Barby Toys & Cupidos',
+        canActivate: [moduleGuard('eventos')],
         loadComponent: () =>
           import('@features/panel/events/event-list-page/event-list-page').then(
             (m) => m.EventListPage,
@@ -71,7 +72,7 @@ export const panelRoutes: Routes = [
       {
         path: 'eventos/nuevo',
         title: 'Nuevo evento · Panel · Barby Toys & Cupidos',
-        canActivate: [roleGuard('admin')],
+        canActivate: [roleGuard('admin', 'operator'), moduleGuard('eventos')],
         loadComponent: () =>
           import('@features/panel/events/event-form-page/event-form-page').then(
             (m) => m.EventFormPage,
@@ -80,7 +81,7 @@ export const panelRoutes: Routes = [
       {
         path: 'eventos/:id/editar',
         title: 'Editar evento · Panel · Barby Toys & Cupidos',
-        canActivate: [roleGuard('admin', 'operator')],
+        canActivate: [roleGuard('admin', 'operator'), moduleGuard('eventos')],
         loadComponent: () =>
           import('@features/panel/events/event-form-page/event-form-page').then(
             (m) => m.EventFormPage,
@@ -91,6 +92,7 @@ export const panelRoutes: Routes = [
         path: 'sedes',
         pathMatch: 'full',
         title: 'Sedes · Panel · Barby Toys & Cupidos',
+        canActivate: [moduleGuard('sedes')],
         loadComponent: () =>
           import(
             '@features/panel/establishments/establishment-list-page/establishment-list-page'
@@ -99,7 +101,7 @@ export const panelRoutes: Routes = [
       {
         path: 'sedes/nueva',
         title: 'Nueva sede · Panel · Barby Toys & Cupidos',
-        canActivate: [roleGuard('admin', 'operator')],
+        canActivate: [roleGuard('admin', 'operator'), moduleGuard('sedes')],
         loadComponent: () =>
           import(
             '@features/panel/establishments/establishment-form-page/establishment-form-page'
@@ -108,7 +110,7 @@ export const panelRoutes: Routes = [
       {
         path: 'sedes/:id/editar',
         title: 'Editar sede · Panel · Barby Toys & Cupidos',
-        canActivate: [roleGuard('admin', 'operator')],
+        canActivate: [roleGuard('admin', 'operator'), moduleGuard('sedes')],
         loadComponent: () =>
           import(
             '@features/panel/establishments/establishment-form-page/establishment-form-page'
@@ -117,7 +119,7 @@ export const panelRoutes: Routes = [
       {
         path: 'cupos',
         title: 'Cupos · Panel · Barby Toys & Cupidos',
-        canActivate: [roleGuard('admin', 'operator')],
+        canActivate: [roleGuard('admin', 'operator'), moduleGuard('cupos')],
         loadComponent: () =>
           import('@features/panel/quotas/quotas-page/quotas-page').then((m) => m.QuotasPage),
       },
@@ -131,7 +133,7 @@ export const panelRoutes: Routes = [
       {
         path: 'colaboradores',
         title: 'Colaboradores · Panel · Star Grow Studio',
-        canActivate: [roleGuard('admin', 'operator')],
+        canActivate: [roleGuard('admin', 'operator'), moduleGuard('colaboradores')],
         loadComponent: () =>
           import('@features/panel/collaborators/collaborators-page/collaborators-page').then(
             (m) => m.CollaboratorsPage,
@@ -140,11 +142,16 @@ export const panelRoutes: Routes = [
       {
         path: 'configuracion',
         title: 'Configuración · Panel · Barby Toys & Cupidos',
-        canActivate: [roleGuard('admin', 'operator')],
+        canActivate: [roleGuard('admin', 'operator'), moduleGuard('configuracion')],
         loadComponent: () =>
           import('@features/panel/settings/settings-page/settings-page').then((m) => m.SettingsPage),
       },
-      { path: '**', redirectTo: '' },
+      {
+        path: '**',
+        canActivate: [homeGuard],
+        loadComponent: () =>
+          import('@features/errors/forbidden-page/forbidden-page').then((m) => m.ForbiddenPage),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

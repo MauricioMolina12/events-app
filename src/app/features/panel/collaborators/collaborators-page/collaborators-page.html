@@ -1,98 +1,390 @@
-<div class="flex flex-col gap-6">
-  <app-page-header titleKey="collaborators.title" subtitleKey="collaborators.subtitle" />
-
-  @if (saveError()) {
-    <p class="callout callout--danger" role="alert">{{ saveError() }}</p>
-  }
-
-  @switch (state().status) {
-    @case ('loading') {
-      <app-skeleton class="h-40 w-full" />
-    }
-    @case ('error') {
-      <p class="callout callout--danger" role="alert">{{ errorMessage() }}</p>
-    }
-  }
-
-  <section class="section-block card card--pad flex flex-col gap-4">
-    <h2 class="text-lg font-semibold">{{ 'collaborators.newGroup' | t }}</h2>
-    <form class="flex flex-col gap-3" [formGroup]="groupForm" (ngSubmit)="createGroup()">
-      <label class="flex flex-col gap-1.5 text-sm font-medium">
-        {{ 'collaborators.groups' | t }}
-        <input class="field" type="text" formControlName="name" maxlength="80" />
-      </label>
-      <fieldset class="flex flex-col gap-2">
-        <legend class="text-sm font-medium">{{ 'collaborators.modules' | t }}</legend>
-        <div class="flex flex-wrap gap-2">
-          @for (module of modules; track module) {
-            <label class="choice-card" [attr.data-selected]="moduleOn(module) ? 'true' : null">
-              <input class="choice-card__input" type="checkbox" [checked]="moduleOn(module)" (change)="toggleModule(module)" />
-              <span>{{ moduleLabel(module) | t }}</span>
-            </label>
-          }
-        </div>
-      </fieldset>
-      <button type="submit" appButton variant="primary" [loading]="saving()">
+<div class="team">
+  <header class="team-head">
+    <span class="team-mark" aria-hidden="true">
+      <app-icon name="shield-check" [size]="22" />
+    </span>
+    <div class="team-head__copy">
+      <h1>{{ 'collaborators.title' | t }}</h1>
+      <p>{{ 'collaborators.subtitle' | t }}</p>
+      @if (state().status === 'loaded') {
+        <p class="team-head__meta">
+          {{
+            'collaborators.summary'
+              | t: { groups: groups().length, members: memberCount() }
+          }}
+        </p>
+      }
+    </div>
+    <div class="team-head__actions">
+      <button type="button" appButton variant="secondary" (click)="openCreateGroup()">
+        <app-icon name="plus" [size]="16" />
         {{ 'collaborators.newGroup' | t }}
       </button>
-    </form>
-  </section>
-
-  <section class="section-block card card--pad flex flex-col gap-4">
-    <h2 class="text-lg font-semibold">{{ 'collaborators.newMember' | t }}</h2>
-    <form class="grid gap-3 sm:grid-cols-2" [formGroup]="memberForm" (ngSubmit)="addMember()">
-      <label class="flex flex-col gap-1.5 text-sm font-medium sm:col-span-2">
-        {{ 'collaborators.groups' | t }}
-        <select class="field" formControlName="groupId">
-          <option value="">{{ 'collaborators.chooseGroup' | t }}</option>
-          @for (group of groups(); track group.id) {
-            <option [value]="group.id">{{ group.name }}</option>
-          }
-        </select>
-      </label>
-      <label class="flex flex-col gap-1.5 text-sm font-medium">
-        {{ 'users.form.fullName' | t }}
-        <input class="field" type="text" formControlName="fullName" />
-      </label>
-      <label class="flex flex-col gap-1.5 text-sm font-medium">
-        {{ 'users.form.email' | t }}
-        <input class="field" type="email" formControlName="email" />
-      </label>
-      <label class="flex flex-col gap-1.5 text-sm font-medium sm:col-span-2">
-        {{ 'users.form.password' | t }}
-        <input class="field" type="password" formControlName="password" />
-      </label>
-      <button type="submit" appButton variant="primary" [loading]="saving()">
+      <button type="button" appButton variant="primary" (click)="openMemberEditor()">
+        <app-icon name="user-plus" [size]="16" />
         {{ 'collaborators.newMember' | t }}
       </button>
-    </form>
-  </section>
+    </div>
+  </header>
 
-  <section class="section-block flex flex-col gap-3">
-    <h2 class="text-lg font-semibold">{{ 'collaborators.groups' | t }}</h2>
-    @if (groups().length === 0) {
-      <app-empty-state titleKey="collaborators.empty" iconName="users" />
-    } @else {
-      <ul class="grid gap-3 sm:grid-cols-2">
-        @for (group of groups(); track group.id) {
-          <li class="card card--pad flex flex-col gap-3">
-            <h3 class="font-semibold">{{ group.name }}</h3>
-            <p class="text-sm text-(--text-2)">
-              @for (module of group.modules; track module) {
-                <span class="chip">{{ moduleLabel(module) | t }}</span>
-              }
-            </p>
-            <ul class="flex flex-col gap-1 text-sm">
-              @for (member of group.members; track member.id) {
-                <li>
-                  <span class="font-medium">{{ member.fullName }}</span>
-                  <span class="text-(--text-3)"> · {{ member.email }}</span>
-                </li>
-              }
-            </ul>
-          </li>
+  @if (groupEditorOpen()) {
+    <section id="group-editor" class="editor" aria-labelledby="group-editor-title">
+      <header class="editor__head">
+        <div>
+          <h2 id="group-editor-title">
+            {{ (editingId() ? 'collaborators.editTitle' : 'collaborators.newGroup') | t }}
+          </h2>
+          <p>{{ 'collaborators.group.nameHint' | t }}</p>
+        </div>
+      </header>
+
+      <form class="editor__form" [formGroup]="groupForm" (ngSubmit)="createGroup()" novalidate>
+        @if (groupError()) {
+          <p class="callout callout--danger" role="alert">{{ groupError() }}</p>
         }
-      </ul>
+
+        <div class="editor__name">
+          <label for="group-name">{{ 'collaborators.group.name' | t }}</label>
+          <input
+            id="group-name"
+            class="field"
+            type="text"
+            formControlName="name"
+            maxlength="80"
+            autocomplete="off"
+            [placeholder]="'collaborators.group.placeholder' | t"
+            [attr.aria-invalid]="nameError() ? 'true' : null"
+            [attr.aria-describedby]="nameError() ? 'group-name-error' : null"
+          />
+          @if (nameError(); as error) {
+            <p id="group-name-error" class="error-text" role="alert">{{ error | t }}</p>
+          }
+        </div>
+
+        <fieldset class="editor__perms" [disabled]="groupSaving()">
+          <legend>
+            <span>{{ 'collaborators.modules' | t }}</span>
+            <span class="editor__legend-hint">{{ 'collaborators.modules.hint' | t }}</span>
+          </legend>
+
+          @for (category of categories; track category) {
+            <div class="perm-block">
+              <h3>{{ categoryLabel(category) | t }}</h3>
+              <div class="perm-grid">
+                @for (card of cardsIn(category); track card.id) {
+                  <label class="perm" [attr.data-on]="moduleOn(card.id) ? 'true' : null">
+                    <input
+                      class="sr-only"
+                      type="checkbox"
+                      [checked]="moduleOn(card.id)"
+                      (change)="toggleModule(card.id)"
+                    />
+                    <span class="perm__icon" aria-hidden="true">
+                      <app-icon [name]="card.icon" [size]="18" />
+                    </span>
+                    <span class="perm__copy">
+                      <span class="perm__name">{{ moduleLabel(card.id) | t }}</span>
+                      <span class="perm__hint">{{ moduleHint(card.id) | t }}</span>
+                    </span>
+                    <span class="perm__state">
+                      @if (moduleOn(card.id)) {
+                        <app-icon name="check" [size]="14" />
+                        {{ 'collaborators.included' | t }}
+                      }
+                    </span>
+                  </label>
+                }
+              </div>
+            </div>
+          }
+
+          @if (groupSubmitted() && selectedModules().size === 0) {
+            <p class="error-text" role="alert">{{ 'collaborators.validation.modules' | t }}</p>
+          }
+        </fieldset>
+
+        <div class="editor__actions">
+          <button type="button" appButton variant="ghost" (click)="closeGroupEditor()">
+            {{ 'app.cancel' | t }}
+          </button>
+          @if (!editingId()) {
+            <button type="button" appButton variant="secondary" (click)="clearGroupForm()">
+              {{ 'app.clear' | t }}
+            </button>
+          }
+          <button
+            type="submit"
+            class="editor__submit"
+            appButton
+            variant="primary"
+            [loading]="groupSaving()"
+            [disabled]="groupSaving()"
+          >
+            <app-icon name="check" [size]="16" />
+            {{ (editingId() ? 'app.save' : 'collaborators.createGroup') | t }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  @if (memberEditorOpen()) {
+    <section id="member-editor" class="editor" aria-labelledby="member-editor-title">
+      <header class="editor__head">
+        <div>
+          <h2 id="member-editor-title">{{ 'collaborators.member.title' | t }}</h2>
+          <p>{{ 'collaborators.member.hint' | t }}</p>
+        </div>
+      </header>
+
+      <form
+        class="editor__form"
+        [formGroup]="memberForm"
+        (ngSubmit)="addMember()"
+        autocomplete="off"
+        novalidate
+      >
+        @if (memberError()) {
+          <p class="callout callout--danger" role="alert">{{ memberError() }}</p>
+        }
+
+        <div class="member-grid">
+          <div class="member-grid__wide">
+            <label for="member-group">{{ 'collaborators.groups' | t }}</label>
+            <select
+              id="member-group"
+              class="field"
+              formControlName="groupId"
+              [attr.aria-invalid]="memberErrorFor('groupId') ? 'true' : null"
+            >
+              <option value="">{{ 'collaborators.chooseGroup' | t }}</option>
+              @for (group of groups(); track group.id) {
+                <option [value]="group.id">{{ group.name }}</option>
+              }
+            </select>
+            @if (memberErrorFor('groupId'); as error) {
+              <p class="error-text" role="alert">{{ error | t }}</p>
+            }
+          </div>
+
+          <div>
+            <label for="member-name">{{ 'users.form.fullName' | t }}</label>
+            <input
+              id="member-name"
+              class="field"
+              type="text"
+              formControlName="fullName"
+              maxlength="160"
+              autocomplete="off"
+              [attr.aria-invalid]="memberErrorFor('fullName') ? 'true' : null"
+            />
+            @if (memberErrorFor('fullName'); as error) {
+              <p class="error-text" role="alert">{{ error | t }}</p>
+            }
+          </div>
+
+          <div>
+            <label for="member-email">{{ 'users.form.email' | t }}</label>
+            <input
+              id="member-email"
+              class="field"
+              type="email"
+              formControlName="email"
+              maxlength="160"
+              autocomplete="off"
+              [attr.aria-invalid]="memberErrorFor('email') ? 'true' : null"
+            />
+            @if (memberErrorFor('email'); as error) {
+              <p class="error-text" role="alert">{{ error | t }}</p>
+            }
+          </div>
+
+          <div class="member-grid__wide">
+            <label for="member-password">{{ 'users.form.password' | t }}</label>
+            <div class="secret">
+              <input
+                id="member-password"
+                class="field"
+                [type]="showPassword() ? 'text' : 'password'"
+                formControlName="password"
+                maxlength="128"
+                autocomplete="new-password"
+                [attr.aria-invalid]="memberErrorFor('password') ? 'true' : null"
+                [attr.aria-describedby]="'member-password-hint'"
+              />
+              <button
+                type="button"
+                class="secret__toggle"
+                [attr.aria-label]="(showPassword() ? 'auth.password.hide' : 'auth.password.show') | t"
+                [attr.aria-pressed]="showPassword()"
+                (click)="showPassword.set(!showPassword())"
+              >
+                <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" [size]="18" />
+              </button>
+            </div>
+            <p id="member-password-hint" class="field-hint">{{ 'users.form.passwordHint' | t }}</p>
+            @if (memberErrorFor('password'); as error) {
+              <p class="error-text" role="alert">{{ error | t }}</p>
+            }
+          </div>
+        </div>
+
+        <div class="editor__actions">
+          <button type="button" appButton variant="ghost" (click)="closeMemberEditor()">
+            {{ 'app.cancel' | t }}
+          </button>
+          <button
+            type="submit"
+            class="editor__submit"
+            appButton
+            variant="primary"
+            [loading]="memberSaving()"
+            [disabled]="memberSaving()"
+          >
+            <app-icon name="user-plus" [size]="16" />
+            {{ 'collaborators.newMember' | t }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  <section class="roster" aria-labelledby="groups-title">
+    <div class="roster__bar">
+      <h2 id="groups-title">{{ 'collaborators.groups' | t }}</h2>
+      @if (state().status === 'loaded' && groups().length > 0) {
+        <form class="roster__search" (submit)="$event.preventDefault()">
+          <label class="sr-only" for="group-search">{{ 'collaborators.search.label' | t }}</label>
+          <app-icon name="search" [size]="16" />
+          <input
+            id="group-search"
+            type="search"
+            class="field"
+            [value]="term()"
+            [placeholder]="'collaborators.search.placeholder' | t"
+            (input)="term.set($any($event.target).value)"
+          />
+          @if (term().trim()) {
+            <button type="button" class="roster__clear" (click)="term.set('')">
+              {{ 'collaborators.search.clear' | t }}
+            </button>
+          }
+        </form>
+      }
+    </div>
+
+    @switch (state().status) {
+      @case ('loading') {
+        <div class="roster__grid" aria-busy="true">
+          <span class="sr-only">{{ 'app.loading' | t }}</span>
+          @for (row of [1, 2, 3]; track row) {
+            <app-skeleton class="h-36 w-full" />
+          }
+        </div>
+      }
+      @case ('error') {
+        <div class="card card--pad flex flex-col items-start gap-3" role="alert">
+          <p>{{ errorMessage() }}</p>
+          <button type="button" appButton variant="secondary" (click)="retry()">
+            {{ 'app.retry' | t }}
+          </button>
+        </div>
+      }
+      @case ('loaded') {
+        @if (groups().length === 0) {
+          <app-empty-state
+            titleKey="collaborators.empty"
+            bodyKey="collaborators.empty.body"
+            iconName="users"
+          >
+            <button type="button" appButton variant="primary" (click)="openCreateGroup()">
+              <app-icon name="plus" [size]="16" />
+              {{ 'collaborators.newGroup' | t }}
+            </button>
+          </app-empty-state>
+        } @else if (filteredGroups().length === 0) {
+          <app-empty-state titleKey="collaborators.search.empty" iconName="search">
+            <button type="button" appButton variant="secondary" (click)="term.set('')">
+              {{ 'collaborators.search.clear' | t }}
+            </button>
+          </app-empty-state>
+        } @else {
+          <ul class="roster__grid">
+            @for (group of filteredGroups(); track group.id) {
+              <li class="group-card" [attr.data-open]="expandedId() === group.id ? 'true' : null">
+                <div class="group-card__top">
+                  <div class="min-w-0">
+                    <h3>{{ group.name }}</h3>
+                    <p>
+                      {{ 'collaborators.members.count' | t: { count: group.members.length } }}
+                    </p>
+                  </div>
+                  <div class="group-card__actions">
+                    <button type="button" appButton variant="ghost" size="sm" (click)="editGroup(group)">
+                      <app-icon name="pencil" [size]="14" />
+                      {{ 'collaborators.edit' | t }}
+                    </button>
+                    <button
+                      type="button"
+                      appButton
+                      variant="ghost"
+                      size="sm"
+                      (click)="openMemberEditor(group.id)"
+                    >
+                      <app-icon name="user-plus" [size]="14" />
+                      {{ 'collaborators.addToGroup' | t }}
+                    </button>
+                  </div>
+                </div>
+
+                <ul class="chips" [attr.aria-label]="'collaborators.modules' | t">
+                  @for (module of group.modules; track module) {
+                    <li>{{ moduleLabel(module) | t }}</li>
+                  }
+                </ul>
+
+                <button
+                  type="button"
+                  class="group-card__toggle"
+                  [attr.aria-expanded]="expandedId() === group.id"
+                  (click)="toggleMembers(group.id)"
+                >
+                  <app-icon
+                    [name]="expandedId() === group.id ? 'chevronDown' : 'chevronRight'"
+                    [size]="16"
+                  />
+                  {{
+                    (expandedId() === group.id
+                      ? 'collaborators.members.hide'
+                      : 'collaborators.members.show'
+                    ) | t
+                  }}
+                </button>
+
+                @if (expandedId() === group.id) {
+                  @if (group.members.length === 0) {
+                    <p class="group-card__empty">{{ 'collaborators.members.none' | t }}</p>
+                  } @else {
+                    <ul class="members">
+                      @for (member of group.members; track member.id) {
+                        <li>
+                          <span class="members__avatar" aria-hidden="true">
+                            {{ member.fullName.slice(0, 1) }}
+                          </span>
+                          <span class="min-w-0">
+                            <span class="members__name">{{ member.fullName }}</span>
+                            <span class="members__mail">{{ member.email }}</span>
+                          </span>
+                        </li>
+                      }
+                    </ul>
+                  }
+                }
+              </li>
+            }
+          </ul>
+        }
+      }
     }
   </section>
 </div>

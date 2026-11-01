@@ -2,13 +2,14 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, si
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { firstValueFrom, of, switchMap } from 'rxjs';
+import { catchError, firstValueFrom, map, of, switchMap } from 'rxjs';
 import type { Establishment, EstablishmentStatus } from '@core/domain';
 import { I18nService, TranslatePipe } from '@core/i18n';
 import { ApiErrorPresenter } from '@core/ui';
 import { loadingState, loadedState, toAsyncState } from '@core/utils/async-state';
 import { venueCode } from '@core/utils/ids';
-import { ButtonDirective, Icon, PageHeader, Select, Skeleton, type SelectChoice } from '@shared/ui';
+import { ButtonDirective, Combobox, Icon, PageHeader, Select, Skeleton, type SelectChoice } from '@shared/ui';
+import { CatalogApi } from '@features/catalog/catalog.api';
 import { EstablishmentsApi } from '../establishments.api';
 import { ESTABLISHMENT_STATUSES } from '../establishment-status';
 
@@ -16,7 +17,7 @@ const CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 @Component({
   selector: 'app-establishment-form-page',
-  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, ButtonDirective, Icon, PageHeader, Select, Skeleton],
+  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, ButtonDirective, Combobox, Icon, PageHeader, Select, Skeleton],
   templateUrl: './establishment-form-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -73,12 +74,27 @@ export class EstablishmentFormPage {
         Validators.pattern(CODE_PATTERN),
       ],
     }),
-    city: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(80)] }),
+    cityId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     address: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(200)] }),
     status: new FormControl<EstablishmentStatus>('active', { nonNullable: true }),
   });
 
   #loadedId: string | null = null;
+  readonly #places = toSignal(
+    inject(CatalogApi).places().pipe(
+      map((places) => places.departments),
+      catchError(() => of([])),
+    ),
+    { initialValue: [] },
+  );
+  protected readonly cityChoices = computed<readonly SelectChoice[]>(() =>
+    this.#places().flatMap((department) =>
+      department.cities.map((city) => ({
+        value: city.id,
+        label: `${city.name}, ${department.name}`,
+      })),
+    ),
+  );
 
   constructor() {
     this.form.controls.name.valueChanges.pipe(takeUntilDestroyed()).subscribe((name) => {
@@ -90,14 +106,23 @@ export class EstablishmentFormPage {
 
     effect(() => {
       const establishment = this.establishment();
+      const choices = this.cityChoices();
       if (!establishment || establishment.id === this.#loadedId) {
+        return;
+      }
+      let cityId = establishment.cityId ?? '';
+      if (!cityId && establishment.city) {
+        const needle = `${establishment.city.toLowerCase()},`;
+        cityId = choices.find((choice) => choice.label.toLowerCase().startsWith(needle))?.value ?? '';
+      }
+      if (!cityId && !establishment.cityId && choices.length === 0 && establishment.city) {
         return;
       }
       this.#loadedId = establishment.id;
       this.form.reset({
         name: establishment.name,
         code: establishment.code,
-        city: establishment.city ?? '',
+        cityId,
         address: establishment.address ?? '',
         status: establishment.status,
       });
@@ -125,7 +150,7 @@ export class EstablishmentFormPage {
       const value = this.form.getRawValue();
       const fields = {
         name: value.name.trim(),
-        city: value.city.trim() || null,
+        cityId: value.cityId,
         address: value.address.trim() || null,
       };
 

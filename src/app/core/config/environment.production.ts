@@ -3,12 +3,13 @@ import type { AppEnvironment } from './environment.model';
 /**
  * Production environment.
  *
- * Production API is hosted by the production Worker. Keep the versioned API
- * prefix here; individual services append their endpoint paths.
+ * The browser calls `/api/v1` on the same site that serves the app. The host
+ * forwards that path to the production Worker. A direct `workers.dev` address
+ * would drop the session cookie.
  */
 export const environment: AppEnvironment = {
   environmentName: 'production',
-  apiBaseUrl: 'https://events-production.stargrowstudioevents.workers.dev/api/v1',
+  apiBaseUrl: '/api/v1',
   supportUrl: 'mailto:soporte@barbytoys.example?subject=Soporte%20Eventos',
   enableDevtools: false,
   defaultTimeZone: 'America/Bogota',

@@ -36,14 +36,80 @@ test('consulta y muestra el comprobante devuelto por el endpoint público', asyn
   await page.goto(`/inscripcion/${REGISTRATION_ID}`);
   await lookup;
 
-  await expect(
-    page.getByRole('heading', { level: 1, name: '¡Listo, Maria Perez!' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: '¡Listo, Maria Perez!' })).toBeVisible();
   await expect(page.getByText(REGISTRATION_ID, { exact: true })).toBeVisible();
   await expect(page.getByText('Maria Perez', { exact: true })).toBeVisible();
   await expect(page.getByRole('img', { name: MESSAGES['register.receipt.qr'] })).toBeVisible();
-  await expect(page.getByText(MESSAGES['register.receipt.qr'], { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: MESSAGES['register.receipt.qr'] }),
+  ).toBeVisible();
   await expect(
     page.getByText(MESSAGES['register.companions.count'].replace('{count}', '1')),
   ).toBeVisible();
+});
+
+test('la consulta carga el evento y muestra su nombre, fecha y alcance', async ({ page }) => {
+  await page.route('**/api/v1/auth/me', (route) => route.abort());
+
+  await page.route('**/public/registrations/**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          id: REGISTRATION_ID,
+          participationId: 'participation-1',
+          documentType: 'CC',
+          documentNumber: '1043584533',
+          fullName: 'Mauricio Molina',
+          companionsCount: 2,
+          status: 'confirmed',
+          registeredAt: '2026-10-06T09:05:00.000Z',
+        },
+      }),
+    }),
+  );
+
+  const eventLookup = page.waitForRequest((request) =>
+    new URL(request.url()).pathname.endsWith('/public/events/gran-madrugon'),
+  );
+  await page.route('**/public/events/gran-madrugon', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          id: 'evt-1',
+          slug: 'gran-madrugon',
+          name: 'Gran madrugón 2026',
+          description: null,
+          timezone: 'America/Bogota',
+          startsAt: '2026-03-14T11:00:00.000Z',
+          endsAt: null,
+          registrationOpensAt: null,
+          registrationClosesAt: null,
+          registrationScope: 'all_venues',
+          ticketDesign: {
+            bgColor: '#111827',
+            accentColor: '#C81F68',
+            textColor: '#111827',
+          },
+          participations: [],
+        },
+      }),
+    }),
+  );
+
+  await page.goto(`/inscripcion/${REGISTRATION_ID}?evento=gran-madrugon`);
+  await eventLookup;
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: '¡Listo, Mauricio Molina!' }),
+  ).toBeVisible();
+  await expect(page.getByText('Gran madrugón 2026', { exact: true })).toBeVisible();
+  await expect(page.getByText('Todas las sucursales', { exact: true })).toBeVisible();
+  await expect(page.getByText('14/03/2026, 6:00 a. m.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tu código de acceso' })).toBeVisible();
 });

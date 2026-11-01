@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { SessionStore } from '@core/auth';
+import { Splash } from '@core/ui/splash';
 import { TranslatePipe } from '@core/i18n';
 import type { MessageKey } from '@core/i18n/messages';
 import { storage } from '@core/utils/local-storage';
@@ -106,6 +107,7 @@ export function isPanelTabActive(url: string, route: string): boolean {
 export class PanelShell {
   readonly #session = inject(SessionStore);
   readonly #router = inject(Router);
+  readonly #splash = inject(Splash);
   protected readonly workspace = inject(WorkspaceService);
 
   protected readonly collapsed = signal(storage.read<boolean>(SIDEBAR_KEY) === true);
@@ -255,8 +257,13 @@ export class PanelShell {
 
   protected async logout(): Promise<void> {
     this.closeMore();
-    await this.#session.logout();
-    await this.#router.navigateByUrl('/panel/login', { replaceUrl: true });
+    const release = this.#splash.hold('splash.leaving');
+    try {
+      await this.#session.logout();
+      await this.#router.navigateByUrl('/panel/login', { replaceUrl: true });
+    } finally {
+      release();
+    }
   }
 
   #isWide(): boolean {

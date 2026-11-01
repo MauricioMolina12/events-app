@@ -1,0 +1,8 @@
+@if (splash.visible()) {
+  <div class="splash" role="status" aria-live="polite" aria-busy="true">
+    <div class="splash__mark">
+      <app-brand-mark src="brand/logo.png" darkSrc="brand/logo-white.png" initials="SG" />
+    </div>
+    <p class="splash__label">{{ splash.message() | t }}</p>
+  </div>
+}

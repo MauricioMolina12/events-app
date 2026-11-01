@@ -1,6 +1,7 @@
 export * from './brand-mark/brand-mark';
 export * from './button.directive';
 export * from './capacity-bar/capacity-bar';
+export * from './combobox/combobox';
 export * from './confirm-dialog/confirm-dialog';
 export * from './empty-state';
 export * from './event-invite/event-invite';

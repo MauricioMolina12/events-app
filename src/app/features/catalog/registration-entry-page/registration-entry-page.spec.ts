@@ -124,6 +124,7 @@ describe('RegistrationEntryPage', () => {
     const host = await render();
 
     expect(navigate).toHaveBeenCalledWith(['/eventos', 'taller', 'inscripcion'], {
+      queryParams: { sede: 's1' },
       state: { sede: 's1' },
       replaceUrl: true,
     });
@@ -171,7 +172,7 @@ describe('RegistrationEntryPage', () => {
     expect(navigate).not.toHaveBeenCalled();
     expect(host.textContent).toContain('Sede Norte');
     expect(host.textContent).toContain('Sede Sur');
-    expect(linkTo(host, 's1')?.getAttribute('href')).toBe('/eventos/taller/inscripcion');
+    expect(linkTo(host, 's1')?.getAttribute('href')).toBe('/eventos/taller/inscripcion?sede=s1');
     expect(linkTo(host, 's2')).not.toBeNull();
   });
 
@@ -192,6 +193,7 @@ describe('RegistrationEntryPage', () => {
     expect(api.getEvent).toHaveBeenCalledWith('taller');
     expect(api.listEvents).not.toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith(['/eventos', 'taller', 'inscripcion'], {
+      queryParams: { sede: 's2' },
       state: { sede: 's2' },
       replaceUrl: true,
     });
@@ -271,6 +273,7 @@ describe('RegistrationEntryPage', () => {
 
     expect(api.listEvents).toHaveBeenCalledTimes(2);
     expect(navigate).toHaveBeenCalledWith(['/eventos', 'taller', 'inscripcion'], {
+      queryParams: { sede: 's1' },
       state: { sede: 's1' },
       replaceUrl: true,
     });

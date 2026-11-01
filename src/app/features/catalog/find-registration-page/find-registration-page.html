@@ -1,7 +1,10 @@
 <div class="flex flex-col gap-6">
-  <a class="inline-flex w-fit items-center gap-1 text-sm font-medium no-underline hover:underline" routerLink="/eventos">
+  <a
+    class="inline-flex w-fit items-center gap-1 text-sm font-medium no-underline hover:underline"
+    [routerLink]="backLink()"
+  >
     <span aria-hidden="true">←</span>
-    <span>{{ 'event.back' | t }}</span>
+    <span>{{ backLabelKey() | t }}</span>
   </a>
 
   <app-page-header titleKey="find.title" subtitleKey="find.subtitle" />
@@ -42,7 +45,11 @@
     <ul class="flex flex-col gap-3">
       @for (hit of results(); track hit.id) {
         <li class="card card--pad card--interactive">
-          <a class="flex items-center justify-between gap-3 no-underline" [routerLink]="['/inscripcion', hit.id]">
+          <a
+            class="flex items-center justify-between gap-3 no-underline"
+            [routerLink]="['/inscripcion', hit.id]"
+            [queryParams]="receiptQuery()"
+          >
             <span>
               <span class="block font-semibold">{{ hit.fullName }}</span>
               <span class="block font-mono text-xs text-(--text-3)">{{ hit.documentNumber }}</span>

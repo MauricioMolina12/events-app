@@ -125,6 +125,14 @@ export interface PublicEvent {
   readonly registrationOpensAt: string | null;
   readonly registrationClosesAt: string | null;
   readonly registrationScope?: RegistrationScope;
+  /** Preferencias del cliente dueño del evento. Sin la lista, ninguna está prendida. */
+  readonly features?: readonly (
+    | 'delivery'
+    | 'multi_venue'
+    | 'desk_export'
+    | 'desk_columns'
+    | 'companion_turns'
+  )[];
   readonly ticketDesign?: TicketDesign | null;
   /** Published sedes; the list endpoint inlines them, so both pages share a shape. */
   readonly participations: readonly PublicParticipation[];

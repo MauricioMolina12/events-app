@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { Location } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
+import { readReturnTo } from '@core/navigation/return-to';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { map, switchMap, type Observable } from 'rxjs';
 import type { PublicEvent, PublicParticipation } from '@core/domain';
@@ -134,12 +135,14 @@ export class RegistrationEntryPage {
     return targets.length === 1 ? targets[0] : undefined;
   });
 
+  readonly #location = inject(Location);
+
   /**
    * Set by the catalogue's quick access (navigation state, not the URL): the reader came to
    * pick, so a single open sede is listed instead of skipped.
    */
   readonly #choose =
-    (inject(Location).getState() as { readonly choose?: boolean } | null | undefined)?.choose ===
+    (this.#location.getState() as { readonly choose?: boolean } | null | undefined)?.choose ===
     true;
 
   /** Rows the picker paints: the named event alone, else every event that can still enrol. */
@@ -190,8 +193,12 @@ export class RegistrationEntryPage {
         return;
       }
       this.#handedOver = true;
+      const returnTo = readReturnTo(this.#location.getState());
       void this.#router.navigate(['/eventos', target.event.slug, 'inscripcion'], {
-        state: { sede: target.participation.id },
+        queryParams: { sede: target.participation.id },
+        state: returnTo
+          ? { sede: target.participation.id, returnTo }
+          : { sede: target.participation.id },
         replaceUrl: true,
       });
     });
@@ -199,6 +206,12 @@ export class RegistrationEntryPage {
 
   protected retry(): void {
     this.#attempt.update((value) => value + 1);
+  }
+
+  /** Keeps a validated return path when the picker hands the reader to the form. */
+  protected linkState(sedeId: string): { readonly sede: string; readonly returnTo?: string } {
+    const returnTo = readReturnTo(this.#location.getState());
+    return returnTo ? { sede: sedeId, returnTo } : { sede: sedeId };
   }
 
   protected kind(participation: PublicParticipation): StatusKind {

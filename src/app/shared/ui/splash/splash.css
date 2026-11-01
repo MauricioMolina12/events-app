@@ -1,0 +1,26 @@
+:host {
+  display: contents;
+}
+
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 1.25rem;
+  background: var(--surface-0);
+  color: var(--text-2);
+}
+
+.splash__mark {
+  --brand-mark-size: 4.75rem;
+}
+
+.splash__label {
+  margin: 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+}
+

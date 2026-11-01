@@ -1,9 +1,12 @@
 /**
  * Registration (alta) mirrored from `events-api`.
  *
- * A registration always belongs to a **participation** (event + sede), never to the
- * event alone: capacity and the inscription window are per sede, so the sede is what
- * the caller must pick before filling in the form.
+ * A registration is stored against one participation, because that is the capacity unit
+ * the API accepts (`participationId`). That participation is the sede the person chose.
+ * When the event's scope is `all_venues`, the ticket still reads as valid at every
+ * published sede, but the cupo is taken from the sede they selected — never from
+ * whichever one the catalogue happened to list first. `per_venue` keeps the ticket
+ * bound to that same sede.
  *
  * The alta is deliberately flat — one titular plus an optional list of companions —
  * because that is the shape of the arrival sheet and of the paper form being replaced.
@@ -41,6 +44,10 @@ export interface CreateRegistrationRequest {
   readonly phone?: string | null;
   /** Whether the titular asked for an electronic invoice. Stored only, for now. */
   readonly requiresElectronicInvoice?: boolean;
+  readonly deliveryMode?: 'venue' | 'other' | null;
+  readonly address?: string | null;
+  readonly carrier?: string | null;
+  readonly deliveryCityId?: string | null;
   readonly companions?: readonly RegistrationCompanionRequest[];
 }
 
@@ -104,6 +111,12 @@ export interface PublicRegistrationReceipt {
    * draw the QR; the folio lookup does not send it again (only the hash is stored).
    */
   readonly qrToken?: string;
+  readonly eventSlug?: string;
+  readonly otherVenues?: readonly {
+    participationId: string;
+    name: string;
+    city: string | null;
+  }[];
 }
 
 /**

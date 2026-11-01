@@ -21,6 +21,7 @@ import { BrandMark, ThemeToggle } from '@shared/ui';
   selector: 'app-public-shell',
   imports: [RouterOutlet, RouterLink, RouterLinkActive, TranslatePipe, ThemeToggle, BrandMark],
   templateUrl: './public-shell.html',
+  styleUrl: './public-shell.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PublicShell {

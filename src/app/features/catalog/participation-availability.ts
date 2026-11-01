@@ -58,21 +58,25 @@ export function registrableSedes(event: PublicEvent): readonly PublicParticipati
 }
 
 /**
- * The requested sede when it can take an alta, else the first one that can. The fallback keeps
- * a stale selection working; only when nothing is usable does it return a blocked sede, so the
- * form has something to explain instead of an empty screen.
+ * The sede an alta is stored against.
+ *
+ * A sede the person named (the card they opened, or the one they picked) is used as-is.
+ * The only automatic choice is a event with a single open sede. Several open sedes and no
+ * choice stay unresolved, so the form cannot silently enrol them in whichever sede the API
+ * listed first.
  */
-export function pickSede(
+export function registrationSede(
   event: PublicEvent,
   requestedId?: string | undefined,
 ): PublicParticipation | undefined {
-  const requested = requestedId
-    ? event.participations.find((participation) => participation.id === requestedId)
-    : undefined;
-  if (requested && isRegistrable(requested)) {
-    return requested;
+  if (requestedId) {
+    const named = event.participations.find((participation) => participation.id === requestedId);
+    if (named) {
+      return named;
+    }
   }
-  return registrableSedes(event)[0] ?? event.participations[0];
+  const open = registrableSedes(event);
+  return open.length === 1 ? open[0] : undefined;
 }
 
 /** Badge kind for a sede: `open` is the only state that reads as available. */

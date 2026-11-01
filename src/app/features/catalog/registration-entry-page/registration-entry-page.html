@@ -128,7 +128,8 @@
                         variant="primary"
                         [attr.data-sede]="participation.id"
                         [routerLink]="['/eventos', event.slug, 'inscripcion']"
-                        [state]="{ sede: participation.id }"
+                        [queryParams]="{ sede: participation.id }"
+                        [state]="linkState(participation.id)"
                       >
                         {{ 'event.venue.register' | t }}
                       </a>

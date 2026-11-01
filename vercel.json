@@ -12,7 +12,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://events-development.stargrowstudioevents.workers.dev/api/:path*"
+      "destination": "https://events-production.stargrowstudioevents.workers.dev/api/:path*"
     },
     { "source": "/((?!.*\\.).*)", "destination": "/index.html" }
   ]

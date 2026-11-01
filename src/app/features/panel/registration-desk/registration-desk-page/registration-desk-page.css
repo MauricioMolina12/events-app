@@ -1,4 +1,31 @@
 /* ── Header live indicator ─────────────────────────────────────────────────── */
+.desk {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.desk-doc {
+  display: grid;
+  grid-template-columns: 4.25rem minmax(0, 1fr);
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.desk-doc__type {
+  width: 100%;
+  max-width: none;
+  padding-inline: 0.45rem 1.55rem;
+  background-position: right 0.4rem center;
+  background-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.desk-doc__number {
+  width: 100%;
+  min-width: 0;
+}
+
 .desk-live {
   display: inline-flex;
   align-items: center;
@@ -50,6 +77,54 @@
   place-items: center;
   color: var(--text-3);
   pointer-events: none;
+}
+
+.desk-table-tools {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.desk-table-tools .desk-filters__search {
+  flex: 1;
+  min-width: 0;
+}
+
+.desk-export {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.45rem;
+  height: var(--control-height);
+  padding: 0 0.95rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border));
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--primary) 14%, transparent), transparent),
+    var(--surface-1);
+  color: var(--primary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  box-shadow: var(--shadow-1);
+  cursor: pointer;
+}
+
+.desk-export:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: var(--primary-subtle);
+}
+
+.desk-export:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.desk-export:disabled {
+  cursor: progress;
+  opacity: 0.7;
 }
 
 @container (min-width: 36rem) {
@@ -131,10 +206,18 @@
   pointer-events: none;
 }
 
-.kpi:nth-child(2) { animation-delay: 40ms; }
-.kpi:nth-child(3) { animation-delay: 80ms; }
-.kpi:nth-child(4) { animation-delay: 120ms; }
-.kpi:nth-child(5) { animation-delay: 160ms; }
+.kpi:nth-child(2) {
+  animation-delay: 40ms;
+}
+.kpi:nth-child(3) {
+  animation-delay: 80ms;
+}
+.kpi:nth-child(4) {
+  animation-delay: 120ms;
+}
+.kpi:nth-child(5) {
+  animation-delay: 160ms;
+}
 
 .kpi--info {
   --tone: var(--info);
@@ -154,8 +237,7 @@
 .kpi--accent {
   grid-column: span 2;
   background:
-    radial-gradient(120% 140% at 100% 0%, var(--primary-subtle), transparent 60%),
-    var(--surface-1);
+    radial-gradient(120% 140% at 100% 0%, var(--primary-subtle), transparent 60%), var(--surface-1);
 }
 
 .kpi--accent::after {

@@ -7,13 +7,20 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { Location } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { switchMap } from 'rxjs';
+import { catchError, map, of, startWith, switchMap } from 'rxjs';
+import { toApiError } from '@core/api';
 import { I18nService, TranslatePipe, type MessageKey, type MessageParams } from '@core/i18n';
+import { readReturnTo, safeEventSlug } from '@core/navigation/return-to';
 import { ApiErrorPresenter, ToastService } from '@core/ui';
-import { MAX_COMPANIONS_PER_REGISTRATION, type PublicRegistrationReceipt } from '@core/domain';
-import { loadingState, toAsyncState } from '@core/utils/async-state';
+import {
+  MAX_COMPANIONS_PER_REGISTRATION,
+  type PublicEvent,
+  type PublicRegistrationReceipt,
+} from '@core/domain';
+import { errorState, loadedState, loadingState, toAsyncState } from '@core/utils/async-state';
 import { toZonedDateTimeDisplay } from '@core/utils/dates';
 import { formatDocument } from '@core/utils/documents';
 import {
@@ -27,6 +34,7 @@ import {
 } from '@shared/ui';
 import { DEFAULT_PRIMARY } from '@core/workspace/brand-color';
 import { WorkspaceService } from '@core/workspace/workspace.service';
+import { ticketVenueLabel } from '@shared/ticket/ticket-presentation';
 import { CatalogApi } from '../catalog.api';
 import { ReceiptStore } from '../receipt.store';
 
@@ -37,9 +45,9 @@ type CopyState = 'idle' | 'copying' | 'copied';
  *
  * The receipt is read from the folio lookup (`GET /public/registrations/{id}`), so a
  * reload, a shared link or a second device all land on the same confirmation instead of
- * a "not found". The server answers with the receipt alone (titular, document, count);
- * the event/sede names, the schedule, the companions' names and the contact data are the
- * extra context this browser saved when the alta succeeded, merged in when present.
+ * a "not found". That payload has no event name, date or ticket design. Those come from
+ * the public event named by `?evento=` (or by the slug this browser kept), so a later
+ * consult uses the design the owner has saved now, not a snapshot from the alta.
  */
 @Component({
   selector: 'app-receipt-page',
@@ -61,6 +69,11 @@ type CopyState = 'idle' | 'copying' | 'copied';
 export class ReceiptPage {
   /** Route parameter: the registration id returned by the alta. */
   readonly id = input.required<string>();
+  /**
+   * `?evento=` is the public slug of the event this folio belongs to.
+   * It survives a reload. A value that is not a slug is ignored.
+   */
+  readonly evento = input<string | undefined>(undefined);
 
   readonly #api = inject(CatalogApi);
   readonly #receipts = inject(ReceiptStore);
@@ -69,6 +82,7 @@ export class ReceiptPage {
   readonly #i18n = inject(I18nService);
   readonly #workspace = inject(WorkspaceService);
   readonly #destroyRef = inject(DestroyRef);
+  readonly #location = inject(Location);
 
   /** Bumped by `retry()`; part of the request so a retry re-subscribes. */
   readonly #attempt = signal(0);
@@ -91,6 +105,48 @@ export class ReceiptPage {
   });
 
   protected readonly context = computed(() => this.#receipts.find(this.id())?.context ?? null);
+
+  /** Slug from the URL first, then the one this browser stored with the alta. */
+  protected readonly eventSlug = computed(
+    () => safeEventSlug(this.evento()) ?? safeEventSlug(this.context()?.eventSlug) ?? null,
+  );
+
+  readonly #eventAttempt = signal(0);
+  readonly #eventRequest = computed(() => ({
+    slug: this.eventSlug(),
+    attempt: this.#eventAttempt(),
+  }));
+
+  /**
+   * Live event: name, date, scope and the ticket design the owner has saved.
+   * A failure stays on this signal so the receipt itself (the folio) still renders.
+   */
+  readonly eventState = toSignal(
+    toObservable(this.#eventRequest).pipe(
+      switchMap(({ slug }) => {
+        if (!slug) {
+          return of(loadedState<PublicEvent | null>(null));
+        }
+        return this.#api.getEvent(slug).pipe(
+          map((event) => loadedState<PublicEvent | null>(event)),
+          startWith(loadingState<PublicEvent | null>()),
+          catchError((error: unknown) => of(errorState<PublicEvent | null>(toApiError(error)))),
+        );
+      }),
+    ),
+    { initialValue: loadingState<PublicEvent | null>() },
+  );
+
+  protected readonly liveEvent = computed(() => {
+    const state = this.eventState();
+    return state.status === 'loaded' ? state.value : null;
+  });
+
+  protected readonly eventPending = computed(
+    () => Boolean(this.eventSlug()) && this.eventState().status === 'loading',
+  );
+
+  protected readonly eventFailed = computed(() => this.eventState().status === 'error');
 
   protected readonly error = computed(() => {
     const state = this.state();
@@ -117,6 +173,10 @@ export class ReceiptPage {
 
   protected readonly fullName = computed(() => this.receipt()?.fullName ?? '');
   protected readonly receiptId = computed(() => this.receipt()?.id ?? '');
+  protected readonly otherVenues = computed(() => this.receipt()?.otherVenues ?? []);
+  protected readonly otherVenueSlug = computed(
+    () => this.eventSlug() ?? safeEventSlug(this.receipt()?.eventSlug) ?? null,
+  );
   /**
    * Payload printed in the QR: the token issued at alta when this device kept it,
    * otherwise the folio so a shared link still shows a scannable code.
@@ -135,7 +195,10 @@ export class ReceiptPage {
     if (typeof document === 'undefined') {
       return DEFAULT_PRIMARY;
     }
-    return getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || DEFAULT_PRIMARY;
+    return (
+      getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() ||
+      DEFAULT_PRIMARY
+    );
   });
   protected readonly document = computed(() => {
     const receipt = this.receipt();
@@ -143,22 +206,70 @@ export class ReceiptPage {
   });
   protected readonly companionsCount = computed(() => this.receipt()?.companionsCount ?? 0);
   protected readonly companionNames = computed(() => this.context()?.companionNames ?? []);
-  protected readonly establishmentName = computed(() => this.context()?.establishmentName ?? null);
-  protected readonly establishmentCity = computed(() => this.context()?.establishmentCity ?? null);
-  protected readonly eventName = computed(() => this.context()?.eventName ?? null);
-  protected readonly eventSlug = computed(() => this.context()?.eventSlug ?? null);
+  /** Saved design when the event loaded; the device snapshot only if that read failed. */
+  protected readonly ticketDesign = computed(() => {
+    const state = this.eventState();
+    if (state.status === 'loaded' && state.value) {
+      return state.value.ticketDesign ?? null;
+    }
+    return this.context()?.ticketDesign ?? null;
+  });
+
+  protected readonly qrColor = computed(
+    () => this.ticketDesign()?.accentColor ?? this.brandColor(),
+  );
+
+  protected readonly eventName = computed(() => {
+    const live = this.liveEvent();
+    if (live) {
+      return live.name;
+    }
+    return this.context()?.eventName ?? null;
+  });
+
   protected readonly when = computed(() => {
+    const live = this.liveEvent();
+    if (live?.startsAt) {
+      return toZonedDateTimeDisplay(live.startsAt, live.timezone);
+    }
     const context = this.context();
     return context?.eventStartsAt
       ? toZonedDateTimeDisplay(context.eventStartsAt, context.eventTimeZone)
       : '';
   });
+
+  protected readonly venueLabel = computed(() => {
+    const live = this.liveEvent();
+    const scope = live?.registrationScope ?? this.context()?.registrationScope;
+    const allVenuesLabel = this.#i18n.t('register.scope.allVenues');
+    if (scope === 'all_venues') {
+      return ticketVenueLabel({ scope, allVenuesLabel });
+    }
+    const participationId = this.receipt()?.participationId;
+    const match = live?.participations.find((item) => item.id === participationId);
+    if (match) {
+      return ticketVenueLabel({
+        scope,
+        allVenuesLabel,
+        establishmentName: match.establishment.name,
+        establishmentCity: match.establishment.city,
+      });
+    }
+    return ticketVenueLabel({
+      scope,
+      allVenuesLabel,
+      establishmentName: this.context()?.establishmentName,
+      establishmentCity: this.context()?.establishmentCity,
+    });
+  });
+
   protected readonly issuedAt = computed(() => {
     const receipt = this.receipt();
     if (!receipt) {
       return '';
     }
-    return toZonedDateTimeDisplay(receipt.registeredAt, this.context()?.eventTimeZone ?? 'UTC', {
+    const zone = this.liveEvent()?.timezone ?? this.context()?.eventTimeZone ?? 'UTC';
+    return toZonedDateTimeDisplay(receipt.registeredAt, zone, {
       dateStyle: 'long',
       timeStyle: 'short',
     });
@@ -193,11 +304,20 @@ export class ReceiptPage {
     this.eventSlug() ? ['/eventos', this.eventSlug()] : ['/eventos'],
   );
 
+  protected readonly backLabelKey = computed<MessageKey>(() =>
+    this.eventSlug() ? 'register.back' : 'event.back',
+  );
+
+  /**
+   * Only the desk hands over this destination, and only in navigation state.
+   * A public visitor never sees a link into the panel.
+   */
+  protected readonly deskReturn = signal<string | null>(null);
+
   protected readonly canAddCompanion = computed(() => {
     const receipt = this.receipt();
     return (
-      receipt?.status === 'confirmed' &&
-      receipt.companionsCount < MAX_COMPANIONS_PER_REGISTRATION
+      receipt?.status === 'confirmed' && receipt.companionsCount < MAX_COMPANIONS_PER_REGISTRATION
     );
   });
 
@@ -215,28 +335,11 @@ export class ReceiptPage {
     };
   });
 
-  protected readonly phone = computed(() => this.context()?.phone ?? null);
   protected readonly email = computed(() => this.context()?.email ?? null);
 
-  protected readonly whatsappHref = computed(() => {
-    const digits = this.#phoneDigits();
-    if (!digits) {
-      return null;
-    }
-    return `https://wa.me/${digits}?text=${encodeURIComponent(this.#shareMessage())}`;
-  });
-
-  protected readonly mailtoHref = computed(() => {
-    const email = this.email();
-    if (!email) {
-      return null;
-    }
-    const subject = encodeURIComponent(this.#i18n.t('register.confirmed.share.subject'));
-    const body = encodeURIComponent(this.#shareMessage());
-    return `mailto:${email}?subject=${subject}&body=${body}`;
-  });
-
   constructor() {
+    const destination = readReturnTo(this.#location.getState());
+    this.deskReturn.set(destination?.startsWith('/panel/mesa') ? destination : null);
     this.#destroyRef.onDestroy(() => {
       if (this.#copyReset !== undefined) {
         clearTimeout(this.#copyReset);
@@ -246,6 +349,11 @@ export class ReceiptPage {
 
   protected retry(): void {
     this.#attempt.update((value) => value + 1);
+  }
+
+  /** Reloads the public event when the name, date or design failed to arrive. */
+  protected retryEvent(): void {
+    this.#eventAttempt.update((value) => value + 1);
   }
 
   /** Falls back to the raw value when the clipboard API is unavailable (http, no focus). */
@@ -272,14 +380,14 @@ export class ReceiptPage {
   /** The generator is loaded on demand: nobody pays for it until they ask for the PDF. */
   protected async downloadTicket(): Promise<void> {
     const receipt = this.receipt();
-    if (!receipt || !this.qrVisible() || this.downloading()) {
+    if (!receipt || !this.qrVisible() || this.downloading() || this.eventPending()) {
       return;
     }
     this.downloading.set(true);
     try {
       const { downloadTicketPdf } = await import('./ticket-pdf');
-      const sede = this.establishmentName();
-      const city = this.establishmentCity();
+      const sede = this.venueLabel();
+      const design = this.ticketDesign();
       const t = (key: MessageKey, params?: MessageParams): string => this.#i18n.t(key, params);
       await downloadTicketPdf(
         {
@@ -292,17 +400,15 @@ export class ReceiptPage {
           fields: [
             { label: t('register.receipt.titular'), value: receipt.fullName },
             { label: t('register.receipt.document'), value: this.document() },
-            ...(sede
-              ? [{ label: t('register.sede'), value: city ? `${sede} · ${city}` : sede }]
-              : []),
+            ...(sede ? [{ label: t('register.sede'), value: sede }] : []),
             { label: t('register.companions'), value: String(receipt.companionsCount) },
           ],
           folioLabel: t('register.receipt.folio'),
           folio: receipt.id,
           issued: `${t('register.receipt.issuedLabel')}: ${this.issuedAt()}`,
           footer: t('register.receipt.ticketFooter'),
-          primaryColor: this.context()?.ticketDesign?.accentColor ?? this.brandColor(),
-          design: this.context()?.ticketDesign ?? undefined,
+          primaryColor: this.qrColor(),
+          design: design ?? undefined,
         },
         `codigo-acceso-${receipt.id.slice(0, 8)}.pdf`,
       );
@@ -313,21 +419,4 @@ export class ReceiptPage {
     }
   }
 
-  /** WhatsApp needs digits only (country code included), so spaces and `+` are dropped. */
-  #phoneDigits(): string | null {
-    const phone = this.phone();
-    if (!phone) {
-      return null;
-    }
-    const digits = phone.replace(/\D/g, '');
-    return digits.length >= 7 ? digits : null;
-  }
-
-  #shareMessage(): string {
-    const params: MessageParams = { name: this.fullName(), folio: this.receiptId() };
-    const event = this.eventName();
-    return event
-      ? this.#i18n.t('register.confirmed.share.message', { ...params, event })
-      : this.#i18n.t('register.confirmed.share.messageNoEvent', params);
-  }
 }

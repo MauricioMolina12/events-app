@@ -104,14 +104,9 @@
     grid-row: 2;
   }
 
-  .receipt-save {
-    grid-column: 1;
-    grid-row: 3;
-  }
-
   .receipt-qr {
     grid-column: 2;
-    grid-row: 1 / span 3;
+    grid-row: 1 / span 2;
   }
 }
 

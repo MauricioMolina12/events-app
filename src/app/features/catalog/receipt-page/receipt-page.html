@@ -27,25 +27,44 @@
         @if (isOffline()) {
           <p class="hint">{{ 'ui.retryOffline' | t }}</p>
         }
-        <button type="button" appButton variant="secondary" (click)="retry()">
-          {{ 'app.retry' | t }}
-        </button>
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" appButton variant="secondary" (click)="retry()">
+            {{ 'app.retry' | t }}
+          </button>
+          <a appButton variant="ghost" class="no-underline" [routerLink]="backLink()">
+            {{ backLabelKey() | t }}
+          </a>
+        </div>
       </div>
     }
   }
 
   @case ('loaded') {
     <article class="receipt mx-auto w-full min-w-0">
-      <a
-        appButton
-        variant="ghost"
-        size="sm"
-        class="mb-3 hidden w-fit shrink-0 no-underline lg:inline-flex"
-        [routerLink]="backLink()"
-      >
-        <app-icon name="arrow-left" [size]="16" />
-        <span>{{ 'register.back' | t }}</span>
-      </a>
+      <div class="mb-3 flex flex-wrap items-center gap-2">
+        @if (deskReturn(); as desk) {
+          <a
+            appButton
+            variant="ghost"
+            size="sm"
+            class="w-fit shrink-0 no-underline"
+            [routerLink]="desk"
+          >
+            <app-icon name="arrow-left" [size]="16" />
+            <span>{{ 'register.backToDesk' | t }}</span>
+          </a>
+        }
+        <a
+          appButton
+          variant="ghost"
+          size="sm"
+          class="inline-flex w-fit shrink-0 no-underline"
+          [routerLink]="backLink()"
+        >
+          <app-icon name="arrow-left" [size]="16" />
+          <span>{{ backLabelKey() | t }}</span>
+        </a>
+      </div>
 
       <div class="receipt-layout">
         <header class="receipt-hero flex min-w-0 items-start gap-3">
@@ -59,12 +78,46 @@
             <div class="mb-1">
               <app-status-badge [kind]="kind()" />
             </div>
-            <h1 class="text-pretty text-2xl font-bold leading-tight tracking-tight xl:text-[1.75rem]">
+            <h1
+              class="text-pretty text-2xl font-bold leading-tight tracking-tight xl:text-[1.75rem]"
+            >
               {{ 'register.confirmed.title' | t: { name: fullName() } }}
             </h1>
             <p class="mt-1 text-sm leading-snug text-[var(--text-2)]">
               {{ confirmationBody() }}
             </p>
+            @if (eventPending()) {
+              <p class="mt-2 text-sm text-[var(--text-3)]">
+                {{ 'register.receipt.designLoading' | t }}
+              </p>
+            } @else if (eventFailed()) {
+              <p class="mt-2 text-sm text-[var(--text-2)]" role="status">
+                {{ 'register.receipt.eventUnavailable' | t }}
+              </p>
+              <button
+                type="button"
+                appButton
+                variant="secondary"
+                size="sm"
+                class="mt-2"
+                (click)="retryEvent()"
+              >
+                {{ 'register.receipt.eventRetry' | t }}
+              </button>
+            } @else if (!eventName()) {
+              <p class="mt-2 text-sm text-[var(--text-2)]">
+                {{ 'register.receipt.eventUnavailable' | t }}
+              </p>
+              <a
+                routerLink="/buscar"
+                appButton
+                variant="secondary"
+                size="sm"
+                class="mt-2 no-underline"
+              >
+                {{ 'register.receipt.lookup' | t }}
+              </a>
+            }
           </div>
         </header>
 
@@ -81,7 +134,7 @@
                 <app-qr-code
                   [value]="qrValue()"
                   [label]="'register.receipt.qr' | t"
-                  [color]="brandColor()"
+                  [color]="qrColor()"
                 />
               </div>
             }
@@ -118,8 +171,8 @@
                   variant="primary"
                   size="sm"
                   class="w-full"
-                  [loading]="downloading()"
-                  [disabled]="downloading()"
+                  [loading]="downloading() || eventPending()"
+                  [disabled]="downloading() || eventPending()"
                   (click)="downloadTicket()"
                 >
                   <app-icon name="download" [size]="16" />
@@ -196,22 +249,21 @@
               </dt>
               <dd class="mt-0.5 text-sm font-semibold text-[var(--text-1)]">{{ issuedAt() }}</dd>
             </div>
-            @if (establishmentName(); as name) {
+            @if (venueLabel(); as venue) {
               <div class="receipt-field">
-                <dt class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                <dt
+                  class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]"
+                >
                   {{ 'register.sede' | t }}
                 </dt>
-                <dd class="mt-0.5 text-sm font-semibold text-[var(--text-1)]">
-                  {{ name }}
-                  @if (establishmentCity()) {
-                    <span class="font-medium text-[var(--text-2)]"> · {{ establishmentCity() }}</span>
-                  }
-                </dd>
+                <dd class="mt-0.5 text-sm font-semibold text-[var(--text-1)]">{{ venue }}</dd>
               </div>
             }
             @if (eventName(); as name) {
               <div class="receipt-field">
-                <dt class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                <dt
+                  class="text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--text-3)]"
+                >
                   {{ 'register.receipt.event' | t }}
                 </dt>
                 <dd class="mt-0.5 text-sm font-semibold text-[var(--text-1)]">{{ name }}</dd>
@@ -223,53 +275,27 @@
           </dl>
         </section>
 
-        <section
-          class="receipt-save flex min-w-0 flex-col gap-2"
-          aria-labelledby="receipt-save"
-        >
-          <h2 id="receipt-save" class="text-base font-semibold">
-            {{ 'register.receipt.saveTitle' | t }}
-          </h2>
-          <p class="text-sm leading-snug text-[var(--text-2)]">
-            {{ 'register.receipt.saveBody' | t }}
-          </p>
-          <div class="flex flex-col gap-2 sm:flex-row">
-            @if (whatsappHref(); as href) {
-              <a
-                appButton
-                variant="primary"
-                [href]="href"
-                target="_blank"
-                rel="noopener"
-              >
-                <app-icon name="phone" [size]="16" />
-                {{ 'register.confirmed.send.whatsapp' | t }}
-              </a>
-            } @else {
-              <button type="button" appButton variant="primary" disabled>
-                <app-icon name="phone" [size]="16" />
-                {{ 'register.confirmed.send.whatsapp' | t }}
-              </button>
-            }
-            @if (mailtoHref(); as href) {
-              <a appButton variant="secondary" [href]="href">
-                <app-icon name="mail" [size]="16" />
-                {{ 'register.confirmed.send.email' | t }}
-              </a>
-            } @else {
-              <button type="button" appButton variant="secondary" disabled>
-                <app-icon name="mail" [size]="16" />
-                {{ 'register.confirmed.send.email' | t }}
-              </button>
-            }
-          </div>
-          @if (!whatsappHref() && !mailtoHref()) {
-            <p class="hint">{{ 'register.confirmed.send.unavailable' | t }}</p>
-          }
-        </section>
+        @if (otherVenues().length > 0 && otherVenueSlug(); as slug) {
+          <section class="card card--pad flex flex-col gap-3">
+            <h2 class="text-lg font-semibold">{{ 'register.receipt.otherVenues' | t }}</h2>
+            <p class="hint">{{ 'register.receipt.otherVenuesHint' | t }}</p>
+            <ul class="flex flex-col gap-2">
+              @for (venue of otherVenues(); track venue.participationId) {
+                <li>
+                  <a
+                    class="font-semibold text-[var(--primary)]"
+                    [routerLink]="['/eventos', slug, 'inscripcion']"
+                    [queryParams]="{ sede: venue.participationId }"
+                  >
+                    {{ venue.name }}@if (venue.city) { · {{ venue.city }} }
+                  </a>
+                </li>
+              }
+            </ul>
+          </section>
+        }
 
       </div>
-
     </article>
   }
 }

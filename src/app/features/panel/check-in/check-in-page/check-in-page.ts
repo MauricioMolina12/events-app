@@ -103,6 +103,34 @@ export class CheckInPage {
     return result ? TIME_FORMAT.format(new Date(result.assignedAt)) : '';
   });
   protected readonly ticket = computed(() => this.preview() ?? this.result());
+
+  /**
+   * A shared inscription is the same registration at every sede. The scan still resolves
+   * that one code; this only stops the door from reading it as exclusive to the anchor sede.
+   */
+  protected venueLine(view: CheckInPreview): string {
+    if (this.#allVenues(view.event.id)) {
+      return this.#i18n.t('register.scope.allVenues');
+    }
+    return view.sede.city ? `${view.sede.name} · ${view.sede.city}` : view.sede.name;
+  }
+
+  protected recentVenue(name: string): string {
+    return this.#allVenues(this.eventId()) ? this.#i18n.t('register.scope.allVenues') : name;
+  }
+
+  #allVenues(eventId: string): boolean {
+    if (!eventId) {
+      return false;
+    }
+    const state = this.events();
+    if (state.status !== 'loaded') {
+      return false;
+    }
+    return (
+      state.value.items.find((event) => event.id === eventId)?.registrationScope === 'all_venues'
+    );
+  }
   protected readonly holderDocument = computed(() => {
     const registration = this.ticket()?.registration;
     return registration
@@ -178,13 +206,7 @@ export class CheckInPage {
     this.pendingCode.set(normalized);
     this.#request?.unsubscribe();
     this.#request = this.#api.lookup(normalized).subscribe({
-      next: (preview) => {
-        this.preview.set(preview);
-        this.#openPreview(preview);
-        this.presentCompanionIds.set(new Set(preview.companions.map((companion) => companion.id)));
-        this.confirmStep.set('holder');
-        this.phase.set('confirm');
-      },
+      next: (preview) => this.#openPreview(preview),
       error: (error: unknown) => {
         this.errorMessage.set(this.#errors.message(error));
         this.phase.set('error');
@@ -198,7 +220,7 @@ export class CheckInPage {
     if (!preview) {
       return;
     }
-    if (preview.companions.length === 0) {
+    if (preview.companions.length === 0 || preview.assignCompanionTurns === false) {
       this.#confirmAttendance();
       return;
     }
@@ -277,7 +299,13 @@ export class CheckInPage {
       return;
     }
     this.#desk
-      .registrations({ eventId, checkIn: 'checked_in', sort: 'checkedInAt', order: 'desc', limit: 8 })
+      .registrations({
+        eventId,
+        checkIn: 'checked_in',
+        sort: 'checkedInAt',
+        order: 'desc',
+        limit: 8,
+      })
       .subscribe({
         next: (page) => this.recent.set(page.items),
         error: () => this.recent.set([]),
@@ -288,7 +316,8 @@ export class CheckInPage {
     this.preview.set(preview);
     this.pendingCode.set(preview.registration.id);
     const pending = preview.companions.filter((companion) => !companion.checkedIn);
-    if (preview.alreadyAssigned && pending.length === 0) {
+    const companionTurns = preview.assignCompanionTurns !== false;
+    if (preview.alreadyAssigned && (!companionTurns || pending.length === 0)) {
       this.result.set({ ...preview, releasedCompanionsCount: 0 });
       this.phase.set('result');
       navigator.vibrate?.([60, 60, 60]);
@@ -340,7 +369,8 @@ export class CheckInPage {
     this.#request = this.#api
       .confirm(code, {
         holderPresent: true,
-        presentCompanionIds: [...this.presentCompanionIds()],
+        presentCompanionIds:
+          this.preview()?.assignCompanionTurns === false ? [] : [...this.presentCompanionIds()],
       })
       .subscribe({
         next: (result) => {

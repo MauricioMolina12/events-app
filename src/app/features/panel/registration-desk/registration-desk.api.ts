@@ -28,6 +28,13 @@ export interface DeskSedeMetrics extends DeskMetrics {
 
 export interface DeskSummary {
   readonly event: { readonly id: string; readonly slug: string; readonly name: string };
+  readonly features?: readonly (
+    | 'delivery'
+    | 'multi_venue'
+    | 'desk_export'
+    | 'desk_columns'
+    | 'companion_turns'
+  )[];
   readonly participationId: string | null;
   readonly totals: DeskMetrics;
   readonly sedes: readonly DeskSedeMetrics[];
@@ -39,6 +46,8 @@ export interface DeskRow {
   readonly fullName: string;
   readonly documentType: DocumentType;
   readonly documentNumber: string;
+  readonly phone?: string | null;
+  readonly requiresElectronicInvoice?: boolean;
   readonly companionsCount: number;
   readonly people: number;
   readonly registeredAt: string;
@@ -93,6 +102,15 @@ export class RegistrationDeskApi {
   }
 
   /** Companions of one inscription. The desk list only carries the count. */
+  exportFile(query: DeskQuery): Observable<Blob> {
+    return this.#api.download('check-in/registrations/export', {
+      eventId: query.eventId,
+      participationId: query.participationId,
+      checkIn: query.checkIn,
+      search: query.search,
+    });
+  }
+
   companions(registrationId: string): Observable<readonly DeskCompanion[]> {
     return this.#api
       .get<{ companions: readonly DeskCompanion[] }>(

@@ -146,7 +146,7 @@
 
 .kpi__value {
   font-size: 1.75rem;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -332,6 +332,37 @@
   margin-top: auto;
 }
 
+.venue.is-editing {
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+.capacity-slot {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.capacity-editor {
+  scroll-margin-block: 1.25rem;
+  animation: capacity-in 220ms ease;
+}
+
+.capacity-editor.is-editing {
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+@keyframes capacity-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .detail,
 .compare,
 .table-block {
@@ -432,6 +463,7 @@
 }
 
 .table-shell {
+  min-width: 0;
   max-width: 100%;
   margin-top: var(--space-3);
   overflow-x: auto;

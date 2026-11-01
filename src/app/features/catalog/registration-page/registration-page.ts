@@ -17,10 +17,10 @@ import {
   Validators,
   type AbstractControl,
 } from '@angular/forms';
-import { Location } from '@angular/common';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
-import { firstValueFrom, switchMap } from 'rxjs';
+import { DOCUMENT, Location } from '@angular/common';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, NavigationEnd, Router, RouterLink } from '@angular/router';
+import { catchError, filter, firstValueFrom, map, of, switchMap } from 'rxjs';
 import { toApiError, type ApiError } from '@core/api';
 import {
   MAX_COMPANIONS_PER_REGISTRATION,
@@ -29,12 +29,14 @@ import {
   type PublicParticipation,
 } from '@core/domain';
 import { I18nService, TranslatePipe, type MessageKey, type MessageParams } from '@core/i18n';
-import { ApiErrorPresenter, ToastService } from '@core/ui';
+import { readReturnTo } from '@core/navigation/return-to';
+import { ApiErrorPresenter, ConfirmService, ToastService } from '@core/ui';
 import { loadingState, toAsyncState } from '@core/utils/async-state';
 import { describeWindow, toZonedDateTimeDisplay } from '@core/utils/dates';
 import { DOCUMENT_TYPES, documentTypeLabel, type DocumentType } from '@core/utils/documents';
 import {
   ButtonDirective,
+  Combobox,
   EmptyState,
   FieldControlDirective,
   FormField,
@@ -54,8 +56,8 @@ import {
 } from '../companion-form';
 import {
   participationStatusKind,
-  pickSede,
   registrableReason,
+  registrationSede,
 } from '../participation-availability';
 import { ReceiptStore, type ReceiptContext } from '../receipt.store';
 
@@ -69,7 +71,7 @@ const SKELETON_ROWS: readonly number[] = [1, 2, 3];
 /** Same shape the API accepts: seven digits up to twenty characters of furniture. */
 const PHONE_PATTERN = /^[+()\d][\d\s()+-]{6,19}$/;
 
-/** The three beats of the alta. Step 3 lives on the receipt route. */
+/** The three beats of a per-sede alta. Step 3 lives on the receipt route. */
 const FLOW_STEPS: readonly FlowStep[] = [
   { index: 1, labelKey: 'register.step.sede' },
   { index: 2, labelKey: 'register.step.data' },
@@ -101,6 +103,10 @@ const TITULAR_SUMMARY = {
     anchor: 'regInvoiceYes',
     labelKey: 'register.electronicInvoice',
   },
+  deliveryMode: { anchor: 'regDeliveryVenue', labelKey: 'register.delivery.title' },
+  address: { anchor: 'regAddress', labelKey: 'register.delivery.address' },
+  carrier: { anchor: 'regCarrier', labelKey: 'register.delivery.carrier' },
+  deliveryCityId: { anchor: 'regDeliveryCity', labelKey: 'register.delivery.city' },
 } as const satisfies Record<string, { anchor: string; labelKey: MessageKey }>;
 
 /** Suffix of the input id for each `companions.<index>.<field>` path we can point at. */
@@ -139,6 +145,7 @@ function phoneValidator(control: AbstractControl): { phone: true } | null {
     RouterLink,
     ReactiveFormsModule,
     ButtonDirective,
+    Combobox,
     EmptyState,
     FieldControlDirective,
     FormField,
@@ -151,14 +158,23 @@ function phoneValidator(control: AbstractControl): { phone: true } | null {
 })
 export class RegistrationPage {
   readonly slug = input.required<string>();
+  /** `?sede=` — the participation the previous screen named. Wins over a listed-first default. */
+  readonly sede = input<string | undefined>(undefined);
 
   readonly #api = inject(CatalogApi);
   readonly #router = inject(Router);
+  readonly #route = inject(ActivatedRoute);
   readonly #location = inject(Location);
   readonly #receipts = inject(ReceiptStore);
   readonly #errors = inject(ApiErrorPresenter);
   readonly #toast = inject(ToastService);
   readonly #i18n = inject(I18nService);
+  readonly #confirm = inject(ConfirmService);
+  readonly #document = inject(DOCUMENT);
+  protected readonly returnTo = signal<string | null>(null);
+  protected readonly returnLabelKey = computed<MessageKey>(() =>
+    this.returnTo()?.startsWith('/panel/mesa') ? 'register.backToDesk' : 'app.return',
+  );
 
   /** Bumped by `retry()`; part of the request so a retry re-subscribes. */
   readonly #attempt = signal(0);
@@ -183,7 +199,9 @@ export class RegistrationPage {
 
   protected readonly placeholders = SKELETON_ROWS;
   protected readonly documentTypes = DOCUMENT_TYPES;
-  protected readonly steps = FLOW_STEPS;
+
+  /** Set once the alta succeeds, so leaving for the receipt does not ask to discard it. */
+  #finished = false;
 
   /** Chosen sede; `undefined` only while the event is still loading. */
   protected readonly selectedId = signal<string | undefined>(undefined);
@@ -209,6 +227,10 @@ export class RegistrationPage {
     requiresElectronicInvoice: new FormControl<boolean | null>(null, {
       validators: [Validators.required],
     }),
+    deliveryMode: new FormControl<'venue' | 'other' | ''>('', { nonNullable: true }),
+    address: new FormControl('', { nonNullable: true }),
+    carrier: new FormControl('', { nonNullable: true }),
+    deliveryCityId: new FormControl('', { nonNullable: true }),
     companions: new FormArray<CompanionForm>([]),
   });
 
@@ -250,6 +272,15 @@ export class RegistrationPage {
     return event?.startsAt ? toZonedDateTimeDisplay(event.startsAt, event.timezone) : '';
   });
 
+  protected readonly allVenues = computed(() => this.#event()?.registrationScope === 'all_venues');
+
+  protected readonly steps = computed(() => FLOW_STEPS);
+
+  protected readonly eventPath = computed(() => ['/eventos', this.slug()] as const);
+
+  /** The contextual return already points at the event, so a second exit would repeat it. */
+  protected readonly showEventExit = computed(() => this.returnTo() !== `/eventos/${this.slug()}`);
+
   protected readonly currentStep = computed(() => (this.selected() ? 2 : 1));
 
   /**
@@ -288,6 +319,35 @@ export class RegistrationPage {
     this.#formEvents();
     return this.form.controls.requiresElectronicInvoice.value;
   });
+
+  protected readonly asksDelivery = computed(
+    () => this.#event()?.features?.includes('delivery') ?? false,
+  );
+  protected readonly venueCityName = computed(() => this.selected()?.establishment.city ?? '');
+  protected readonly venueCityId = computed(() => this.selected()?.establishment.cityId ?? null);
+  protected readonly deliveryChoice = toSignal(this.form.controls.deliveryMode.valueChanges, {
+    initialValue: this.form.controls.deliveryMode.value,
+  });
+  readonly #places = toSignal(
+    this.#api.places().pipe(
+      map((places) => places.departments),
+      catchError(() => of([])),
+    ),
+    { initialValue: [] },
+  );
+  protected readonly cityOptions = computed(() => {
+    const skip = this.deliveryChoice() === 'other' ? this.venueCityId() : null;
+    const options: { value: string; label: string; hint: string }[] = [];
+    for (const department of this.#places()) {
+      for (const city of department.cities) {
+        if (city.id !== skip) {
+          options.push({ value: city.id, label: city.name, hint: department.name });
+        }
+      }
+    }
+    return options;
+  });
+  #deliveryRules = '';
 
   /**
    * What the error summary lists, in the order the eye meets the fields: every control the
@@ -387,6 +447,14 @@ export class RegistrationPage {
   );
 
   constructor() {
+    this.#syncReturn();
+    this.#router.events
+      .pipe(
+        filter((event) => event instanceof NavigationEnd),
+        takeUntilDestroyed(),
+      )
+      .subscribe(() => this.#syncReturn());
+
     // The event loads once per slug; the navigation state only pre-selects among its sedes.
     effect(() => {
       const event = this.#event();
@@ -398,10 +466,76 @@ export class RegistrationPage {
       this.#selectionOwner = owner;
       this.selectedId.set(this.#defaultSede(event)?.id);
     });
+
+    effect(() => {
+      const asks = this.asksDelivery();
+      const cityId = this.venueCityId();
+      const mode = this.deliveryChoice();
+      const signature = `${asks}|${cityId ?? ''}|${mode}`;
+      if (signature === this.#deliveryRules) {
+        return;
+      }
+      this.#deliveryRules = signature;
+      const address = this.form.controls.address;
+      const carrier = this.form.controls.carrier;
+      const city = this.form.controls.deliveryCityId;
+      const deliveryMode = this.form.controls.deliveryMode;
+      const other = !asks ? false : cityId === null || mode === 'other';
+      if (!asks) {
+        deliveryMode.clearValidators();
+        address.clearValidators();
+        carrier.clearValidators();
+        city.clearValidators();
+      } else {
+        deliveryMode.setValidators(cityId ? [Validators.required] : []);
+        address.setValidators([Validators.required, Validators.minLength(5), Validators.maxLength(180)]);
+        if (other) {
+          carrier.setValidators([Validators.required, Validators.minLength(2), Validators.maxLength(80)]);
+          city.setValidators([Validators.required]);
+          if (cityId === null && deliveryMode.value !== 'other') {
+            deliveryMode.setValue('other', { emitEvent: false });
+          }
+        } else {
+          carrier.clearValidators();
+          city.clearValidators();
+          carrier.setValue('', { emitEvent: false });
+          city.setValue('', { emitEvent: false });
+        }
+      }
+      for (const control of [deliveryMode, address, carrier, city]) {
+        control.updateValueAndValidity({ emitEvent: false });
+      }
+    });
   }
 
   protected retry(): void {
     this.#attempt.update((value) => value + 1);
+  }
+
+  /**
+   * The router calls this before leaving. Typed data stays on the form until the person
+   * confirms, and a finished alta does not ask again.
+   */
+  confirmLeave(): boolean | Promise<boolean> {
+    if (this.#finished || !this.#hasDraft()) {
+      return true;
+    }
+    return this.#confirm
+      .open({
+        titleKey: 'register.leave.title',
+        bodyKey: 'register.leave.body',
+        confirmKey: 'register.leave.confirm',
+        tone: 'danger',
+      })
+      .then((result) => result.confirmed);
+  }
+
+  /** Scrolls back to the sede list without clearing what was already typed. */
+  protected focusSede(): void {
+    this.#document.getElementById('registro-sede')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
   }
 
   protected stepState(index: number): 'done' | 'current' | 'pending' {
@@ -425,6 +559,12 @@ export class RegistrationPage {
       return;
     }
     this.selectedId.set(id);
+    void this.#router.navigate([], {
+      relativeTo: this.#route,
+      queryParams: { sede: id },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
     this.form.controls.companions.clear();
     this.#companionCount.set(0);
     const name = this.selected()?.establishment.name;
@@ -513,7 +653,16 @@ export class RegistrationPage {
         context: this.#receiptContext(event, participation, receipt.companionsCount),
       });
       this.#toast.success('register.success.title');
-      await this.#router.navigate(['/inscripcion', receipt.id]);
+      this.#finished = true;
+      const returnTo = this.returnTo();
+      const left = await this.#router.navigate(['/inscripcion', receipt.id], {
+        queryParams: { evento: event.slug },
+        replaceUrl: true,
+        state: returnTo ? { returnTo } : undefined,
+      });
+      if (!left) {
+        this.#finished = false;
+      }
     } catch (error) {
       this.#submitError.set(toApiError(error));
       this.#serverErrors.set(this.#errors.fieldErrors(error));
@@ -527,19 +676,55 @@ export class RegistrationPage {
   }
 
   /**
-   * Sede requested by the previous screen. It travels under the hood in the navigation
-   * state (`navigate(…, { state })` / `routerLink [state]`), never in the URL, so the form
-   * keeps a single clean address. A reload has no state and simply defaults to the first
-   * open sede, which the picker above still lets the reader change.
+   * Sede the previous screen named. The query is the durable copy (it survives a reload);
+   * navigation state covers a link that has not been given a query yet.
    */
   #requestedSede(): string | undefined {
-    const state = this.#location.getState() as { readonly sede?: string } | null | undefined;
-    return state?.sede;
+    const fromQuery = this.sede()?.trim();
+    if (fromQuery) {
+      return fromQuery;
+    }
+    const state = this.#location.getState() as { readonly sede?: unknown } | null | undefined;
+    return typeof state?.sede === 'string' && state.sede.length > 0 ? state.sede : undefined;
   }
 
-  /** The requested sede when it can take an alta, else the first one that can. */
+  /**
+   * A return control exists only when navigation state names a path this app allows.
+   * A reload keeps `history.state`; a typed or bookmarked URL does not, so the button stays hidden.
+   */
+  #syncReturn(): void {
+    const destination = readReturnTo(this.#location.getState());
+    if (!destination) {
+      this.returnTo.set(null);
+      return;
+    }
+    const current = this.#router.url.split(/[?#]/)[0] ?? '';
+    this.returnTo.set(destination === current ? null : destination);
+  }
+
+  /**
+   * The sede the alta is stored against: the one the person named, or the only open one.
+   * A shared-scope event still charges the sede they chose; it does not fall back to
+   * whichever participation the catalogue listed first.
+   */
   #defaultSede(event: PublicEvent): PublicParticipation | undefined {
-    return pickSede(event, this.#requestedSede());
+    return registrationSede(event, this.#requestedSede());
+  }
+
+  /** True when leaving would drop something the person already typed. */
+  #hasDraft(): boolean {
+    const value = this.form.getRawValue();
+    return (
+      value.documentNumber.trim().length > 0 ||
+      value.fullName.trim().length > 0 ||
+      value.email.trim().length > 0 ||
+      value.phone.trim().length > 0 ||
+      value.requiresElectronicInvoice !== null ||
+      value.address.trim().length > 0 ||
+      value.carrier.trim().length > 0 ||
+      value.deliveryCityId.trim().length > 0 ||
+      value.companions.length > 0
+    );
   }
 
   /**
@@ -591,6 +776,15 @@ export class RegistrationPage {
       email: value.email.trim() || null,
       phone: value.phone.trim() || null,
       requiresElectronicInvoice: value.requiresElectronicInvoice === true,
+      ...(this.asksDelivery()
+        ? {
+            deliveryMode: value.deliveryMode === 'other' || !this.venueCityId() ? 'other' : 'venue',
+            address: value.address.trim(),
+            carrier: value.deliveryMode === 'other' || !this.venueCityId() ? value.carrier.trim() : null,
+            deliveryCityId:
+              value.deliveryMode === 'other' || !this.venueCityId() ? value.deliveryCityId : null,
+          }
+        : {}),
       companions,
     };
   }
@@ -610,13 +804,15 @@ export class RegistrationPage {
       .filter((name) => name.length > 0)
       .slice(0, companionsCount);
 
+    const shared = event.registrationScope === 'all_venues';
     return {
       eventSlug: event.slug,
       eventName: event.name,
       eventTimeZone: event.timezone,
       eventStartsAt: event.startsAt,
-      establishmentName: participation.establishment.name,
-      establishmentCity: participation.establishment.city,
+      establishmentName: shared ? '' : participation.establishment.name,
+      establishmentCity: shared ? null : participation.establishment.city,
+      registrationScope: event.registrationScope ?? 'per_venue',
       companionNames,
       email: value.email.trim() || null,
       phone: value.phone.trim() || null,

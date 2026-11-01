@@ -24,7 +24,10 @@
             </span>
             @if (cameraFailure(); as failure) {
               <p class="max-w-sm text-center text-sm text-(--text-2)" role="alert">
-                {{ (failure === 'denied' ? 'checkIn.camera.denied' : 'checkIn.camera.unavailable') | t }}
+                {{
+                  (failure === 'denied' ? 'checkIn.camera.denied' : 'checkIn.camera.unavailable')
+                    | t
+                }}
               </p>
             } @else {
               <p class="max-w-sm text-center text-sm text-(--text-2)">
@@ -43,8 +46,10 @@
             <span class="scanner-spinner" aria-hidden="true"></span>
             <p class="text-sm font-medium text-(--text-1)">
               {{
-                (processingKind() === 'confirm' ? 'checkIn.processing.confirm' : 'checkIn.processing')
-                  | t
+                (processingKind() === 'confirm'
+                  ? 'checkIn.processing.confirm'
+                  : 'checkIn.processing'
+                ) | t
               }}
             </p>
           </div>
@@ -52,9 +57,7 @@
       </div>
 
       @if (cameraOn()) {
-        <div
-          class="flex items-center justify-between gap-3 border-t border-(--border) px-4 py-3"
-        >
+        <div class="flex items-center justify-between gap-3 border-t border-(--border) px-4 py-3">
           <p class="text-sm text-(--text-2)" aria-live="polite">
             {{ (phase() === 'starting' ? 'checkIn.camera.starting' : 'checkIn.camera.hint') | t }}
           </p>
@@ -72,7 +75,9 @@
       (ngSubmit)="submitManual()"
       novalidate
     >
-      <label for="check-in-code" class="text-sm font-medium">{{ 'checkIn.manual.label' | t }}</label>
+      <label for="check-in-code" class="text-sm font-medium">{{
+        'checkIn.manual.label' | t
+      }}</label>
       <div class="flex flex-col gap-2 sm:flex-row">
         <input
           #manualInput
@@ -99,7 +104,11 @@
       <p id="check-in-code-hint" class="hint">{{ 'checkIn.manual.hint' | t }}</p>
     </form>
 
-    <form class="card card--pad section-block flex flex-col gap-3" (submit)="$event.preventDefault(); searchPerson()" novalidate>
+    <form
+      class="card card--pad section-block flex flex-col gap-3"
+      (submit)="$event.preventDefault(); searchPerson()"
+      novalidate
+    >
       <h2 class="text-sm font-semibold">{{ 'checkIn.search.title' | t }}</h2>
       <p class="hint">{{ 'checkIn.search.hint' | t }}</p>
       @if (eventChoices().length > 1) {
@@ -127,9 +136,15 @@
         <ul class="flex flex-col gap-2">
           @for (hit of searchResults(); track hit.registration.id) {
             <li>
-              <button type="button" class="choice-card w-full text-left" (click)="pickSearchResult(hit)">
+              <button
+                type="button"
+                class="choice-card w-full text-left"
+                (click)="pickSearchResult(hit)"
+              >
                 <span class="block font-semibold">{{ hit.registration.fullName }}</span>
-                <span class="block font-mono text-xs text-(--text-3)">{{ hit.registration.documentNumber }}</span>
+                <span class="block font-mono text-xs text-(--text-3)">{{
+                  hit.registration.documentNumber
+                }}</span>
               </button>
             </li>
           }
@@ -150,11 +165,7 @@
           </h2>
           <p class="mt-1 text-sm text-(--text-2)">
             {{ view.event.name }}
-            @if (view.sede.city) {
-              <span>· {{ view.sede.name }} · {{ view.sede.city }}</span>
-            } @else {
-              <span>· {{ view.sede.name }}</span>
-            }
+            <span>· {{ venueLine(view) }}</span>
           </p>
         </div>
       </header>
@@ -174,7 +185,10 @@
           <ul class="flex flex-col gap-2">
             @for (companion of pendingCompanions(); track companion.id) {
               <li>
-                <label class="choice-card" [attr.data-selected]="companionPresent(companion.id) ? 'true' : null">
+                <label
+                  class="choice-card"
+                  [attr.data-selected]="companionPresent(companion.id) ? 'true' : null"
+                >
                   <input
                     class="choice-card__input confirm-check"
                     type="checkbox"
@@ -186,7 +200,13 @@
               </li>
             }
           </ul>
-          <button type="button" appButton variant="primary" [disabled]="presentCompanionIds().size === 0" (click)="confirmLateCompanions()">
+          <button
+            type="button"
+            appButton
+            variant="primary"
+            [disabled]="presentCompanionIds().size === 0"
+            (click)="confirmLateCompanions()"
+          >
             {{ 'checkIn.late.submit' | t }}
           </button>
         </div>
@@ -197,11 +217,23 @@
             {{ 'checkIn.confirm.holderHint' | t: { name: view.registration.fullName } }}
           </p>
           <div class="grid gap-3 sm:grid-cols-2">
-            <button type="button" appButton variant="primary" size="lg" (click)="confirmHolderPresent()">
+            <button
+              type="button"
+              appButton
+              variant="primary"
+              size="lg"
+              (click)="confirmHolderPresent()"
+            >
               <app-icon name="check" [size]="18" />
               <span>{{ 'checkIn.confirm.holderYes' | t }}</span>
             </button>
-            <button type="button" appButton variant="secondary" size="lg" (click)="confirmHolderAbsent()">
+            <button
+              type="button"
+              appButton
+              variant="secondary"
+              size="lg"
+              (click)="confirmHolderAbsent()"
+            >
               <app-icon name="x" [size]="18" />
               <span>{{ 'checkIn.confirm.holderNo' | t }}</span>
             </button>
@@ -229,7 +261,9 @@
                   <span class="min-w-0">
                     <span class="block text-sm font-semibold">{{ companion.fullName }}</span>
                     @if (companionDocument(companion); as document) {
-                      <span class="mt-0.5 block font-mono text-xs text-(--text-3)">{{ document }}</span>
+                      <span class="mt-0.5 block font-mono text-xs text-(--text-3)">{{
+                        document
+                      }}</span>
                     }
                   </span>
                 </label>
@@ -246,7 +280,13 @@
               <app-icon name="arrow-left" [size]="16" />
               <span>{{ 'app.back' | t }}</span>
             </button>
-            <button type="button" appButton variant="primary" class="sm:ml-auto" (click)="confirmCompanions()">
+            <button
+              type="button"
+              appButton
+              variant="primary"
+              class="sm:ml-auto"
+              (click)="confirmCompanions()"
+            >
               <app-icon name="check" [size]="16" />
               <span>{{ 'checkIn.confirm.submit' | t }}</span>
             </button>
@@ -297,8 +337,7 @@
             {{ 'checkIn.result.sede' | t }}
           </p>
           <p class="mt-1 truncate font-semibold">
-            {{ view.sede.name }}@if (view.sede.city) {<span class="font-normal text-(--text-2)">
-                · {{ view.sede.city }}</span>}
+            {{ venueLine(view) }}
           </p>
         </div>
         <div class="min-w-0">
@@ -321,6 +360,23 @@
           </li>
         }
       </ol>
+
+      @if (view.assignCompanionTurns === false && view.companions.length > 0) {
+        <section class="card card--pad flex flex-col gap-2">
+          <h3 class="text-sm font-semibold">{{ 'checkIn.result.companionsTrace' | t }}</h3>
+          <p class="hint">{{ 'checkIn.result.companionsTraceHint' | t }}</p>
+          <ul class="flex flex-col gap-1.5">
+            @for (companion of view.companions; track companion.id) {
+              <li class="text-sm font-medium text-(--text-1)">
+                {{ companion.fullName }}
+                @if (companionDocument(companion); as document) {
+                  <span class="text-(--text-3)"> · {{ document }}</span>
+                }
+              </li>
+            }
+          </ul>
+        </section>
+      }
 
       <button type="button" appButton variant="primary" size="lg" block (click)="scanNext()">
         <app-icon name="scan" [size]="20" />
@@ -350,7 +406,10 @@
     </section>
   }
 
-  <section class="section-block card card--pad flex flex-col gap-3" aria-labelledby="check-in-recent">
+  <section
+    class="section-block card card--pad flex flex-col gap-3"
+    aria-labelledby="check-in-recent"
+  >
     <h2 id="check-in-recent" class="text-sm font-semibold">{{ 'checkIn.recent.title' | t }}</h2>
     @if (recent().length === 0) {
       <p class="text-sm text-(--text-3)">{{ 'checkIn.recent.empty' | t }}</p>
@@ -361,7 +420,7 @@
             <button type="button" class="choice-card w-full text-left" (click)="submitCode(row.id)">
               <span class="block font-semibold">{{ row.fullName }}</span>
               <span class="mt-0.5 block text-xs text-(--text-2)">
-                {{ row.sede.name }}
+                {{ recentVenue(row.sede.name) }}
                 @if (row.checkIn.firstTurn !== null) {
                   · {{ 'desk.col.turn' | t }} {{ row.checkIn.firstTurn }}
                 }
@@ -373,7 +432,9 @@
                 }
               </span>
               <span class="mt-1 block font-mono text-xs text-(--text-3)">{{ row.id }}</span>
-              <span class="mt-1 block text-xs font-medium text-(--primary)">{{ 'checkIn.recent.open' | t }}</span>
+              <span class="mt-1 block text-xs font-medium text-(--primary)">{{
+                'checkIn.recent.open' | t
+              }}</span>
             </button>
           </li>
         }

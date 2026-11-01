@@ -25,6 +25,7 @@ import type {
   Event as ManagedEvent,
   EventStatus,
   RegistrationScope,
+  TicketDesign,
 } from '@core/domain';
 import { I18nService, TranslatePipe } from '@core/i18n';
 import { ApiErrorPresenter, ConfirmService } from '@core/ui';
@@ -32,8 +33,17 @@ import { environment } from '@env/environment';
 import { loadingState, loadedState, toAsyncState } from '@core/utils/async-state';
 import { localInputToUtcIso, utcIsoToLocalInput } from '@core/utils/dates';
 import { slugify } from '@core/utils/ids';
-import { ButtonDirective, EventInvite, Icon, PageHeader, Select, Skeleton, type SelectChoice } from '@shared/ui';
+import {
+  ButtonDirective,
+  EventInvite,
+  Icon,
+  PageHeader,
+  Select,
+  Skeleton,
+  type SelectChoice,
+} from '@shared/ui';
 import { EventParticipations } from '../event-participations/event-participations';
+import { TicketPreview } from '../ticket-design/ticket-preview';
 import { canManageEvent } from '../event-access';
 import { UsersApi } from '../../users/users.api';
 import { EventsApi, type CreateEventRequest, type UpdateEventRequest } from '../events.api';
@@ -79,8 +89,10 @@ function eventWindowsValidator(control: AbstractControl): ValidationErrors | nul
     Skeleton,
     Select,
     EventParticipations,
+    TicketPreview,
   ],
   templateUrl: './event-form-page.html',
+  styleUrl: './event-form-page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EventFormPage {
@@ -106,6 +118,8 @@ export class EventFormPage {
   );
 
   protected readonly editing = computed(() => Boolean(this.id()));
+  /** Only an admin picks the owner; an operator's new event is always theirs. */
+  protected readonly choosesOwner = computed(() => !this.editing() && this.#session.isAdmin());
   protected readonly submitted = signal(false);
   protected readonly saving = signal(false);
   protected readonly saveError = signal('');
@@ -173,16 +187,18 @@ export class EventFormPage {
     this.statusOptions().map((status) => ({ value: status, label: this.statusLabel(status) })),
   );
   readonly operators = toSignal(
-    toObservable(this.editing).pipe(
-      switchMap((editing) =>
-        editing
+    toObservable(this.choosesOwner).pipe(
+      switchMap((choosesOwner) =>
+        !choosesOwner
           ? of(
               loadedState({
                 items: [],
                 meta: { total: 0, limit: 0, offset: 0 },
               }),
             )
-          : this.#users.list({ role: 'operator', status: 'active', limit: 100 }).pipe(toAsyncState()),
+          : this.#users
+              .list({ role: 'operator', status: 'active', limit: 100 })
+              .pipe(toAsyncState()),
       ),
     ),
     { initialValue: loadingState<Page<AdminUser>>() },
@@ -203,10 +219,16 @@ export class EventFormPage {
       this.form.controls.status.value === 'archived' &&
       this.event()?.status !== 'archived',
   );
+  protected readonly sampleDownloading = signal(false);
+  readonly #ticketDraft = signal<TicketDesign>(this.#readTicketDesign());
+  protected readonly ticketDesign = this.#ticketDraft.asReadonly();
 
   #loadedId: string | null = null;
 
   constructor() {
+    this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
+      this.#ticketDraft.set(this.#readTicketDesign());
+    });
     this.form.controls.name.valueChanges.pipe(takeUntilDestroyed()).subscribe((name) => {
       this.form.controls.slug.setValue(slugify(name), { emitEvent: false });
     });
@@ -254,6 +276,65 @@ export class EventFormPage {
 
   protected retry(): void {
     this.#attempt.update((attempt) => attempt + 1);
+  }
+
+  protected resetTicketDesign(): void {
+    this.form.patchValue({
+      ticketBg: '#111827',
+      ticketAccent: '#C81F68',
+      ticketText: '#111827',
+      ticketTitleWeight: 800,
+      ticketTitleSize: 22,
+      ticketTitleX: 8,
+      ticketTitleY: 18,
+      ticketQrX: 50,
+      ticketQrY: 55,
+      ticketQrSize: 184,
+      ticketFieldWeight: 700,
+    });
+  }
+
+  /** Same sample the preview paints, wrapped in the real PDF. */
+  protected async downloadTicketSample(): Promise<void> {
+    if (this.sampleDownloading()) {
+      return;
+    }
+    this.sampleDownloading.set(true);
+    try {
+      const [{ downloadTicketPdf }, { sampleTicketData }] = await Promise.all([
+        import('@features/catalog/receipt-page/ticket-pdf'),
+        import('@features/catalog/receipt-page/ticket-sample'),
+      ]);
+      await downloadTicketPdf(
+        sampleTicketData(
+          (key, params) => this.#i18n.t(key, params),
+          this.#readTicketDesign(),
+          this.form.controls.name.value,
+        ),
+        'ticket-prueba.pdf',
+      );
+    } catch {
+      this.saveError.set(this.#i18n.t('register.receipt.downloadFailed'));
+    } finally {
+      this.sampleDownloading.set(false);
+    }
+  }
+
+  #readTicketDesign(): TicketDesign {
+    const value = this.form.getRawValue();
+    return {
+      bgColor: value.ticketBg,
+      accentColor: value.ticketAccent,
+      textColor: value.ticketText,
+      titleWeight: Number(value.ticketTitleWeight),
+      titleSize: Number(value.ticketTitleSize),
+      titleX: Number(value.ticketTitleX),
+      titleY: Number(value.ticketTitleY),
+      qrX: Number(value.ticketQrX),
+      qrY: Number(value.ticketQrY),
+      qrSize: Number(value.ticketQrSize),
+      fieldWeight: Number(value.ticketFieldWeight),
+    };
   }
 
   protected async submit(): Promise<void> {
@@ -312,11 +393,13 @@ export class EventFormPage {
         await firstValueFrom(this.#api.update(this.id()!, request));
         await this.#router.navigate(['/panel/eventos']);
       } else {
-        if (!value.ownerId) {
+        if (this.choosesOwner() && !value.ownerId) {
           this.form.controls.ownerId.setErrors({ required: true });
           return;
         }
-        const request: CreateEventRequest = { ...fields, ownerId: value.ownerId };
+        const request: CreateEventRequest = this.choosesOwner()
+          ? { ...fields, ownerId: value.ownerId }
+          : fields;
         const event = await firstValueFrom(this.#api.create(request));
         await this.#router.navigate(['/panel/eventos', event.id, 'editar']);
       }
@@ -326,5 +409,4 @@ export class EventFormPage {
       this.saving.set(false);
     }
   }
-
 }

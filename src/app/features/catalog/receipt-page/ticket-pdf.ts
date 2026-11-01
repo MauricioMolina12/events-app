@@ -1,4 +1,6 @@
 import { encode } from 'uqr';
+import { TICKET_HEIGHT, TICKET_WIDTH, ticketFrame } from '@shared/ticket/ticket-layout';
+import { ticketEventTitle } from '@shared/ticket/ticket-presentation';
 
 /**
  * Downloadable access ticket.
@@ -41,9 +43,12 @@ export interface TicketData {
   };
 }
 
-/** Page in PDF points; the canvas is painted `SCALE` times larger so print stays sharp. */
-const WIDTH = 360;
-const HEIGHT = 640;
+/**
+ * Page in PDF points. The canvas is painted `SCALE` times larger and the PDF maps that
+ * bitmap onto the same 360×640 page, so one layout unit is one point on screen and on paper.
+ */
+const WIDTH = TICKET_WIDTH;
+const HEIGHT = TICKET_HEIGHT;
 const SCALE = 3;
 
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
@@ -57,8 +62,25 @@ const COLORS = {
   line: '#e5e7eb',
 } as const;
 
-function gradientFrom(primary = '#C81F68'): readonly [string, string, string] {
-  return [mixHex(primary, '#ffffff', 0.28), primary, mixHex(primary, '#111827', 0.42)];
+function gradientFrom(primary = '#C81F68', bg = '#111827'): readonly [string, string, string] {
+  return [mixHex(primary, '#ffffff', 0.28), primary, mixHex(primary, bg, 0.45)];
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function clampWeight(
+  value: number | undefined,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  const weight = value ?? fallback;
+  if (!Number.isFinite(weight)) {
+    return fallback;
+  }
+  return clamp(Math.round(weight / 100) * 100, min, max);
 }
 
 function mixHex(hex: string, other: string, amount: number): string {
@@ -81,16 +103,21 @@ function toHex(r: number, g: number, b: number): string {
   return `#${[r, g, b].map((value) => value.toString(16).padStart(2, '0')).join('')}`;
 }
 
-export async function downloadTicketPdf(data: TicketData, fileName: string): Promise<void> {
-  const canvas = document.createElement('canvas');
+/** Paints `data` into `canvas` at print resolution. The preview and the PDF both call this. */
+export function drawTicket(canvas: HTMLCanvasElement, data: TicketData): void {
   canvas.width = WIDTH * SCALE;
   canvas.height = HEIGHT * SCALE;
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     throw new Error('Canvas 2D is not available');
   }
-  ctx.scale(SCALE, SCALE);
+  ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
   paintTicket(ctx, data);
+}
+
+export async function downloadTicketPdf(data: TicketData, fileName: string): Promise<void> {
+  const canvas = document.createElement('canvas');
+  drawTicket(canvas, data);
 
   const jpeg = await toJpegBytes(canvas);
   const pdf = buildPdf(jpeg, canvas.width, canvas.height);
@@ -108,18 +135,20 @@ export async function downloadTicketPdf(data: TicketData, fileName: string): Pro
 }
 
 function paintTicket(ctx: CanvasRenderingContext2D, data: TicketData): void {
-  const card = { x: 20, y: 20, w: WIDTH - 40, h: HEIGHT - 40, r: 24 };
-  const headerHeight = 200;
-  const tearY = card.y + headerHeight;
   const design = data.design;
-  const primary = design?.accentColor ?? data.primaryColor;
-  const gradientColors = gradientFrom(primary);
+  const frame = ticketFrame(design);
+  const card = frame.card;
+  const tearY = card.y + frame.headerHeight;
+  const pageBg = design?.bgColor ?? COLORS.page;
+  const primary = design?.accentColor ?? data.primaryColor ?? '#C81F68';
+  const gradientColors = gradientFrom(primary, pageBg);
   const ink = design?.textColor ?? COLORS.ink;
-  const titleWeight = design?.titleWeight ?? 800;
-  const titleSize = design?.titleSize ?? 22;
-  const fieldWeight = design?.fieldWeight ?? 700;
+  const titleWeight = clampWeight(design?.titleWeight, 800, 400, 900);
+  const fieldWeight = clampWeight(design?.fieldWeight, 700, 400, 800);
+  const left = frame.contentLeft;
+  const inner = frame.contentWidth;
 
-  ctx.fillStyle = COLORS.page;
+  ctx.fillStyle = pageBg;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
   ctx.save();
@@ -135,20 +164,23 @@ function paintTicket(ctx: CanvasRenderingContext2D, data: TicketData): void {
   ctx.save();
   roundRect(ctx, card.x, card.y, card.w, card.h, card.r);
   ctx.clip();
-  const gradient = ctx.createLinearGradient(card.x, card.y, card.x + card.w, card.y + headerHeight);
+  const gradient = ctx.createLinearGradient(
+    card.x,
+    card.y,
+    card.x + card.w,
+    card.y + frame.headerHeight,
+  );
   gradient.addColorStop(0, gradientColors[0]);
   gradient.addColorStop(0.55, gradientColors[1]);
   gradient.addColorStop(1, gradientColors[2]);
   ctx.fillStyle = gradient;
-  ctx.fillRect(card.x, card.y, card.w, headerHeight);
+  ctx.fillRect(card.x, card.y, card.w, frame.headerHeight);
   ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
   circle(ctx, card.x + card.w - 30, card.y + 20, 90);
-  circle(ctx, card.x + card.w - 10, card.y + headerHeight - 10, 50);
+  circle(ctx, card.x + card.w - 10, card.y + frame.headerHeight - 10, 50);
   ctx.restore();
 
-  // Brand row.
-  const left = card.x + 24;
-  const inner = card.w - 48;
+  // Brand row stays anchored; the event title below follows the design sliders.
   ctx.fillStyle = '#ffffff';
   roundRect(ctx, left, card.y + 24, 30, 30, 9);
   ctx.fill();
@@ -162,58 +194,75 @@ function paintTicket(ctx: CanvasRenderingContext2D, data: TicketData): void {
   ctx.font = `600 12px ${FONT}`;
   ctx.fillText(fit(ctx, data.brand, inner - 42), left + 40, card.y + 39.5);
 
-  // Title, event and schedule.
   ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
-  ctx.font = `700 10px ${FONT}`;
-  withSpacing(ctx, '1.5px', () => ctx.fillText(data.title.toUpperCase(), left, card.y + 92));
+  if (frame.titleY - 16 > card.y + 64) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
+    ctx.font = `700 10px ${FONT}`;
+    withSpacing(ctx, '1.5px', () =>
+      ctx.fillText(
+        fit(ctx, data.title.toUpperCase(), frame.titleMaxWidth),
+        frame.titleX,
+        frame.titleY - 8,
+      ),
+    );
+  }
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = `${titleWeight} ${titleSize}px ${FONT}`;
-  let y = card.y + 120;
-  if (design?.titleX !== undefined || design?.titleY !== undefined) {
-    y = card.y + ((design.titleY ?? 18) / 100) * headerHeight;
+  ctx.font = `${titleWeight} ${frame.titleSize}px ${FONT}`;
+  let y = frame.titleY + frame.titleSize * 0.82;
+  const eventTitle = ticketEventTitle(data.eventName);
+  if (eventTitle) {
+    for (const line of wrap(ctx, eventTitle, frame.titleMaxWidth, 2)) {
+      ctx.fillText(line, frame.titleX, y);
+      y += frame.titleSize * 1.15;
+    }
   }
-  for (const line of wrap(ctx, data.eventName ?? data.title, inner, 2)) {
-    ctx.fillText(line, left, y);
-    y += 27;
-  }
-  if (data.when) {
+  if (data.when && y < tearY - 4) {
     ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
     ctx.font = `500 12px ${FONT}`;
-    ctx.fillText(fit(ctx, data.when, inner), left, y + 2);
+    ctx.fillText(fit(ctx, data.when, frame.titleMaxWidth), frame.titleX, y + 2);
   }
 
-  // Side notches where the stub tears off.
-  ctx.fillStyle = COLORS.page;
+  // Side notches where the stub tears off. They match the page color, not a fixed gray.
+  ctx.fillStyle = pageBg;
   circle(ctx, card.x, tearY, 12);
   circle(ctx, card.x + card.w, tearY, 12);
 
-  // QR on a white tile.
-  const qrBox = design?.qrSize ?? 184;
-  const qrX = design?.qrX !== undefined ? (WIDTH * design.qrX) / 100 - qrBox / 2 : (WIDTH - qrBox) / 2;
-  const qrY = design?.qrY !== undefined ? (HEIGHT * design.qrY) / 100 - qrBox / 2 : tearY + 28;
+  // QR tile. Its box is the same rectangle the layout reserves for the preview.
+  const qrX = frame.qrX;
+  const qrY = frame.qrY;
+  const qrBox = frame.qrSize;
   ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = COLORS.line;
   ctx.lineWidth = 1;
   roundRect(ctx, qrX, qrY, qrBox, qrBox, 16);
   ctx.fill();
   ctx.stroke();
-  paintQr(ctx, data.qrValue, qrX + 12, qrY + 12, qrBox - 24, primary ?? design?.textColor ?? '#111111');
+  paintQr(ctx, data.qrValue, qrX + 12, qrY + 12, qrBox - 24, primary ?? ink);
 
   ctx.fillStyle = COLORS.muted;
   ctx.font = `500 11px ${FONT}`;
   ctx.textAlign = 'center';
-  ctx.fillText(fit(ctx, data.qrCaption, inner), WIDTH / 2, qrY + qrBox + 20);
+  const caption = fit(ctx, data.qrCaption, inner);
+  const captionWidth = ctx.measureText(caption).width;
+  const captionCenter = clamp(
+    qrX + qrBox / 2,
+    left + captionWidth / 2,
+    left + inner - captionWidth / 2,
+  );
+  ctx.fillText(caption, captionCenter, qrY + qrBox + 20);
   ctx.textAlign = 'left';
 
-  // Details, two per row.
+  // Details, two per row, starting under the QR so they cannot cover it.
   const columnWidth = (inner - 16) / 2;
   let rowY = qrY + qrBox + 46;
   data.fields.forEach((field, index) => {
     const x = left + (index % 2) * (columnWidth + 16);
     if (index > 0 && index % 2 === 0) {
       rowY += 38;
+    }
+    if (rowY + 16 > frame.footerY - 6) {
+      return;
     }
     ctx.fillStyle = COLORS.muted;
     ctx.font = `${fieldWeight} 8.5px ${FONT}`;
@@ -226,7 +275,7 @@ function paintTicket(ctx: CanvasRenderingContext2D, data: TicketData): void {
   });
 
   // Folio footer.
-  const footerY = card.y + card.h - 74;
+  const footerY = frame.footerY;
   dashed(ctx, left, footerY, left + inner);
   ctx.fillStyle = COLORS.muted;
   ctx.font = `700 8.5px ${FONT}`;
@@ -345,7 +394,11 @@ function wrap(
     return lines.map((line) => fit(ctx, line, maxWidth));
   }
   const kept = lines.slice(0, maxLines);
-  kept[maxLines - 1] = fit(ctx, `${kept[maxLines - 1]} ${lines.slice(maxLines).join(' ')}`, maxWidth);
+  kept[maxLines - 1] = fit(
+    ctx,
+    `${kept[maxLines - 1]} ${lines.slice(maxLines).join(' ')}`,
+    maxWidth,
+  );
   return kept;
 }
 

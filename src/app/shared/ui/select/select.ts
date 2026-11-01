@@ -213,7 +213,8 @@ export class Select implements ControlValueAccessor, OnDestroy {
           { originX: 'start', originY: 'top', overlayX: 'start', overlayY: 'bottom', offsetY: -4 },
         ]),
       scrollStrategy: this.#overlay.scrollStrategies.reposition(),
-      width: Math.max(origin.offsetWidth, 12 * 16),
+      width: origin.offsetWidth,
+      maxWidth: origin.offsetWidth,
       hasBackdrop: false,
     });
     overlay.attach(new TemplatePortal(this.panelTpl(), this.#vcr));

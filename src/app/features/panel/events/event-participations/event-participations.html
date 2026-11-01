@@ -9,7 +9,9 @@
         <h2 id="event-venues-title" class="venues__title">{{ 'participations.title' | t }}</h2>
         <p class="venues__subtitle">{{ 'participations.subtitle' | t }}</p>
         <p class="venues__allocation">
-          {{ 'participations.capacity.used' | t: { used: allocatedSeats(), total: eventCapacity() } }}
+          {{
+            'participations.capacity.used' | t: { used: allocatedSeats(), total: eventCapacity() }
+          }}
         </p>
       </div>
       @if (!formOpen() && state().status === 'loaded') {
@@ -32,10 +34,6 @@
         </button>
       }
     </div>
-  }
-
-  @if (actionError()) {
-    <p class="callout callout--danger" role="alert">{{ actionError() }}</p>
   }
 
   @switch (state().status) {
@@ -70,7 +68,7 @@
             @if (!formOpen()) {
               <button type="button" appButton variant="primary" (click)="addEstablishment()">
                 <app-icon name="plus" [size]="16" />
-          {{ 'participations.new' | t }}
+                {{ 'participations.new' | t }}
               </button>
             }
           </app-empty-state>
@@ -121,7 +119,9 @@
                 </li>
               }
               @if (summary().criticalCount > 0) {
-                <li>{{ 'participations.insight.critical' | t: { count: summary().criticalCount } }}</li>
+                <li>
+                  {{ 'participations.insight.critical' | t: { count: summary().criticalCount } }}
+                </li>
               }
               @if (summary().fullCount > 0) {
                 <li>{{ 'participations.insight.full' | t: { count: summary().fullCount } }}</li>
@@ -151,6 +151,7 @@
                 <article
                   class="venue"
                   [class.venue--selected]="selectedId() === venue.id"
+                  [class.is-editing]="editingId() === venue.id"
                   [attr.data-level]="venue.level"
                 >
                   <header class="venue__head">
@@ -218,7 +219,10 @@
                       [attr.aria-expanded]="selectedId() === venue.id"
                       (click)="selectVenue(venue.id)"
                     >
-                      <app-icon [name]="selectedId() === venue.id ? 'x' : 'bar-chart'" [size]="16" />
+                      <app-icon
+                        [name]="selectedId() === venue.id ? 'x' : 'bar-chart'"
+                        [size]="16"
+                      />
                       {{
                         (selectedId() === venue.id
                           ? 'participations.detail.close'
@@ -241,12 +245,24 @@
                       appButton
                       variant="secondary"
                       size="sm"
+                      [attr.aria-expanded]="editingId() === venue.id"
+                      [attr.aria-controls]="editingId() === venue.id ? 'participation-form' : null"
                       (click)="editVenue(venue.id)"
                     >
-                      {{ 'participations.card.editCapacity' | t }}
+                      {{
+                        (editingId() === venue.id
+                          ? 'participations.card.cancelEdit'
+                          : 'participations.card.editCapacity'
+                        ) | t
+                      }}
                     </button>
                   </div>
                 </article>
+                @if (editingId() === venue.id) {
+                  <div class="capacity-slot">
+                    <ng-container [ngTemplateOutlet]="capacityEditor" />
+                  </div>
+                }
               }
             </div>
           }
@@ -261,7 +277,13 @@
                     <p class="detail__city">{{ venue.city }}</p>
                   }
                 </div>
-                <button type="button" appButton variant="ghost" size="sm" (click)="selectVenue(venue.id)">
+                <button
+                  type="button"
+                  appButton
+                  variant="ghost"
+                  size="sm"
+                  (click)="selectVenue(venue.id)"
+                >
                   <app-icon name="x" [size]="16" />
                   {{ 'participations.detail.close' | t }}
                 </button>
@@ -279,7 +301,13 @@
                   </p>
                   <div
                     class="meter"
-                    [attr.data-level]="poolLevel(venue.titularCapacity, venue.availableTitulares, venue.confirmedTitulares)"
+                    [attr.data-level]="
+                      poolLevel(
+                        venue.titularCapacity,
+                        venue.availableTitulares,
+                        venue.confirmedTitulares
+                      )
+                    "
                     role="progressbar"
                     [attr.aria-valuemin]="0"
                     [attr.aria-valuemax]="venue.titularCapacity"
@@ -287,7 +315,13 @@
                   >
                     <span
                       class="meter__fill"
-                      [style.width.%]="poolPercent(venue.confirmedTitulares, venue.titularCapacity, venue.availableTitulares)"
+                      [style.width.%]="
+                        poolPercent(
+                          venue.confirmedTitulares,
+                          venue.titularCapacity,
+                          venue.availableTitulares
+                        )
+                      "
                     ></span>
                   </div>
                 </article>
@@ -302,7 +336,13 @@
                   </p>
                   <div
                     class="meter"
-                    [attr.data-level]="poolLevel(venue.companionCapacity, venue.availableCompanions, venue.confirmedCompanions)"
+                    [attr.data-level]="
+                      poolLevel(
+                        venue.companionCapacity,
+                        venue.availableCompanions,
+                        venue.confirmedCompanions
+                      )
+                    "
                     role="progressbar"
                     [attr.aria-valuemin]="0"
                     [attr.aria-valuemax]="venue.companionCapacity"
@@ -310,7 +350,13 @@
                   >
                     <span
                       class="meter__fill"
-                      [style.width.%]="poolPercent(venue.confirmedCompanions, venue.companionCapacity, venue.availableCompanions)"
+                      [style.width.%]="
+                        poolPercent(
+                          venue.confirmedCompanions,
+                          venue.companionCapacity,
+                          venue.availableCompanions
+                        )
+                      "
                     ></span>
                   </div>
                 </article>
@@ -343,8 +389,14 @@
                 <p>{{ 'participations.compare.subtitle' | t }}</p>
               </div>
               <ul class="legend">
-                <li><span class="legend__swatch legend__swatch--occupied"></span>{{ 'participations.compare.occupied' | t }}</li>
-                <li><span class="legend__swatch legend__swatch--free"></span>{{ 'participations.compare.free' | t }}</li>
+                <li>
+                  <span class="legend__swatch legend__swatch--occupied"></span
+                  >{{ 'participations.compare.occupied' | t }}
+                </li>
+                <li>
+                  <span class="legend__swatch legend__swatch--free"></span
+                  >{{ 'participations.compare.free' | t }}
+                </li>
               </ul>
             </header>
             @if (comparison().length === 0) {
@@ -356,8 +408,8 @@
                     <div class="compare__meta">
                       <span class="compare__name">{{ venue.name }}</span>
                       <span class="compare__value">
-                        {{ formatCount(venue.occupied) }} / {{ formatCount(venue.capacity) }}
-                        · {{ formatPercent(venue.percent) }}
+                        {{ formatCount(venue.occupied) }} / {{ formatCount(venue.capacity) }} ·
+                        {{ formatPercent(venue.percent) }}
                       </span>
                     </div>
                     <div
@@ -391,7 +443,9 @@
                     <th scope="col" class="num">{{ 'participations.column.available' | t }}</th>
                     <th scope="col" class="num">{{ 'participations.column.occupancy' | t }}</th>
                     <th scope="col">{{ 'participations.column.availability' | t }}</th>
-                    <th scope="col"><span class="sr-only">{{ 'events.actions' | t }}</span></th>
+                    <th scope="col">
+                      <span class="sr-only">{{ 'events.actions' | t }}</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -404,8 +458,12 @@
                         }
                       </th>
                       <td><app-status-badge [kind]="statusKind(venue.status)" /></td>
-                      <td class="num">{{ poolLabel(venue.confirmedTitulares, venue.titularCapacity) }}</td>
-                      <td class="num">{{ poolLabel(venue.confirmedCompanions, venue.companionCapacity) }}</td>
+                      <td class="num">
+                        {{ poolLabel(venue.confirmedTitulares, venue.titularCapacity) }}
+                      </td>
+                      <td class="num">
+                        {{ poolLabel(venue.confirmedCompanions, venue.companionCapacity) }}
+                      </td>
                       <td class="num">{{ formatCount(venue.available) }}</td>
                       <td class="num">{{ formatPercent(venue.percent) }}</td>
                       <td>
@@ -437,16 +495,25 @@
     }
   }
 
-  @if (formOpen()) {
+  @if (formOpen() && (!isEditing() || !editingVenueVisible())) {
+    <ng-container [ngTemplateOutlet]="capacityEditor" />
+  }
+
+  <ng-template #capacityEditor>
     <form
       id="participation-form"
-      class="card card--pad grid scroll-mt-6 gap-4 sm:grid-cols-2"
+      class="card card--pad capacity-editor grid scroll-mt-4 gap-4 sm:grid-cols-2"
+      [class.is-editing]="isEditing()"
       [formGroup]="form"
       (ngSubmit)="save()"
       novalidate
     >
       <h3 class="text-base font-semibold sm:col-span-2">
-        {{ (isEditing() ? 'participations.form.edit' : 'participations.form.create') | t }}
+        @if (editingVenue(); as venue) {
+          {{ 'participations.form.editingOf' | t: { name: venue.name } }}
+        } @else {
+          {{ (isEditing() ? 'participations.form.edit' : 'participations.form.create') | t }}
+        }
       </h3>
 
       @if (!isEditing()) {
@@ -478,7 +545,19 @@
             <label for="participation-venue-name" class="mb-1.5 block text-sm font-medium">{{
               'establishments.form.name' | t
             }}</label>
-            <input id="participation-venue-name" formControlName="venueName" required maxlength="160" class="field" />
+            <input
+              id="participation-venue-name"
+              formControlName="venueName"
+              required
+              maxlength="160"
+              class="field"
+              [attr.aria-invalid]="venueNameMissing() ? 'true' : null"
+            />
+            @if (venueNameMissing()) {
+              <p class="mt-1.5 text-xs text-(--danger-700)" role="alert">
+                {{ 'participations.validation.venueName' | t }}
+              </p>
+            }
           </div>
           <div>
             <label for="participation-venue-code" class="mb-1.5 block text-sm font-medium">{{
@@ -499,13 +578,23 @@
             <label for="participation-venue-city" class="mb-1.5 block text-sm font-medium">{{
               'establishments.form.city' | t
             }}</label>
-            <input id="participation-venue-city" formControlName="venueCity" maxlength="80" class="field" />
+            <input
+              id="participation-venue-city"
+              formControlName="venueCity"
+              maxlength="80"
+              class="field"
+            />
           </div>
           <div>
             <label for="participation-venue-address" class="mb-1.5 block text-sm font-medium">{{
               'establishments.form.address' | t
             }}</label>
-            <input id="participation-venue-address" formControlName="venueAddress" maxlength="200" class="field" />
+            <input
+              id="participation-venue-address"
+              formControlName="venueAddress"
+              maxlength="200"
+              class="field"
+            />
           </div>
         } @else {
           <div class="sm:col-span-2">
@@ -516,10 +605,20 @@
               formControlName="establishmentId"
               [options]="venueChoices()"
               [searchable]="availableEstablishments().length >= 8"
+              [attr.aria-invalid]="venueMissing() ? 'true' : null"
             />
+            @if (venueMissing()) {
+              <p class="mt-1.5 text-xs text-(--danger-700)" role="alert">
+                {{ 'participations.validation.venue' | t }}
+              </p>
+            }
           </div>
         }
       }
+
+      <p class="text-sm text-(--text-3) sm:col-span-2">
+        {{ 'participations.capacity.remaining' | t: { remaining: remainingSeats() } }}
+      </p>
 
       <div>
         <label for="titular-capacity" class="mb-1.5 block text-sm font-medium">{{
@@ -534,7 +633,13 @@
           formControlName="titularCapacity"
           required
           class="field"
+          [attr.aria-invalid]="titularInvalid() || quotaOverflow() ? 'true' : null"
         />
+        @if (titularInvalid()) {
+          <p class="mt-1.5 text-xs text-(--danger-700)" role="alert">
+            {{ 'participations.validation.seats' | t }}
+          </p>
+        }
       </div>
       <div>
         <label for="companion-capacity" class="mb-1.5 block text-sm font-medium">{{
@@ -549,8 +654,31 @@
           formControlName="companionCapacity"
           required
           class="field"
+          [attr.aria-invalid]="companionInvalid() || quotaOverflow() ? 'true' : null"
         />
+        @if (companionInvalid()) {
+          <p class="mt-1.5 text-xs text-(--danger-700)" role="alert">
+            {{ 'participations.validation.seats' | t }}
+          </p>
+        }
       </div>
+
+      @if (quotaOverflow(); as overflow) {
+        <p class="callout callout--danger sm:col-span-2" role="alert">
+          {{
+            'participations.validation.overflow'
+              | t
+                : {
+                    titular: overflow.titularCapacity,
+                    companion: overflow.companionCapacity,
+                    requested: overflow.requested,
+                    remaining: overflow.remaining,
+                  }
+          }}
+        </p>
+      } @else if (actionError()) {
+        <p class="callout callout--danger sm:col-span-2" role="alert">{{ actionError() }}</p>
+      }
 
       @if (isEditing()) {
         <p class="text-sm text-(--text-3) sm:col-span-2" role="note">
@@ -563,11 +691,17 @@
           <app-icon name="x" [size]="16" />
           {{ 'app.cancel' | t }}
         </button>
-        <button type="submit" appButton variant="primary" [loading]="saving()" [disabled]="saving()">
+        <button
+          type="submit"
+          appButton
+          variant="primary"
+          [loading]="saving()"
+          [disabled]="saving()"
+        >
           <app-icon name="check" [size]="16" />
           {{ (isEditing() ? 'app.save' : 'participations.form.create') | t }}
         </button>
       </div>
     </form>
-  }
+  </ng-template>
 </section>

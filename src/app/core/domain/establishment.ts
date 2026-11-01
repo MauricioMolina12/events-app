@@ -15,6 +15,7 @@ export interface Establishment {
   readonly code: string;
   readonly name: string;
   readonly city: string | null;
+  readonly cityId?: string | null;
   readonly address: string | null;
   readonly status: EstablishmentStatus;
   readonly createdAt: string;
@@ -27,6 +28,7 @@ export interface EstablishmentSummary {
   readonly code: string;
   readonly name: string;
   readonly city: string | null;
+  readonly cityId: string | null;
   readonly status: EstablishmentStatus;
 }
 
@@ -35,4 +37,5 @@ export interface PublicEstablishment {
   readonly id: string;
   readonly name: string;
   readonly city: string | null;
+  readonly cityId?: string | null;
 }

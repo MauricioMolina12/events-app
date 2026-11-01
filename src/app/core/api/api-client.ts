@@ -34,6 +34,14 @@ export class ApiClient {
     return this.#http.post<ApiEnvelope<T>>(path, body).pipe(map((envelope) => envelope.data));
   }
 
+  put<T>(path: string, body: unknown): Observable<T> {
+    return this.#http.put<ApiEnvelope<T>>(path, body).pipe(map((envelope) => envelope.data));
+  }
+
+  download(path: string, params?: QueryParams): Observable<Blob> {
+    return this.#http.get(path, { params: buildParams(params), responseType: 'blob' });
+  }
+
   patch<T>(path: string, body: unknown): Observable<T> {
     return this.#http.patch<ApiEnvelope<T>>(path, body).pipe(map((envelope) => envelope.data));
   }

@@ -3,7 +3,8 @@ import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, firstValueFrom, map, of, switchMap } from 'rxjs';
 import type { PublicEvent, PublicRegistrationReceipt } from '@core/domain';
-import { TranslatePipe } from '@core/i18n';
+import { TranslatePipe, type MessageKey } from '@core/i18n';
+import { safeEventSlug } from '@core/navigation/return-to';
 import { ApiErrorPresenter } from '@core/ui';
 import { ButtonDirective, EmptyState, PageHeader, Select, type SelectChoice } from '@shared/ui';
 import { CatalogApi } from '../catalog.api';
@@ -47,6 +48,28 @@ export class FindRegistrationPage {
   );
 
   protected readonly eventSlug = computed(() => this.slug()?.trim() || this.selectedSlug());
+
+  protected readonly backLink = computed(() => {
+    const slug = safeEventSlug(this.slug());
+    if (slug) {
+      return ['/eventos', slug];
+    }
+    const client = safeEventSlug(this.clienteSlug());
+    if (client) {
+      return ['/clientes', client, 'eventos'];
+    }
+    return ['/eventos'];
+  });
+
+  protected readonly backLabelKey = computed<MessageKey>(() =>
+    safeEventSlug(this.slug()) ? 'register.back' : 'event.back',
+  );
+
+  /** The slug is validated before it is written into the receipt URL. */
+  protected readonly receiptQuery = computed(() => {
+    const slug = safeEventSlug(this.eventSlug());
+    return slug ? { evento: slug } : {};
+  });
 
   protected async search(): Promise<void> {
     const event = this.eventSlug();

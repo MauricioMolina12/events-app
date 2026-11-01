@@ -7,7 +7,7 @@ import { I18nService, TranslatePipe } from '@core/i18n';
 import type { MessageKey } from '@core/i18n/messages';
 import { ApiErrorPresenter, ConfirmService, ThemeService, ToastService } from '@core/ui';
 import type { ThemePreference } from '@core/ui/theme.service';
-import { ClientsApi, type ClientSpace } from '@core/clients/clients.api';
+import { ClientsApi, type ClientFeatureFlag, type ClientSpace } from '@core/clients/clients.api';
 import { contrastText, normalizeHex, shadeHex } from '@core/workspace/brand-color';
 import { WorkspaceApi, type WorkspaceSettings } from '@core/workspace/workspace.api';
 import { WorkspaceService } from '@core/workspace/workspace.service';
@@ -22,7 +22,7 @@ import {
   type IconName,
 } from '@shared/ui';
 
-type SettingsTab = 'general' | 'identity' | 'appearance';
+type SettingsTab = 'general' | 'identity' | 'appearance' | 'features';
 
 interface ThemeChoice {
   readonly value: ThemePreference;
@@ -73,7 +73,24 @@ export class SettingsPage {
     { id: 'general', labelKey: 'settings.tab.general' },
     { id: 'identity', labelKey: 'settings.tab.identity' },
     { id: 'appearance', labelKey: 'settings.tab.appearance' },
+    { id: 'features', labelKey: 'settings.tab.features' },
   ];
+  protected readonly featureFlags = signal<readonly ClientFeatureFlag[]>([]);
+  protected readonly featureClients = signal<readonly ClientSpace[]>([]);
+  protected readonly featureClientId = signal('');
+  protected readonly featuresSaving = signal(false);
+  protected readonly featuresError = signal('');
+  protected readonly featureItems = computed(() =>
+    this.featureFlags().map((flag) => {
+      const meta = FEATURE_META[flag.feature];
+      return {
+        ...flag,
+        labelKey: `settings.features.${flag.feature}` as MessageKey,
+        descKey: `settings.features.${flag.feature}.desc` as MessageKey,
+        icon: meta.icon,
+      };
+    }),
+  );
 
   protected readonly form = new FormGroup({
     name: new FormControl('', {
@@ -142,7 +159,10 @@ export class SettingsPage {
     });
   }
 
-  protected selectTab(next: SettingsTab): void {
+  protected async selectTab(next: SettingsTab): Promise<void> {
+    if (next === 'features') {
+      await this.#loadFeatures();
+    }
     this.tab.set(next);
   }
 
@@ -154,7 +174,7 @@ export class SettingsPage {
       const direction = event.key === 'ArrowRight' ? 1 : -1;
       const next = order[(index + direction + order.length) % order.length];
       if (next) {
-        this.tab.set(next);
+        void this.selectTab(next);
       }
     }
   }
@@ -280,7 +300,79 @@ export class SettingsPage {
     });
     this.#formTick.update((value) => value + 1);
   }
+
+  protected async pickFeatureClient(event: Event): Promise<void> {
+    this.featureClientId.set((event.target as HTMLSelectElement).value);
+    await this.#loadFeatureFlags();
+  }
+
+  protected toggleFeature(feature: ClientFeatureFlag['feature'], enabled?: boolean): void {
+    if (!this.canEdit() || this.featuresSaving()) {
+      return;
+    }
+    this.featureFlags.update((flags) =>
+      flags.map((flag) =>
+        flag.feature === feature
+          ? { ...flag, enabled: enabled ?? !flag.enabled }
+          : flag,
+      ),
+    );
+  }
+
+  protected async saveFeatures(): Promise<void> {
+    if (this.featuresSaving()) {
+      return;
+    }
+    this.featuresSaving.set(true);
+    this.featuresError.set('');
+    try {
+      const clientId = this.isAdmin() ? this.featureClientId() : undefined;
+      const saved = await firstValueFrom(this.#clients.saveFeatures(this.featureFlags(), clientId));
+      this.featureFlags.set(saved);
+      this.#toast.success('settings.features.saved');
+    } catch (error: unknown) {
+      this.featuresError.set(this.#errors.message(error));
+    } finally {
+      this.featuresSaving.set(false);
+    }
+  }
+
+  async #loadFeatures(): Promise<void> {
+    this.featuresError.set('');
+    try {
+      if (this.isAdmin() && this.featureClients().length === 0) {
+        const clients = await firstValueFrom(this.#clients.list());
+        this.featureClients.set(clients);
+        if (!this.featureClientId() && clients[0]) {
+          this.featureClientId.set(clients[0].id);
+        }
+      }
+      await this.#loadFeatureFlags();
+    } catch (error: unknown) {
+      this.featuresError.set(this.#errors.message(error));
+    }
+  }
+
+  async #loadFeatureFlags(): Promise<void> {
+    const clientId = this.isAdmin() ? this.featureClientId() : undefined;
+    if (this.isAdmin() && !clientId) {
+      this.featureFlags.set([]);
+      return;
+    }
+    this.featureFlags.set(await firstValueFrom(this.#clients.features(clientId)));
+  }
 }
+
+const FEATURE_META: Record<
+  ClientFeatureFlag['feature'],
+  { readonly icon: IconName }
+> = {
+  delivery: { icon: 'map-pin' },
+  multi_venue: { icon: 'ticket' },
+  desk_export: { icon: 'download' },
+  desk_columns: { icon: 'phone' },
+  companion_turns: { icon: 'users' },
+};
 
 function clientSettings(client: ClientSpace, updatedAt: string): WorkspaceSettings {
   return {

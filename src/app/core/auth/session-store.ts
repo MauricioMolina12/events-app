@@ -2,8 +2,10 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
+import { Splash } from '@core/ui/splash';
 import { AuthApi } from './auth-api';
 import { AuthIntent, loginNavigationExtras } from './auth-intent';
+import { hasPanelModule } from './panel-access';
 import { safePanelPath } from './safe-panel-path';
 import { bumpSessionEpoch, currentSessionEpoch } from './session-epoch';
 import type { AuthSession, AuthUser, LoginRequest, SignupRequest, UserRole } from './models';
@@ -24,6 +26,7 @@ export class SessionStore {
   readonly #router = inject(Router);
   readonly #events = inject(SessionEvents);
   readonly #intent = inject(AuthIntent);
+  readonly #splash = inject(Splash);
 
   readonly #user = signal<AuthUser | null>(null);
   readonly #session = signal<AuthSession | null>(null);
@@ -42,8 +45,7 @@ export class SessionStore {
   readonly modules = computed(() => this.#user()?.modules);
 
   hasModule(module: string): boolean {
-    const modules = this.#user()?.modules;
-    return !modules || modules.length === 0 || modules.includes(module);
+    return hasPanelModule(this.#user()?.modules, module);
   }
   readonly sessionExpiresAt = computed(() => this.#session()?.expiresAt ?? null);
 
@@ -142,8 +144,12 @@ export class SessionStore {
     if (safePanelPath(this.#router.url)) {
       this.#intent.remember(this.#router.url);
     }
-    void this.#router.navigate(['/panel/login'], loginNavigationExtras(this.#router.url)).finally(() => {
-      this.#redirectInFlight = false;
-    });
+    const release = this.#splash.hold('splash.leaving');
+    void this.#router
+      .navigate(['/panel/login'], loginNavigationExtras(this.#router.url))
+      .finally(() => {
+        this.#redirectInFlight = false;
+        release();
+      });
   }
 }

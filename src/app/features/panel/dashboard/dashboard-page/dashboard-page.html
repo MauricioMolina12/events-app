@@ -16,7 +16,7 @@
   @switch (overview().status) {
   @case ('loading') {
   <div class="flex flex-col gap-4" aria-busy="true" [attr.aria-label]="'app.loading' | t">
-    <app-skeleton class="h-28 w-full rounded-[var(--radius-lg)]" />
+    <app-skeleton class="h-44 w-full rounded-[var(--radius-xl)]" />
     <div class="kpi-grid">
       @for (item of kpiPlaceholders; track item) {
       <app-skeleton class="kpi-skeleton" [class.kpi-skeleton--lead]="item <= 3" />
@@ -63,42 +63,73 @@
   }
 
   @if (selectedEvent(); as event) {
-  <!-- Selected event -->
-  <section class="section-block context card" [attr.aria-label]="'dash.context.label' | t">
-    <div class="context__main">
-      <p class="context__eyebrow">{{ 'dash.context.eyebrow' | t }}</p>
-      <div class="context__title">
-        @if (!isAdmin() && events().length > 1) {
-        <app-select appearance="title" [options]="eventChoices()" [value]="event.id" [searchable]="events().length >= 8"
-          [ariaLabel]="'dash.context.select' | t" (valueChange)="selectEvent($event)" />
-        } @else {
-        <h2 class="context__name">{{ event.name }}</h2>
-        }
-        <span [class]="'phase phase--' + phaseTone(event.phase)" [class.is-live]="isLivePhase(event.phase)">
-          <span class="phase__dot" aria-hidden="true"></span>
-          {{ phaseLabel(event.phase) | t }}
-        </span>
+  <!-- Selected event stage -->
+  <section class="stage" [attr.aria-label]="'dash.context.label' | t">
+    <div class="stage__panel">
+      <div class="stage__copy">
+        <div class="stage__eyebrow-row">
+          <p class="stage__eyebrow">{{ 'dash.context.eyebrow' | t }}</p>
+          <span [class]="'phase phase--' + phaseTone(event.phase)" [class.is-live]="isLivePhase(event.phase)">
+            <span class="phase__dot" aria-hidden="true"></span>
+            {{ phaseLabel(event.phase) | t }}
+          </span>
+        </div>
+
+        <div class="stage__title">
+          @if (!isAdmin() && events().length > 1) {
+          <app-select appearance="title" [options]="eventChoices()" [value]="event.id"
+            [searchable]="events().length >= 8" [ariaLabel]="'dash.context.select' | t"
+            (valueChange)="selectEvent($event)" />
+          } @else {
+          <h2 class="stage__name">{{ event.name }}</h2>
+          }
+        </div>
+
+        <p class="stage__meta">
+          <span>
+            <app-icon name="calendar" [size]="15" />
+            {{ dateRange(event) || ('dash.context.noDates' | t) }}
+          </span>
+          <span>
+            <app-icon name="map-pin" [size]="15" />
+            {{ sedeNames(event) || ('dash.context.noSedes' | t) }}
+          </span>
+        </p>
+
+        <div class="stage__actions">
+          <a routerLink="/panel/mesa" [queryParams]="deskQuery()" class="stage__cta stage__cta--primary">
+            <app-icon name="inbox" [size]="18" />
+            <span>{{ 'dash.context.openDesk' | t }}</span>
+          </a>
+          <a routerLink="/panel/ingreso" class="stage__cta stage__cta--secondary">
+            <app-icon name="scan" [size]="18" />
+            <span>{{ 'dash.context.openScan' | t }}</span>
+          </a>
+          <a
+            [routerLink]="['/panel/eventos', event.id, 'editar']"
+            class="stage__cta stage__cta--ghost"
+          >
+            <app-icon name="pencil" [size]="16" />
+            <span>{{ 'dash.context.editEvent' | t }}</span>
+          </a>
+        </div>
+
+        <div class="stage__invite">
+          <app-event-invite [name]="event.name" [slug]="event.slug" />
+        </div>
       </div>
-      <p class="context__meta">
-        <span>
-          <app-icon name="calendar" [size]="14" />
-          {{ dateRange(event) || ('dash.context.noDates' | t) }}
-        </span>
-        <span>
-          <app-icon name="map-pin" [size]="14" />
-          {{ sedeNames(event) || ('dash.context.noSedes' | t) }}
-        </span>
-      </p>
-      <div class="context__invite">
-        <app-event-invite [name]="event.name" [slug]="event.slug" />
-      </div>
+
+      <aside class="stage__side" aria-hidden="true">
+        <div class="stage__mark">
+          <app-icon name="ticket" [size]="28" />
+        </div>
+        <p class="stage__side-label">{{ event.name }}</p>
+      </aside>
     </div>
 
     @if (event.sedes.length > 1) {
-    <div class="context__filter">
-      <span class="context__filter-label" id="dash-sede-label">{{
-        'dash.context.sede' | t
-        }}</span>
+    <div class="stage__filter">
+      <span class="stage__filter-label" id="dash-sede-label">{{ 'dash.context.sede' | t }}</span>
       <div class="segmented" role="group" aria-labelledby="dash-sede-label">
         <button type="button" class="segmented__item" [class.is-active]="!sedeId()" [attr.aria-pressed]="!sedeId()"
           (click)="selectSede(null)">
@@ -147,7 +178,7 @@
     <div class="section-head">
       <h2 id="dash-kpis-title" class="section-title">{{ 'dash.kpis.title' | t }}</h2>
       <p class="section-caption">
-        {{ event.name }} · {{ sedeName() ?? ('dash.context.allSedes' | t) }}
+        {{ event.name }} � {{ sedeName() ?? ('dash.context.allSedes' | t) }}
       </p>
     </div>
     <div class="kpi-grid" [attr.aria-busy]="summary().status === 'loading'">
@@ -168,7 +199,7 @@
         @if (kpi.value !== null) {
         <p class="kpi__value" [appCountUp]="kpi.value" [countUpFormat]="kpi.format"></p>
         } @else {
-        <p class="kpi__value kpi__value--empty">—</p>
+        <p class="kpi__value kpi__value--empty">�</p>
         }
         @if (kpi.progress !== undefined) {
         <div class="kpi__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"
@@ -195,19 +226,6 @@
   <section aria-labelledby="dash-quick-title" class="flex flex-col gap-3">
     <h2 id="dash-quick-title" class="section-title">{{ 'dash.quick.title' | t }}</h2>
     <div class="quick">
-      <a routerLink="/panel/mesa" [queryParams]="deskQuery()" class="quick__hero">
-        <span class="quick__hero-icon" aria-hidden="true"><app-icon name="inbox" [size]="22" /></span>
-        <span class="quick__hero-body">
-          <span class="quick__hero-title">{{ 'nav.panel.registrations' | t }}</span>
-          <span class="quick__hero-text">{{ 'dash.quick.deskBody' | t }}</span>
-        </span>
-        <app-icon name="arrow-right" [size]="20" />
-      </a>
-      <a routerLink="/panel/ingreso" class="quick__tile">
-        <span class="quick__icon" aria-hidden="true"><app-icon name="scan" [size]="18" /></span>
-        <span class="quick__title">{{ 'dash.quick.scanner' | t }}</span>
-        <span class="quick__text">{{ 'dash.quick.scannerBody' | t }}</span>
-      </a>
       <a routerLink="/panel/mesa" [queryParams]="deskQuery({ orden: 'registeredAt', dir: 'desc' })" class="quick__tile">
         <span class="quick__icon" aria-hidden="true"><app-icon name="ticket" [size]="18" /></span>
         <span class="quick__title">{{ 'dash.quick.registrations' | t }}</span>
@@ -358,8 +376,8 @@
               }}
             </p>
             <p class="feed__meta">
-              {{ item.registration.sede }} ·
-              {{ 'dash.activity.people' | t: { count: item.registration.people } }} ·
+              {{ item.registration.sede }} �
+              {{ 'dash.activity.people' | t: { count: item.registration.people } }} �
               <span class="font-mono">{{ folio(item.registration.id) }}</span>
             </p>
             }
@@ -370,10 +388,10 @@
               }}
             </p>
             <p class="feed__meta">
-              {{ item.registration.sede }} ·
+              {{ item.registration.sede }}
               {{ 'dash.activity.turn' | t: { turn: turnLabel(item.turn) } }}
               @if (item.operator) {
-              · {{ 'desk.history.by' | t: { name: item.operator } }}
+              {{ 'desk.history.by' | t: { name: item.operator } }}
               }
             </p>
             }
@@ -426,7 +444,7 @@
     }
     }}
     }
-    · {{ 'dash.context.pickEvent' | t }}
+    � {{ 'dash.context.pickEvent' | t }}
   </p>
 
   <section aria-labelledby="dash-platform-title" class="flex flex-col gap-3">
@@ -530,7 +548,7 @@
                   <p class="aforo-row__meta">
                     <span class="sr-only">{{ 'dash.aforo.client' | t }}: </span>
                     {{ item.client?.displayName ?? ('dash.aforo.platform' | t) }}
-                    · {{ dateRange(item) || ('dash.context.noDates' | t) }}
+                    � {{ dateRange(item) || ('dash.context.noDates' | t) }}
                   </p>
                   <span [class]="'phase phase--' + phaseTone(item.phase)">
                     {{ phaseLabel(item.phase) | t }}
@@ -570,8 +588,8 @@
                     <span [style.width.%]="item.occupancy"></span>
                   </div>
                   <p class="aforo-row__level">
-                    {{ item.occupancyLevel === 'unassigned' ? '—' : occupancyText(item.occupancy) }}
-                    · {{ levelKey(item.occupancyLevel) | t }}
+                    {{ item.occupancyLevel === 'unassigned' ? '�' : occupancyText(item.occupancy) }}
+                    � {{ levelKey(item.occupancyLevel) | t }}
                   </p>
                   <div class="aforo-row__actions">
                     <app-event-invite compact [name]="item.name" [slug]="item.slug" />
@@ -652,7 +670,7 @@
                 </div>
                 <div>
                   <dt>{{ 'dash.events.attendance' | t }}</dt>
-                  <dd>{{ item.titulares > 0 ? percent(item.attendanceRate) : '—' }}</dd>
+                  <dd>{{ item.titulares > 0 ? percent(item.attendanceRate) : '�' }}</dd>
                 </div>
               </dl>
               <span class="event-card__bar" aria-hidden="true">
