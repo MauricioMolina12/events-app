@@ -362,7 +362,7 @@ export const MESSAGES = {
   'event.when': 'Cuándo',
   'event.where': 'Dónde',
   'event.noDate': 'Fecha por confirmar',
-  'event.venues': 'Sucursales y cupos',
+  'event.venues': 'Sucursales',
   'event.venues.empty': 'Este evento aún no tiene sucursales publicadas.',
   'event.venue.remaining': 'Quedan {count} lugares',
   'event.venue.noCapacity': 'Cupo por confirmar',
