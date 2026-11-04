@@ -76,62 +76,65 @@
                 </p>
               </div>
 
-              <ul class="grid list-none gap-3 p-0 sm:grid-cols-2">
+              <ul class="grid list-none gap-4 p-0 sm:grid-cols-2">
                 @for (participation of event.participations; track participation.id) {
-                  <li class="card card--pad flex flex-col gap-3">
-                    <div class="flex items-start justify-between gap-2">
-                      <div class="flex flex-col gap-0.5">
-                        <h3 class="text-base font-semibold">
-                          {{ participation.establishment.name }}
-                        </h3>
-                        @if (participation.establishment.city) {
-                          <p class="flex items-center gap-1 text-sm text-[var(--text-3)]">
-                            <app-icon name="map-pin" [size]="16" />
-                            {{ participation.establishment.city }}
-                          </p>
-                        }
+                  <li
+                    class="card card--pad card--interactive flex flex-col justify-between gap-4 rounded-[var(--radius-xl)]"
+                  >
+                    <div class="flex flex-col gap-3.5">
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="flex min-w-0 items-center gap-3">
+                          <span
+                            class="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] bg-[var(--primary-subtle)] text-[var(--primary)]"
+                            aria-hidden="true"
+                          >
+                            <app-icon name="map-pin" [size]="20" />
+                          </span>
+                          <div class="flex min-w-0 flex-col gap-0.5">
+                            <h3 class="truncate text-base font-semibold tracking-tight text-[var(--text-1)]">
+                              {{ participation.establishment.name }}
+                            </h3>
+                            @if (participation.establishment.city) {
+                              <p class="inline-flex items-center gap-1 text-xs font-medium text-[var(--text-3)]">
+                                {{ participation.establishment.city }}
+                              </p>
+                            }
+                          </div>
+                        </div>
+
+                        <app-status-badge class="shrink-0" [kind]="kind(participation)" />
                       </div>
 
-                      <app-status-badge [kind]="kind(participation)" />
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-2">
-                      @if (participation.availableTitulares > 0) {
-                        <span class="chip chip--success">
-                          {{
-                            'ui.capacity.remaining' | t: { count: participation.availableTitulares }
-                          }}
+                      <div
+                        class="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-xs font-medium text-[var(--text-2)]"
+                      >
+                        <app-icon name="calendar" [size]="15" class="shrink-0 text-[var(--primary)]" />
+                        <span>
+                          {{ 'event.venue.window' | t: { window: windowLabel(event, participation) } }}
                         </span>
-                      } @else {
-                        <span class="chip chip--danger">{{ 'ui.capacity.full' | t }}</span>
-                      }
-
-                      @if (participation.availableCompanions > 0) {
-                        <span class="chip">
-                          {{
-                            'event.venue.companions'
-                              | t: { count: participation.availableCompanions }
-                          }}
-                        </span>
-                      }
+                      </div>
                     </div>
-
-                    <p class="hint">
-                      {{ 'event.venue.window' | t: { window: windowLabel(event, participation) } }}
-                    </p>
 
                     @if (blockedReason(participation); as reason) {
-                      <p class="error-text">{{ reason | t }}</p>
+                      <div
+                        class="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--danger-subtle)] px-3 py-2 text-xs font-medium text-[var(--danger)]"
+                      >
+                        <app-icon name="alert-circle" [size]="15" class="shrink-0" />
+                        <p class="error-text !m-0">{{ reason | t }}</p>
+                      </div>
                     } @else {
                       <a
                         appButton
                         variant="primary"
+                        block
+                        class="mt-auto justify-center gap-2 rounded-[var(--radius-md)] py-2.5 font-semibold shadow-sm"
                         [attr.data-sede]="participation.id"
                         [routerLink]="['/eventos', event.slug, 'inscripcion']"
                         [queryParams]="{ sede: participation.id }"
                         [state]="linkState(participation.id)"
                       >
-                        {{ 'event.venue.register' | t }}
+                        <span>{{ 'event.venue.register' | t }}</span>
+                        <app-icon name="arrow-right" [size]="16" />
                       </a>
                     }
                   </li>
